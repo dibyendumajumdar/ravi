@@ -30,8 +30,9 @@ L1 (exit)
 define Proc%2
 L0 (entry)
 	TOFARRAY {local(a, 0)}
+	MOV {Upval(0, Proc%1, numarray)} {T(0)}
 	LENi {local(a, 0)} {Tint(0)}
-	CALL {Upval(0, Proc%1, numarray), Tint(0), 0.000000000000 Kflt(0)} {T(0..), 1 Kint(0)}
+	CALL {T(0), Tint(0), 0.000000000000 Kflt(0)} {T(0..), 1 Kint(0)}
 	TOFARRAY {T(0[0..])}
 	MOV {T(0[0..])} {local(c, 1)}
 	MOV {1 Kint(0)} {Tint(1)}
@@ -130,7 +131,8 @@ L17
 	NOT {Tbool(5)} {Tbool(1)}
 	CBR {Tbool(1)} {L18, L19}
 L18
-	CALL {Upval(1, Proc%1, write), 'Performing row interchange ' Ks(2), local(i, 2), ' will be swapped with ' Ks(3), Tint(0), '\n' Ks(4)} {T(1..), 1 Kint(0)}
+	MOV {Upval(1, Proc%1, write)} {T(2)}
+	CALL {T(2), 'Performing row interchange ' Ks(2), local(i, 2), ' will be swapped with ' Ks(3), Tint(0), '\n' Ks(4)} {T(2..), 1 Kint(0)}
 	IAGETik {local(nrow, 1), local(i, 2)} {Tint(3)}
 	MOVi {Tint(3)} {Tint(4)}
 	IAGETik {local(nrow, 1), Tint(0)} {Tint(5)}
@@ -174,13 +176,15 @@ L7
 	CBR {Tbool(9)} {L9, L8}
 L8
 	MOV {Tint(6)} {Tint(5)}
-	TGETik {local(columns, 0), Tint(5)} {T(0)}
+	MOV {Upval(0, Proc%1, write)} {T(0)}
+	TGETik {local(columns, 0), Tint(5)} {T(1)}
 	IAGETik {local(nrow, 3), Tint(0)} {Tint(10)}
-	GETik {T(0), Tint(10)} {T(1)}
-	CALL {Upval(0, Proc%1, write), T(1), ' ' Ks(0)} {T(0..), 1 Kint(0)}
+	GETik {T(1), Tint(10)} {T(2)}
+	CALL {T(0), T(2), ' ' Ks(0)} {T(0..), 1 Kint(0)}
 	BR {L6}
 L9
-	CALL {Upval(0, Proc%1, write), '\n' Ks(1)} {T(0..), 1 Kint(0)}
+	MOV {Upval(0, Proc%1, write)} {T(2)}
+	CALL {T(2), '\n' Ks(1)} {T(2..), 1 Kint(0)}
 	BR {L2}
 define Proc%5
 L0 (entry)
@@ -188,22 +192,27 @@ L0 (entry)
 	TOFARRAY {local(b, 1)}
 	TOINT {local(m, 2)}
 	TOINT {local(n, 3)}
-	CALL {Upval(0, Proc%1, copy), local(A, 0)} {T(0..), 1 Kint(0)}
+	MOV {Upval(0, Proc%1, copy)} {T(0)}
+	CALL {T(0), local(A, 0)} {T(0..), 1 Kint(0)}
 	TOFARRAY {T(0[0..])}
 	MOV {T(0[0..])} {local(A, 0)}
-	CALL {Upval(0, Proc%1, copy), local(b, 1)} {T(0..), 1 Kint(0)}
-	TOFARRAY {T(0[0..])}
-	MOV {T(0[0..])} {local(b, 1)}
+	MOV {Upval(0, Proc%1, copy)} {T(1)}
+	CALL {T(1), local(b, 1)} {T(1..), 1 Kint(0)}
+	TOFARRAY {T(1[1..])}
+	MOV {T(1[1..])} {local(b, 1)}
+	MOV {Upval(1, Proc%1, assert)} {T(2)}
 	EQii {local(m, 2), local(n, 3)} {Tbool(0)}
-	CALL {Upval(1, Proc%1, assert), Tbool(0)} {T(1..), 1 Kint(0)}
+	CALL {T(2), Tbool(0)} {T(2..), 1 Kint(0)}
+	MOV {Upval(1, Proc%1, assert)} {T(3)}
 	LENi {local(b, 1)} {Tint(0)}
 	EQii {Tint(0), local(m, 2)} {Tbool(1)}
-	CALL {Upval(1, Proc%1, assert), Tbool(1)} {T(1..), 1 Kint(0)}
-	CALL {Upval(2, Proc%1, intarray), local(n, 3)} {T(2..), 1 Kint(0)}
-	TOIARRAY {T(2[2..])}
-	MOV {T(2[2..])} {local(nrow, 4)}
-	NEWTABLE {T(0)}
-	MOV {T(0)} {local(columns, 5)}
+	CALL {T(3), Tbool(1)} {T(3..), 1 Kint(0)}
+	MOV {Upval(2, Proc%1, intarray)} {T(4)}
+	CALL {T(4), local(n, 3)} {T(4..), 1 Kint(0)}
+	TOIARRAY {T(4[4..])}
+	MOV {T(4[4..])} {local(nrow, 4)}
+	NEWTABLE {T(5)}
+	MOV {T(5)} {local(columns, 5)}
 	MOV {1 Kint(0)} {Tint(0)}
 	MOV {local(n, 3)} {Tint(2)}
 	MOV {1 Kint(0)} {Tint(3)}
@@ -218,16 +227,17 @@ L3
 	CBR {Tbool(4)} {L5, L4}
 L4
 	MOV {Tint(0)} {Tint(1)}
+	MOV {Upval(3, Proc%1, slice)} {T(6)}
 	SUBii {Tint(1), 1 Kint(0)} {Tint(5)}
 	MULii {Tint(5), local(m, 2)} {Tint(6)}
 	ADDii {Tint(6), 1 Kint(0)} {Tint(5)}
-	CALL {Upval(3, Proc%1, slice), local(A, 0), Tint(5), local(m, 2)} {T(3..), 1 Kint(0)}
-	TPUTik {T(3[3..])} {local(columns, 5), Tint(1)}
+	CALL {T(6), local(A, 0), Tint(5), local(m, 2)} {T(6..), 1 Kint(0)}
+	TPUTik {T(6[6..])} {local(columns, 5), Tint(1)}
 	BR {L2}
 L5
 	ADDii {local(n, 3), 1 Kint(0)} {Tint(0)}
-	MOV {local(b, 1)} {T(1)}
-	TPUTik {T(1)} {local(columns, 5), Tint(0)}
+	MOV {local(b, 1)} {T(7)}
+	TPUTik {T(7)} {local(columns, 5), Tint(0)}
 	MOV {1 Kint(0)} {Tint(3)}
 	MOV {local(n, 3)} {Tint(4)}
 	MOV {1 Kint(0)} {Tint(1)}
@@ -258,9 +268,11 @@ L11
 	CBR {Tbool(6)} {L13, L12}
 L12
 	MOV {Tint(4)} {Tint(3)}
-	CALL {Upval(4, Proc%1, partial_pivot), local(columns, 5), local(nrow, 4), Tint(3), local(m, 2)} {T(4..), 1 Kint(0)}
+	MOV {Upval(4, Proc%1, partial_pivot)} {T(7)}
+	CALL {T(7), local(columns, 5), local(nrow, 4), Tint(3), local(m, 2)} {T(7..), 1 Kint(0)}
+	MOV {Upval(5, Proc%1, dump_matrix)} {T(5)}
 	ADDii {local(n, 3), 1 Kint(0)} {Tint(7)}
-	CALL {Upval(5, Proc%1, dump_matrix), local(columns, 5), local(n, 3), Tint(7), local(nrow, 4)} {T(5..), 1 Kint(0)}
+	CALL {T(5), local(columns, 5), local(n, 3), Tint(7), local(nrow, 4)} {T(5..), 1 Kint(0)}
 	ADDii {Tint(3), 1 Kint(0)} {Tint(8)}
 	MOV {Tint(8)} {Tint(9)}
 	MOV {local(m, 2)} {Tint(10)}
@@ -277,23 +289,25 @@ L15
 	CBR {Tbool(12)} {L17, L16}
 L16
 	MOV {Tint(9)} {Tint(7)}
-	TGETik {local(columns, 5), Tint(3)} {T(1)}
-	TOFARRAY {T(1)}
-	MOV {T(1)} {local(column, 8)}
+	TGETik {local(columns, 5), Tint(3)} {T(8)}
+	TOFARRAY {T(8)}
+	MOV {T(8)} {local(column, 8)}
 	IAGETik {local(nrow, 4), Tint(7)} {Tint(13)}
 	FAGETik {local(column, 8), Tint(13)} {Tflt(1)}
 	IAGETik {local(nrow, 4), Tint(3)} {Tint(14)}
 	FAGETik {local(column, 8), Tint(14)} {Tflt(2)}
 	DIVff {Tflt(1), Tflt(2)} {Tflt(3)}
 	MOVf {Tflt(3)} {Tflt(0)}
-	CONCAT {'m(' Ks(0), Tint(7), ',' Ks(1), Tint(3), ') = ' Ks(2)} {T(1)}
+	MOV {Upval(6, Proc%1, write)} {T(8)}
+	CONCAT {'m(' Ks(0), Tint(7), ',' Ks(1), Tint(3), ') = ' Ks(2)} {T(9)}
 	IAGETik {local(nrow, 4), Tint(7)} {Tint(15)}
 	FAGETik {local(column, 8), Tint(15)} {Tflt(3)}
 	IAGETik {local(nrow, 4), Tint(3)} {Tint(16)}
 	FAGETik {local(column, 8), Tint(16)} {Tflt(2)}
-	CALL {Upval(6, Proc%1, write), T(1), Tflt(3), ' / ' Ks(3), Tflt(2), '\n' Ks(4)} {T(6..), 1 Kint(0)}
-	CONCAT {'Performing R(' Ks(5), Tint(7), ') = R(' Ks(6), Tint(7), ') - m(' Ks(7), Tint(7), ',' Ks(1), Tint(3), ') * R(' Ks(8), Tint(3), ')\n' Ks(9)} {T(1)}
-	CALL {Upval(6, Proc%1, write), T(1)} {T(6..), 1 Kint(0)}
+	CALL {T(8), T(9), Tflt(3), ' / ' Ks(3), Tflt(2), '\n' Ks(4)} {T(8..), 1 Kint(0)}
+	MOV {Upval(6, Proc%1, write)} {T(9)}
+	CONCAT {'Performing R(' Ks(5), Tint(7), ') = R(' Ks(6), Tint(7), ') - m(' Ks(7), Tint(7), ',' Ks(1), Tint(3), ') * R(' Ks(8), Tint(3), ')\n' Ks(9)} {T(10)}
+	CALL {T(9), T(10)} {T(9..), 1 Kint(0)}
 	MOV {Tint(3)} {Tint(18)}
 	ADDii {local(n, 3), 1 Kint(0)} {Tint(19)}
 	MOV {Tint(19)} {Tint(20)}
@@ -301,9 +315,11 @@ L16
 	SUBii {Tint(18), Tint(21)} {Tint(18)}
 	BR {L18}
 L17
-	CALL {Upval(6, Proc%1, write), 'Post elimination column ' Ks(10), Tint(3), '\n' Ks(4)} {T(6..), 1 Kint(0)}
+	MOV {Upval(6, Proc%1, write)} {T(10)}
+	CALL {T(10), 'Post elimination column ' Ks(10), Tint(3), '\n' Ks(4)} {T(10..), 1 Kint(0)}
+	MOV {Upval(5, Proc%1, dump_matrix)} {T(11)}
 	ADDii {local(n, 3), 1 Kint(0)} {Tint(9)}
-	CALL {Upval(5, Proc%1, dump_matrix), local(columns, 5), local(n, 3), Tint(9), local(nrow, 4)} {T(5..), 1 Kint(0)}
+	CALL {T(11), local(columns, 5), local(n, 3), Tint(9), local(nrow, 4)} {T(11..), 1 Kint(0)}
 	BR {L10}
 L18
 	ADDii {Tint(18), Tint(21)} {Tint(18)}
@@ -313,9 +329,9 @@ L19
 	CBR {Tbool(22)} {L21, L20}
 L20
 	MOV {Tint(18)} {Tint(17)}
-	TGETik {local(columns, 5), Tint(17)} {T(1)}
-	TOFARRAY {T(1)}
-	MOV {T(1)} {local(col, 9)}
+	TGETik {local(columns, 5), Tint(17)} {T(10)}
+	TOFARRAY {T(10)}
+	MOV {T(10)} {local(col, 9)}
 	IAGETik {local(nrow, 4), Tint(7)} {Tint(23)}
 	IAGETik {local(nrow, 4), Tint(7)} {Tint(24)}
 	FAGETik {local(col, 9), Tint(24)} {Tflt(2)}
@@ -328,31 +344,34 @@ L20
 L21
 	BR {L14}
 L22
-	TGETik {local(columns, 5), local(n, 3)} {T(1)}
+	TGETik {local(columns, 5), local(n, 3)} {T(12)}
 	IAGETik {local(nrow, 4), local(n, 3)} {Tint(4)}
-	GETik {T(1), Tint(4)} {T(0)}
-	EQ {T(0), 0.000000000000 Kflt(0)} {T(2)}
-	CBR {T(2)} {L23, L24}
+	GETik {T(12), Tint(4)} {T(13)}
+	EQ {T(13), 0.000000000000 Kflt(0)} {T(14)}
+	CBR {T(14)} {L23, L24}
 L23
-	LOADGLOBAL {Upval(_ENV), 'error' Ks(11)} {T(0)}
-	CALL {T(0), 'no unique solution exists' Ks(12)} {T(0..), 1 Kint(0)}
+	LOADGLOBAL {Upval(_ENV), 'error' Ks(11)} {T(13)}
+	CALL {T(13), 'no unique solution exists' Ks(12)} {T(13..), 1 Kint(0)}
 	BR {L24}
 L24
-	CALL {Upval(8, Proc%1, numarray), local(n, 3), 0.000000000000 Kflt(0)} {T(8..), 1 Kint(0)}
-	TOFARRAY {T(8[8..])}
-	MOV {T(8[8..])} {local(x, 6)}
-	TGETik {local(columns, 5), local(n, 3)} {T(3)}
-	TOFARRAY {T(3)}
-	MOV {T(3)} {local(a, 7)}
-	CALL {Upval(6, Proc%1, write), 'Performing back substitution\n' Ks(13)} {T(6..), 1 Kint(0)}
+	MOV {Upval(8, Proc%1, numarray)} {T(15)}
+	CALL {T(15), local(n, 3), 0.000000000000 Kflt(0)} {T(15..), 1 Kint(0)}
+	TOFARRAY {T(15[15..])}
+	MOV {T(15[15..])} {local(x, 6)}
+	TGETik {local(columns, 5), local(n, 3)} {T(16)}
+	TOFARRAY {T(16)}
+	MOV {T(16)} {local(a, 7)}
+	MOV {Upval(6, Proc%1, write)} {T(16)}
+	CALL {T(16), 'Performing back substitution\n' Ks(13)} {T(16..), 1 Kint(0)}
 	IAGETik {local(nrow, 4), local(n, 3)} {Tint(5)}
 	FAGETik {local(b, 1), Tint(5)} {Tflt(1)}
 	IAGETik {local(nrow, 4), local(n, 3)} {Tint(2)}
 	FAGETik {local(a, 7), Tint(2)} {Tflt(3)}
 	DIVff {Tflt(1), Tflt(3)} {Tflt(4)}
 	FAPUTfv {Tflt(4)} {local(x, 6), local(n, 3)}
+	MOV {Upval(6, Proc%1, write)} {T(17)}
 	FAGETik {local(x, 6), local(n, 3)} {Tflt(4)}
-	CALL {Upval(6, Proc%1, write), 'x[' Ks(14), local(n, 3), '] = b[' Ks(15), local(n, 3), '] / a[' Ks(16), local(n, 3), '] = ' Ks(17), Tflt(4), '\n' Ks(4)} {T(6..), 1 Kint(0)}
+	CALL {T(17), 'x[' Ks(14), local(n, 3), '] = b[' Ks(15), local(n, 3), '] / a[' Ks(16), local(n, 3), '] = ' Ks(17), Tflt(4), '\n' Ks(4)} {T(17..), 1 Kint(0)}
 	SUBii {local(n, 3), 1 Kint(0)} {Tint(3)}
 	MOV {Tint(3)} {Tint(9)}
 	MOV {1 Kint(0)} {Tint(10)}
@@ -388,9 +407,9 @@ L31
 	CBR {Tbool(26)} {L33, L32}
 L32
 	MOV {Tint(21)} {Tint(18)}
-	TGETik {local(columns, 5), Tint(18)} {T(3)}
-	TOFARRAY {T(3)}
-	MOV {T(3)} {local(a, 7)}
+	TGETik {local(columns, 5), Tint(18)} {T(18)}
+	TOFARRAY {T(18)}
+	MOV {T(18)} {local(a, 7)}
 	IAGETik {local(nrow, 4), Tint(6)} {Tint(27)}
 	FAGETik {local(a, 7), Tint(27)} {Tflt(0)}
 	FAGETik {local(x, 6), Tint(18)} {Tflt(3)}
@@ -399,10 +418,11 @@ L32
 	MOVf {Tflt(3)} {Tflt(4)}
 	BR {L34}
 L33
-	CALL {Upval(6, Proc%1, write), 'sum = ' Ks(18), Tflt(4), '\n' Ks(4)} {T(6..), 1 Kint(0)}
-	TGETik {local(columns, 5), Tint(6)} {T(3)}
-	TOFARRAY {T(3)}
-	MOV {T(3)} {local(a, 7)}
+	MOV {Upval(6, Proc%1, write)} {T(21)}
+	CALL {T(21), 'sum = ' Ks(18), Tflt(4), '\n' Ks(4)} {T(21..), 1 Kint(0)}
+	TGETik {local(columns, 5), Tint(6)} {T(22)}
+	TOFARRAY {T(22)}
+	MOV {T(22)} {local(a, 7)}
 	IAGETik {local(nrow, 4), Tint(6)} {Tint(21)}
 	FAGETik {local(b, 1), Tint(21)} {Tflt(1)}
 	SUBff {Tflt(1), Tflt(4)} {Tflt(0)}
@@ -410,21 +430,25 @@ L33
 	FAGETik {local(a, 7), Tint(22)} {Tflt(1)}
 	DIVff {Tflt(0), Tflt(1)} {Tflt(2)}
 	FAPUTfv {Tflt(2)} {local(x, 6), Tint(6)}
+	MOV {Upval(6, Proc%1, write)} {T(22)}
 	FAGETik {local(x, 6), Tint(6)} {Tflt(2)}
-	CALL {Upval(6, Proc%1, write), 'x[' Ks(14), Tint(6), '] = (b[' Ks(24), Tint(6), '] - sum) / a[' Ks(25), Tint(6), ', ' Ks(21), Tint(6), '] = ' Ks(17), Tflt(2), '\n' Ks(4)} {T(6..), 1 Kint(0)}
+	CALL {T(22), 'x[' Ks(14), Tint(6), '] = (b[' Ks(24), Tint(6), '] - sum) / a[' Ks(25), Tint(6), ', ' Ks(21), Tint(6), '] = ' Ks(17), Tflt(2), '\n' Ks(4)} {T(22..), 1 Kint(0)}
 	BR {L25}
 L34
 	ADDii {Tint(6), 1 Kint(0)} {Tint(28)}
 	EQii {Tint(18), Tint(28)} {Tbool(29)}
 	CBR {Tbool(29)} {L35, L36}
 L35
-	CALL {Upval(6, Proc%1, write), 'sum = ' Ks(18)} {T(6..), 1 Kint(0)}
+	MOV {Upval(6, Proc%1, write)} {T(18)}
+	CALL {T(18), 'sum = ' Ks(18)} {T(18..), 1 Kint(0)}
 	BR {L37}
 L36
-	CALL {Upval(6, Proc%1, write), 'sum = sum + ' Ks(19)} {T(6..), 1 Kint(0)}
+	MOV {Upval(6, Proc%1, write)} {T(19)}
+	CALL {T(19), 'sum = sum + ' Ks(19)} {T(19..), 1 Kint(0)}
 	BR {L37}
 L37
-	CALL {Upval(6, Proc%1, write), 'a[' Ks(20), Tint(6), ', ' Ks(21), Tint(18), '] * x[' Ks(22), Tint(18), ']' Ks(23), '\n' Ks(4)} {T(6..), 1 Kint(0)}
+	MOV {Upval(6, Proc%1, write)} {T(20)}
+	CALL {T(20), 'a[' Ks(20), Tint(6), ', ' Ks(21), Tint(18), '] * x[' Ks(22), Tint(18), ']' Ks(23), '\n' Ks(4)} {T(20..), 1 Kint(0)}
 	BR {L30}
 
 End of IR dump*/
@@ -1077,6 +1101,7 @@ TValue fval2; settt_(&fval2, LUA_TNUMFLT);
 TValue bval2; settt_(&bval2, LUA_TBOOLEAN);
 TValue nilval; setnilvalue(&nilval);
 L0:
+// LOADGLOBAL {Upval(_ENV), 'assert' Ks(0)} {T(0)}
 {
  TValue *tab = cl->upvals[0]->v;
  TValue *key = K(0);
@@ -1084,12 +1109,14 @@ L0:
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// MOV {T(0)} {local(assert, 0)}
 {
-const TValue *src_reg = R(9);
-TValue *dst_reg = R(0);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(9);
+ TValue *dst_reg = R(0);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// LOADGLOBAL {Upval(_ENV), 'table' Ks(1)} {T(0)}
 {
  TValue *tab = cl->upvals[0]->v;
  TValue *key = K(1);
@@ -1097,6 +1124,7 @@ dst_reg->value_.n = src_reg->value_.n;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// GETsk {T(0), 'slice' Ks(2)} {T(1)}
 {
  TValue *tab = R(9);
  TValue *key = K(2);
@@ -1104,6 +1132,7 @@ dst_reg->value_.n = src_reg->value_.n;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// LOADGLOBAL {Upval(_ENV), 'table' Ks(1)} {T(2)}
 {
  TValue *tab = cl->upvals[0]->v;
  TValue *key = K(1);
@@ -1111,6 +1140,7 @@ dst_reg->value_.n = src_reg->value_.n;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// GETsk {T(2), 'numarray' Ks(3)} {T(3)}
 {
  TValue *tab = R(11);
  TValue *key = K(3);
@@ -1118,6 +1148,7 @@ dst_reg->value_.n = src_reg->value_.n;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// LOADGLOBAL {Upval(_ENV), 'table' Ks(1)} {T(4)}
 {
  TValue *tab = cl->upvals[0]->v;
  TValue *key = K(1);
@@ -1125,6 +1156,7 @@ dst_reg->value_.n = src_reg->value_.n;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// GETsk {T(4), 'intarray' Ks(4)} {T(5)}
 {
  TValue *tab = R(13);
  TValue *key = K(4);
@@ -1132,24 +1164,28 @@ dst_reg->value_.n = src_reg->value_.n;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// MOV {T(1)} {local(slice, 1)}
 {
-const TValue *src_reg = R(10);
-TValue *dst_reg = R(1);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(10);
+ TValue *dst_reg = R(1);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// MOV {T(3)} {local(numarray, 2)}
 {
-const TValue *src_reg = R(12);
-TValue *dst_reg = R(2);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(12);
+ TValue *dst_reg = R(2);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// MOV {T(5)} {local(intarray, 3)}
 {
-const TValue *src_reg = R(14);
-TValue *dst_reg = R(3);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(14);
+ TValue *dst_reg = R(3);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// LOADGLOBAL {Upval(_ENV), 'io' Ks(5)} {T(5)}
 {
  TValue *tab = cl->upvals[0]->v;
  TValue *key = K(5);
@@ -1157,6 +1193,7 @@ dst_reg->value_.n = src_reg->value_.n;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// GETsk {T(5), 'write' Ks(6)} {T(3)}
 {
  TValue *tab = R(14);
  TValue *key = K(6);
@@ -1164,49 +1201,60 @@ dst_reg->value_.n = src_reg->value_.n;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// MOV {T(3)} {local(write, 4)}
 {
-const TValue *src_reg = R(12);
-TValue *dst_reg = R(4);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(12);
+ TValue *dst_reg = R(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// CLOSURE {Proc%2} {T(3)}
 raviV_op_closure(L, ci, cl, 12, 0);
 base = ci->u.l.base;
+// MOV {T(3)} {local(copy, 5)}
 {
-const TValue *src_reg = R(12);
-TValue *dst_reg = R(5);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(12);
+ TValue *dst_reg = R(5);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// CLOSURE {Proc%3} {T(3)}
 raviV_op_closure(L, ci, cl, 12, 1);
 base = ci->u.l.base;
+// MOV {T(3)} {local(partial_pivot, 6)}
 {
-const TValue *src_reg = R(12);
-TValue *dst_reg = R(6);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(12);
+ TValue *dst_reg = R(6);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// CLOSURE {Proc%4} {T(3)}
 raviV_op_closure(L, ci, cl, 12, 2);
 base = ci->u.l.base;
+// MOV {T(3)} {local(dump_matrix, 7)}
 {
-const TValue *src_reg = R(12);
-TValue *dst_reg = R(7);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(12);
+ TValue *dst_reg = R(7);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// CLOSURE {Proc%5} {T(3)}
 raviV_op_closure(L, ci, cl, 12, 3);
 base = ci->u.l.base;
+// MOV {T(3)} {local(gaussian_solve, 8)}
 {
-const TValue *src_reg = R(12);
-TValue *dst_reg = R(8);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(12);
+ TValue *dst_reg = R(8);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// NEWTABLE {T(3)}
 {
  TValue *ra = R(12);
  raviV_op_newtable(L, ci, ra, 0, 0);
 base = ci->u.l.base;
 }
+// TPUTsk {local(gaussian_solve, 8)} {T(3), 'gaussian_solve' Ks(7)}
 {
  TValue *tab = R(12);
  TValue *key = K(7);
@@ -1214,6 +1262,7 @@ base = ci->u.l.base;
  raviV_settable_sskey(L, tab, key, src);
  base = ci->u.l.base;
 }
+// RET {T(3)} {L1}
 luaF_close(L, base);
 {
  TValue *stackbase = ci->func;
@@ -1223,10 +1272,10 @@ luaF_close(L, base);
  int j = 0;
  if (0 < wanted) {
 {
-const TValue *src_reg = R(12);
-TValue *dst_reg = S(0);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(12);
+ TValue *dst_reg = S(0);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
  }
  j++;
@@ -1264,6 +1313,7 @@ TValue fval2; settt_(&fval2, LUA_TNUMFLT);
 TValue bval2; settt_(&bval2, LUA_TBOOLEAN);
 TValue nilval; setnilvalue(&nilval);
 L0:
+// TOFARRAY {local(a, 0)}
 {
  TValue *ra = R(0);
  if (!ttisfarray(ra)) {
@@ -1271,6 +1321,14 @@ L0:
   goto Lraise_error;
  }
 }
+// MOV {Upval(0, Proc%1, numarray)} {T(0)}
+{
+ const TValue *src_reg = cl->upvals[0]->v;
+ TValue *dst_reg = R(2);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// LENi {local(a, 0)} {Tint(0)}
 {
  TValue *len = &ival0; ival0.value_.i = i_0;
  TValue *obj = R(0);
@@ -1278,21 +1336,16 @@ L0:
 base = ci->u.l.base;
  i_0 = ival0.value_.i;
 }
+// CALL {T(0), Tint(0), 0.000000000000 Kflt(0)} {T(0..), 1 Kint(0)}
  if (stackoverflow(L,4)) { luaD_growstack(L, 4); base = ci->u.l.base; }
  L->top = R(2) + 3;
 {
-TValue *dst_reg = R(4);
-setfltvalue(dst_reg, 0);
+ TValue *dst_reg = R(4);
+ setfltvalue(dst_reg, 0);
 }
 {
-TValue *dst_reg = R(3);
-setivalue(dst_reg, i_0);
-}
-{
-const TValue *src_reg = cl->upvals[0]->v;
-TValue *dst_reg = R(2);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ TValue *dst_reg = R(3);
+ setivalue(dst_reg, i_0);
 }
 {
  TValue *ra = R(2);
@@ -1307,6 +1360,7 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// TOFARRAY {T(0[0..])}
 {
  TValue *ra = R(2);
  if (!ttisfarray(ra)) {
@@ -1314,13 +1368,16 @@ dst_reg->value_.n = src_reg->value_.n;
   goto Lraise_error;
  }
 }
+// MOV {T(0[0..])} {local(c, 1)}
 {
-const TValue *src_reg = R(2);
-TValue *dst_reg = R(1);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(2);
+ TValue *dst_reg = R(1);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// MOV {1 Kint(0)} {Tint(1)}
 i_1 = 1;
+// LENi {local(a, 0)} {Tint(2)}
 {
  TValue *len = &ival0; ival0.value_.i = i_2;
  TValue *obj = R(0);
@@ -1328,9 +1385,13 @@ i_1 = 1;
 base = ci->u.l.base;
  i_2 = ival0.value_.i;
 }
+// MOV {Tint(2)} {Tint(3)}
 i_3 = i_2;
+// MOV {1 Kint(0)} {Tint(4)}
 i_4 = 1;
+// SUBii {Tint(1), Tint(4)} {Tint(1)}
 { i_1 = i_1 - i_4; }
+// BR {L2}
 goto L2;
 L1:
  return result;
@@ -1338,19 +1399,26 @@ Lraise_error:
  raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
+// ADDii {Tint(1), Tint(4)} {Tint(1)}
 { i_1 = i_1 + i_4; }
+// BR {L3}
 goto L3;
 L3:
+// LIii {Tint(3), Tint(1)} {Tbool(5)}
 { i_5 = i_3 < i_1; }
+// CBR {Tbool(5)} {L5, L4}
 { if (i_5 != 0) goto L5; else goto L4; }
 L4:
+// MOV {Tint(1)} {Tint(0)}
 i_0 = i_1;
+// FAGETik {local(a, 0), Tint(0)} {Tflt(1)}
 {
  RaviArray *arr = arrvalue(R(0));
  lua_Unsigned ukey = (lua_Unsigned) i_0;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_1 = iptr[ukey];
 }
+// FAPUTfv {Tflt(1)} {local(c, 1), Tint(0)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) i_0;
@@ -1361,8 +1429,10 @@ i_0 = i_1;
  raviH_set_float(L, arr, ukey, f_1);
 }
 }
+// BR {L2}
 goto L2;
 L5:
+// RET {local(c, 1)} {L1}
 {
  TValue *stackbase = ci->func;
  int wanted = ci->nresults;
@@ -1371,10 +1441,10 @@ L5:
  int j = 0;
  if (0 < wanted) {
 {
-const TValue *src_reg = R(1);
-TValue *dst_reg = S(0);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(1);
+ TValue *dst_reg = S(0);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
  }
  j++;
@@ -1407,6 +1477,7 @@ TValue fval2; settt_(&fval2, LUA_TNUMFLT);
 TValue bval2; settt_(&bval2, LUA_TBOOLEAN);
 TValue nilval; setnilvalue(&nilval);
 L0:
+// TOTABLE {local(columns, 0)}
 {
  TValue *ra = R(0);
  if (!ttisLtable(ra)) {
@@ -1414,6 +1485,7 @@ L0:
   goto Lraise_error;
  }
 }
+// TOIARRAY {local(nrow, 1)}
 {
  TValue *ra = R(1);
  if (!ttisiarray(ra)) {
@@ -1421,6 +1493,7 @@ L0:
   goto Lraise_error;
  }
 }
+// TOINT {local(i, 2)}
 {
  TValue *ra = R(2);
  if (!ttisinteger(ra)) {
@@ -1428,6 +1501,7 @@ L0:
   goto Lraise_error;
  }
 }
+// TOINT {local(n, 3)}
 {
  TValue *ra = R(3);
  if (!ttisinteger(ra)) {
@@ -1435,12 +1509,16 @@ L0:
   goto Lraise_error;
  }
 }
+// MOV {local(i, 2)} {Tint(1)}
 {
 TValue *reg = R(2);
 i_1 = ivalue(reg);
 }
+// MOVi {Tint(1)} {Tint(0)}
 i_0 = i_1;
+// MOVf {0.000000000000 Kflt(0)} {Tflt(0)}
 f_0 = 0;
+// TGETik {local(columns, 0), local(i, 2)} {T(0)}
 {
  TValue *tab = R(0);
  TValue *key = R(2);
@@ -1448,6 +1526,7 @@ f_0 = 0;
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// TOFARRAY {T(0)}
 {
  TValue *ra = R(6);
  if (!ttisfarray(ra)) {
@@ -1455,26 +1534,33 @@ f_0 = 0;
   goto Lraise_error;
  }
 }
+// MOV {T(0)} {local(a, 4)}
 {
-const TValue *src_reg = R(6);
-TValue *dst_reg = R(4);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(6);
+ TValue *dst_reg = R(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// MOV {false} {local(max_set, 5)}
 {
-TValue *dst_reg = R(5);
-setbvalue(dst_reg, 0);
+ TValue *dst_reg = R(5);
+ setbvalue(dst_reg, 0);
 }
+// MOV {local(i, 2)} {Tint(2)}
 {
 TValue *reg = R(2);
 i_2 = ivalue(reg);
 }
+// MOV {local(n, 3)} {Tint(3)}
 {
 TValue *reg = R(3);
 i_3 = ivalue(reg);
 }
+// MOV {1 Kint(0)} {Tint(4)}
 i_4 = 1;
+// SUBii {Tint(2), Tint(4)} {Tint(2)}
 { i_2 = i_2 - i_4; }
+// BR {L2}
 goto L2;
 L1:
  return result;
@@ -1482,79 +1568,111 @@ Lraise_error:
  raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
+// ADDii {Tint(2), Tint(4)} {Tint(2)}
 { i_2 = i_2 + i_4; }
+// BR {L3}
 goto L3;
 L3:
+// LIii {Tint(3), Tint(2)} {Tbool(5)}
 { i_5 = i_3 < i_2; }
+// CBR {Tbool(5)} {L5, L4}
 { if (i_5 != 0) goto L5; else goto L4; }
 L4:
+// MOV {Tint(2)} {Tint(1)}
 i_1 = i_2;
+// IAGETik {local(nrow, 1), Tint(1)} {Tint(6)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) i_1;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_6 = iptr[ukey];
 }
+// FAGETik {local(a, 4), Tint(6)} {Tflt(2)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_6;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_2 = iptr[ukey];
 }
+// MOVf {Tflt(2)} {Tflt(1)}
 f_1 = f_2;
+// BR {L6}
 goto L6;
 L5:
+// BR {L14}
 goto L14;
 L6:
+// LTff {Tflt(1), 0.000000000000 Kflt(0)} {Tbool(7)}
 { i_7 = f_1 < 0; }
+// CBR {Tbool(7)} {L7, L8}
 { if (i_7 != 0) goto L7; else goto L8; }
 L7:
+// UNMf {Tflt(1)} {Tflt(2)}
 {
  f_2 = -f_1;
 }
+// MOVf {Tflt(2)} {Tflt(1)}
 f_1 = f_2;
+// BR {L8}
 goto L8;
 L8:
+// BR {L9}
 goto L9;
 L9:
+// NOT {local(max_set, 5)} {T(0)}
 {
  TValue *ra = R(6);
  TValue *rb = R(5);
  int result = l_isfalse(rb);
  setbvalue(ra, result);
 }
+// CBR {T(0)} {L11, L10}
 {
 const TValue *src_reg = R(6);
 if (!l_isfalse(src_reg)) goto L11;
 else goto L10;
 }
 L10:
+// LTff {Tflt(0), Tflt(1)} {Tbool(8)}
 { i_8 = f_0 < f_1; }
+// CBR {Tbool(8)} {L12, L13}
 { if (i_8 != 0) goto L12; else goto L13; }
 L11:
+// MOVf {Tflt(1)} {Tflt(0)}
 f_0 = f_1;
+// MOV {true} {local(max_set, 5)}
 {
-TValue *dst_reg = R(5);
-setbvalue(dst_reg, 1);
+ TValue *dst_reg = R(5);
+ setbvalue(dst_reg, 1);
 }
+// MOVi {Tint(1)} {Tint(0)}
 i_0 = i_1;
+// BR {L13}
 goto L13;
 L12:
+// MOVi {Tint(1)} {Tint(0)}
 i_0 = i_1;
+// MOVf {Tflt(1)} {Tflt(0)}
 f_0 = f_1;
+// BR {L13}
 goto L13;
 L13:
+// BR {L2}
 goto L2;
 L14:
+// FAGETik {local(a, 4), Tint(0)} {Tflt(1)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_0;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_1 = iptr[ukey];
 }
+// EQff {Tflt(1), 0.000000000000 Kflt(0)} {Tbool(2)}
 { i_2 = f_1 == 0; }
+// CBR {Tbool(2)} {L15, L16}
 { if (i_2 != 0) goto L15; else goto L16; }
 L15:
+// LOADGLOBAL {Upval(_ENV), 'error' Ks(0)} {T(1)}
 {
  TValue *tab = cl->upvals[0]->v;
  TValue *key = K(0);
@@ -1562,12 +1680,14 @@ L15:
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// CALL {T(1), 'no unique solution exists' Ks(1)} {T(1..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
  L->top = R(7) + 2;
 {
-TValue *dst_reg = R(8);
-TValue *src_reg = K(1);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(8);
+ TValue *src_reg = K(1);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
  TValue *ra = R(7);
@@ -1582,61 +1702,73 @@ dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
  }
  base = ci->u.l.base;
 }
+// BR {L16}
 goto L16;
 L16:
+// BR {L17}
 goto L17;
 L17:
+// IAGETik {local(nrow, 1), local(i, 2)} {Tint(3)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) ivalue(R(2));
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_3 = iptr[ukey];
 }
+// IAGETik {local(nrow, 1), Tint(0)} {Tint(4)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) i_0;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_4 = iptr[ukey];
 }
+// EQii {Tint(3), Tint(4)} {Tbool(5)}
 { i_5 = i_3 == i_4; }
+// NOT {Tbool(5)} {Tbool(1)}
 { i_1 = (0 == i_5); }
+// CBR {Tbool(1)} {L18, L19}
 { if (i_1 != 0) goto L18; else goto L19; }
 L18:
+// MOV {Upval(1, Proc%1, write)} {T(2)}
+{
+ const TValue *src_reg = cl->upvals[1]->v;
+ TValue *dst_reg = R(8);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(2), 'Performing row interchange ' Ks(2), local(i, 2), ' will be swapped with ' Ks(3), Tint(0), '\n' Ks(4)} {T(2..), 1 Kint(0)}
  if (stackoverflow(L,7)) { luaD_growstack(L, 7); base = ci->u.l.base; }
- L->top = R(7) + 6;
+ L->top = R(8) + 6;
 {
-TValue *dst_reg = R(12);
-TValue *src_reg = K(4);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(13);
+ TValue *src_reg = K(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(11);
-setivalue(dst_reg, i_0);
+ TValue *dst_reg = R(12);
+ setivalue(dst_reg, i_0);
 }
 {
-TValue *dst_reg = R(10);
-TValue *src_reg = K(3);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(11);
+ TValue *src_reg = K(3);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = R(2);
-TValue *dst_reg = R(9);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(2);
+ TValue *dst_reg = R(10);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-TValue *dst_reg = R(8);
-TValue *src_reg = K(2);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(9);
+ TValue *src_reg = K(2);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[1]->v;
-TValue *dst_reg = R(7);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(7);
+ TValue *ra = R(8);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -1648,19 +1780,23 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// IAGETik {local(nrow, 1), local(i, 2)} {Tint(3)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) ivalue(R(2));
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_3 = iptr[ukey];
 }
+// MOVi {Tint(3)} {Tint(4)}
 i_4 = i_3;
+// IAGETik {local(nrow, 1), Tint(0)} {Tint(5)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) i_0;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_5 = iptr[ukey];
 }
+// IAPUTiv {Tint(5)} {local(nrow, 1), local(i, 2)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) ivalue(R(2));
@@ -1671,6 +1807,7 @@ i_4 = i_3;
  raviH_set_int(L, arr, ukey, i_5);
 }
 }
+// IAPUTiv {Tint(4)} {local(nrow, 1), Tint(0)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) i_0;
@@ -1681,8 +1818,10 @@ i_4 = i_3;
  raviH_set_int(L, arr, ukey, i_4);
 }
 }
+// BR {L19}
 goto L19;
 L19:
+// RET {L1}
 {
  TValue *stackbase = ci->func;
  int wanted = ci->nresults;
@@ -1717,6 +1856,7 @@ TValue fval2; settt_(&fval2, LUA_TNUMFLT);
 TValue bval2; settt_(&bval2, LUA_TBOOLEAN);
 TValue nilval; setnilvalue(&nilval);
 L0:
+// TOTABLE {local(columns, 0)}
 {
  TValue *ra = R(0);
  if (!ttisLtable(ra)) {
@@ -1724,6 +1864,7 @@ L0:
   goto Lraise_error;
  }
 }
+// TOINT {local(m, 1)}
 {
  TValue *ra = R(1);
  if (!ttisinteger(ra)) {
@@ -1731,6 +1872,7 @@ L0:
   goto Lraise_error;
  }
 }
+// TOINT {local(n, 2)}
 {
  TValue *ra = R(2);
  if (!ttisinteger(ra)) {
@@ -1738,6 +1880,7 @@ L0:
   goto Lraise_error;
  }
 }
+// TOIARRAY {local(nrow, 3)}
 {
  TValue *ra = R(3);
  if (!ttisiarray(ra)) {
@@ -1745,13 +1888,18 @@ L0:
   goto Lraise_error;
  }
 }
+// MOV {1 Kint(0)} {Tint(1)}
 i_1 = 1;
+// MOV {local(m, 1)} {Tint(2)}
 {
 TValue *reg = R(1);
 i_2 = ivalue(reg);
 }
+// MOV {1 Kint(0)} {Tint(3)}
 i_3 = 1;
+// SUBii {Tint(1), Tint(3)} {Tint(1)}
 { i_1 = i_1 - i_3; }
+// BR {L2}
 goto L2;
 L1:
  return result;
@@ -1759,22 +1907,33 @@ Lraise_error:
  raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
+// ADDii {Tint(1), Tint(3)} {Tint(1)}
 { i_1 = i_1 + i_3; }
+// BR {L3}
 goto L3;
 L3:
+// LIii {Tint(2), Tint(1)} {Tbool(4)}
 { i_4 = i_2 < i_1; }
+// CBR {Tbool(4)} {L5, L4}
 { if (i_4 != 0) goto L5; else goto L4; }
 L4:
+// MOV {Tint(1)} {Tint(0)}
 i_0 = i_1;
+// MOV {1 Kint(0)} {Tint(6)}
 i_6 = 1;
+// MOV {local(n, 2)} {Tint(7)}
 {
 TValue *reg = R(2);
 i_7 = ivalue(reg);
 }
+// MOV {1 Kint(0)} {Tint(8)}
 i_8 = 1;
+// SUBii {Tint(6), Tint(8)} {Tint(6)}
 { i_6 = i_6 - i_8; }
+// BR {L6}
 goto L6;
 L5:
+// RET {L1}
 {
  TValue *stackbase = ci->func;
  int wanted = ci->nresults;
@@ -1790,45 +1949,62 @@ L5:
 }
 goto L1;
 L6:
+// ADDii {Tint(6), Tint(8)} {Tint(6)}
 { i_6 = i_6 + i_8; }
+// BR {L7}
 goto L7;
 L7:
+// LIii {Tint(7), Tint(6)} {Tbool(9)}
 { i_9 = i_7 < i_6; }
+// CBR {Tbool(9)} {L9, L8}
 { if (i_9 != 0) goto L9; else goto L8; }
 L8:
+// MOV {Tint(6)} {Tint(5)}
 i_5 = i_6;
+// MOV {Upval(0, Proc%1, write)} {T(0)}
+{
+ const TValue *src_reg = cl->upvals[0]->v;
+ TValue *dst_reg = R(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// TGETik {local(columns, 0), Tint(5)} {T(1)}
 {
  TValue *tab = R(0);
  TValue *key = &ival0; ival0.value_.i = i_5;
- TValue *dst = R(4);
+ TValue *dst = R(5);
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// IAGETik {local(nrow, 3), Tint(0)} {Tint(10)}
 {
  RaviArray *arr = arrvalue(R(3));
  lua_Unsigned ukey = (lua_Unsigned) i_0;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_10 = iptr[ukey];
 }
+// GETik {T(1), Tint(10)} {T(2)}
 {
- TValue *tab = R(4);
+ TValue *tab = R(5);
  TValue *key = &ival0; ival0.value_.i = i_10;
- TValue *dst = R(5);
+ TValue *dst = R(6);
  luaV_gettable(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// CALL {T(0), T(2), ' ' Ks(0)} {T(0..), 1 Kint(0)}
  if (stackoverflow(L,4)) { luaD_growstack(L, 4); base = ci->u.l.base; }
  L->top = R(4) + 3;
 {
-TValue *dst_reg = R(6);
-TValue *src_reg = K(0);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(6);
+ TValue *src_reg = K(0);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[0]->v;
-TValue *dst_reg = R(4);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(6);
+ TValue *dst_reg = R(5);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
  TValue *ra = R(4);
@@ -1843,23 +2019,27 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// BR {L6}
 goto L6;
 L9:
+// MOV {Upval(0, Proc%1, write)} {T(2)}
+{
+ const TValue *src_reg = cl->upvals[0]->v;
+ TValue *dst_reg = R(6);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(2), '\n' Ks(1)} {T(2..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(4) + 2;
+ L->top = R(6) + 2;
 {
-TValue *dst_reg = R(5);
-TValue *src_reg = K(1);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(7);
+ TValue *src_reg = K(1);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[0]->v;
-TValue *dst_reg = R(4);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(4);
+ TValue *ra = R(6);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -1871,6 +2051,7 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// BR {L2}
 goto L2;
 }
 static int __ravifunc_5(lua_State *L) {
@@ -1893,6 +2074,7 @@ TValue fval2; settt_(&fval2, LUA_TNUMFLT);
 TValue bval2; settt_(&bval2, LUA_TBOOLEAN);
 TValue nilval; setnilvalue(&nilval);
 L0:
+// TOFARRAY {local(A, 0)}
 {
  TValue *ra = R(0);
  if (!ttisfarray(ra)) {
@@ -1900,6 +2082,7 @@ L0:
   goto Lraise_error;
  }
 }
+// TOFARRAY {local(b, 1)}
 {
  TValue *ra = R(1);
  if (!ttisfarray(ra)) {
@@ -1907,6 +2090,7 @@ L0:
   goto Lraise_error;
  }
 }
+// TOINT {local(m, 2)}
 {
  TValue *ra = R(2);
  if (!ttisinteger(ra)) {
@@ -1914,6 +2098,7 @@ L0:
   goto Lraise_error;
  }
 }
+// TOINT {local(n, 3)}
 {
  TValue *ra = R(3);
  if (!ttisinteger(ra)) {
@@ -1921,19 +2106,21 @@ L0:
   goto Lraise_error;
  }
 }
+// MOV {Upval(0, Proc%1, copy)} {T(0)}
+{
+ const TValue *src_reg = cl->upvals[0]->v;
+ TValue *dst_reg = R(10);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(0), local(A, 0)} {T(0..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
  L->top = R(10) + 2;
 {
-const TValue *src_reg = R(0);
-TValue *dst_reg = R(11);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-const TValue *src_reg = cl->upvals[0]->v;
-TValue *dst_reg = R(10);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(0);
+ TValue *dst_reg = R(11);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
  TValue *ra = R(10);
@@ -1948,6 +2135,7 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// TOFARRAY {T(0[0..])}
 {
  TValue *ra = R(10);
  if (!ttisfarray(ra)) {
@@ -1955,64 +2143,28 @@ dst_reg->value_.n = src_reg->value_.n;
   goto Lraise_error;
  }
 }
+// MOV {T(0[0..])} {local(A, 0)}
 {
-const TValue *src_reg = R(10);
-TValue *dst_reg = R(0);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(10);
+ TValue *dst_reg = R(0);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
- if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(10) + 2;
+// MOV {Upval(0, Proc%1, copy)} {T(1)}
 {
-const TValue *src_reg = R(1);
-TValue *dst_reg = R(11);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = cl->upvals[0]->v;
+ TValue *dst_reg = R(11);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
-{
-const TValue *src_reg = cl->upvals[0]->v;
-TValue *dst_reg = R(10);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(10);
- int result = luaD_precall(L, ra, 1, 1);
- if (result) {
-  if (result == 1 && 1 >= 0)
-   L->top = ci->top;
- }
- else {  /* Lua function */
-  result = luaV_execute(L);
-  if (result) L->top = ci->top;
- }
- base = ci->u.l.base;
-}
-{
- TValue *ra = R(10);
- if (!ttisfarray(ra)) {
-  error_code = 3;
-  goto Lraise_error;
- }
-}
-{
-const TValue *src_reg = R(10);
-TValue *dst_reg = R(1);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{ i_0 = ivalue(R(2)) == ivalue(R(3)); }
+// CALL {T(1), local(b, 1)} {T(1..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
  L->top = R(11) + 2;
 {
-TValue *dst_reg = R(12);
-setbvalue(dst_reg, i_0);
-}
-{
-const TValue *src_reg = cl->upvals[1]->v;
-TValue *dst_reg = R(11);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(1);
+ TValue *dst_reg = R(12);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
  TValue *ra = R(11);
@@ -2027,6 +2179,58 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// TOFARRAY {T(1[1..])}
+{
+ TValue *ra = R(11);
+ if (!ttisfarray(ra)) {
+  error_code = 3;
+  goto Lraise_error;
+ }
+}
+// MOV {T(1[1..])} {local(b, 1)}
+{
+ const TValue *src_reg = R(11);
+ TValue *dst_reg = R(1);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// MOV {Upval(1, Proc%1, assert)} {T(2)}
+{
+ const TValue *src_reg = cl->upvals[1]->v;
+ TValue *dst_reg = R(12);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// EQii {local(m, 2), local(n, 3)} {Tbool(0)}
+{ i_0 = ivalue(R(2)) == ivalue(R(3)); }
+// CALL {T(2), Tbool(0)} {T(2..), 1 Kint(0)}
+ if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
+ L->top = R(12) + 2;
+{
+ TValue *dst_reg = R(13);
+ setbvalue(dst_reg, i_0);
+}
+{
+ TValue *ra = R(12);
+ int result = luaD_precall(L, ra, 1, 1);
+ if (result) {
+  if (result == 1 && 1 >= 0)
+   L->top = ci->top;
+ }
+ else {  /* Lua function */
+  result = luaV_execute(L);
+  if (result) L->top = ci->top;
+ }
+ base = ci->u.l.base;
+}
+// MOV {Upval(1, Proc%1, assert)} {T(3)}
+{
+ const TValue *src_reg = cl->upvals[1]->v;
+ TValue *dst_reg = R(13);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// LENi {local(b, 1)} {Tint(0)}
 {
  TValue *len = &ival0; ival0.value_.i = i_0;
  TValue *obj = R(1);
@@ -2034,130 +2238,14 @@ dst_reg->value_.n = src_reg->value_.n;
 base = ci->u.l.base;
  i_0 = ival0.value_.i;
 }
+// EQii {Tint(0), local(m, 2)} {Tbool(1)}
 { i_1 = i_0 == ivalue(R(2)); }
+// CALL {T(3), Tbool(1)} {T(3..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(11) + 2;
+ L->top = R(13) + 2;
 {
-TValue *dst_reg = R(12);
-setbvalue(dst_reg, i_1);
-}
-{
-const TValue *src_reg = cl->upvals[1]->v;
-TValue *dst_reg = R(11);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(11);
- int result = luaD_precall(L, ra, 1, 1);
- if (result) {
-  if (result == 1 && 1 >= 0)
-   L->top = ci->top;
- }
- else {  /* Lua function */
-  result = luaV_execute(L);
-  if (result) L->top = ci->top;
- }
- base = ci->u.l.base;
-}
- if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(12) + 2;
-{
-const TValue *src_reg = R(3);
-TValue *dst_reg = R(13);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-const TValue *src_reg = cl->upvals[2]->v;
-TValue *dst_reg = R(12);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(12);
- int result = luaD_precall(L, ra, 1, 1);
- if (result) {
-  if (result == 1 && 1 >= 0)
-   L->top = ci->top;
- }
- else {  /* Lua function */
-  result = luaV_execute(L);
-  if (result) L->top = ci->top;
- }
- base = ci->u.l.base;
-}
-{
- TValue *ra = R(12);
- if (!ttisiarray(ra)) {
-  error_code = 2;
-  goto Lraise_error;
- }
-}
-{
-const TValue *src_reg = R(12);
-TValue *dst_reg = R(4);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(10);
- raviV_op_newtable(L, ci, ra, 0, 0);
-base = ci->u.l.base;
-}
-{
-const TValue *src_reg = R(10);
-TValue *dst_reg = R(5);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-i_0 = 1;
-{
-TValue *reg = R(3);
-i_2 = ivalue(reg);
-}
-i_3 = 1;
-{ i_0 = i_0 - i_3; }
-goto L2;
-L1:
- return result;
-Lraise_error:
- raviV_raise_error(L, error_code); /* does not return */
- return result;
-L2:
-{ i_0 = i_0 + i_3; }
-goto L3;
-L3:
-{ i_4 = i_2 < i_0; }
-{ if (i_4 != 0) goto L5; else goto L4; }
-L4:
-i_1 = i_0;
-{ i_5 = i_1 - 1; }
-{ i_6 = i_5 * ivalue(R(2)); }
-{ i_5 = i_6 + 1; }
- if (stackoverflow(L,5)) { luaD_growstack(L, 5); base = ci->u.l.base; }
- L->top = R(13) + 4;
-{
-const TValue *src_reg = R(2);
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-TValue *dst_reg = R(15);
-setivalue(dst_reg, i_5);
-}
-{
-const TValue *src_reg = R(0);
-TValue *dst_reg = R(14);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-const TValue *src_reg = cl->upvals[3]->v;
-TValue *dst_reg = R(13);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ TValue *dst_reg = R(14);
+ setbvalue(dst_reg, i_1);
 }
 {
  TValue *ra = R(13);
@@ -2172,100 +2260,21 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// MOV {Upval(2, Proc%1, intarray)} {T(4)}
 {
- TValue *tab = R(5);
- TValue *key = &ival0; ival0.value_.i = i_1;
- TValue *src = R(13);
- raviV_settable_i(L, tab, key, src);
- base = ci->u.l.base;
+ const TValue *src_reg = cl->upvals[2]->v;
+ TValue *dst_reg = R(14);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
-goto L2;
-L5:
-{ i_0 = ivalue(R(3)) + 1; }
+// CALL {T(4), local(n, 3)} {T(4..), 1 Kint(0)}
+ if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
+ L->top = R(14) + 2;
 {
-const TValue *src_reg = R(1);
-TValue *dst_reg = R(11);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *tab = R(5);
- TValue *key = &ival0; ival0.value_.i = i_0;
- TValue *src = R(11);
- raviV_settable_i(L, tab, key, src);
- base = ci->u.l.base;
-}
-i_3 = 1;
-{
-TValue *reg = R(3);
-i_4 = ivalue(reg);
-}
-i_1 = 1;
-{ i_3 = i_3 - i_1; }
-goto L6;
-L6:
-{ i_3 = i_3 + i_1; }
-goto L7;
-L7:
-{ i_5 = i_4 < i_3; }
-{ if (i_5 != 0) goto L9; else goto L8; }
-L8:
-i_2 = i_3;
-{
- RaviArray *arr = arrvalue(R(4));
- lua_Unsigned ukey = (lua_Unsigned) i_2;
- lua_Integer *iptr = (lua_Integer *)arr->data;
- if (ukey < (lua_Unsigned)(arr->len)) {
- iptr[ukey] = i_2;
-} else {
- raviH_set_int(L, arr, ukey, i_2);
-}
-}
-goto L6;
-L9:
-i_4 = 1;
-{ i_1 = ivalue(R(3)) - 1; }
-i_5 = i_1;
-i_2 = 1;
-{ i_4 = i_4 - i_2; }
-goto L10;
-L10:
-{ i_4 = i_4 + i_2; }
-goto L11;
-L11:
-{ i_6 = i_5 < i_4; }
-{ if (i_6 != 0) goto L13; else goto L12; }
-L12:
-i_3 = i_4;
- if (stackoverflow(L,6)) { luaD_growstack(L, 6); base = ci->u.l.base; }
- L->top = R(14) + 5;
-{
-const TValue *src_reg = R(2);
-TValue *dst_reg = R(18);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-TValue *dst_reg = R(17);
-setivalue(dst_reg, i_3);
-}
-{
-const TValue *src_reg = R(4);
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-const TValue *src_reg = R(5);
-TValue *dst_reg = R(15);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-const TValue *src_reg = cl->upvals[4]->v;
-TValue *dst_reg = R(14);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(3);
+ TValue *dst_reg = R(15);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
  TValue *ra = R(14);
@@ -2280,36 +2289,281 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// TOIARRAY {T(4[4..])}
+{
+ TValue *ra = R(14);
+ if (!ttisiarray(ra)) {
+  error_code = 2;
+  goto Lraise_error;
+ }
+}
+// MOV {T(4[4..])} {local(nrow, 4)}
+{
+ const TValue *src_reg = R(14);
+ TValue *dst_reg = R(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// NEWTABLE {T(5)}
+{
+ TValue *ra = R(15);
+ raviV_op_newtable(L, ci, ra, 0, 0);
+base = ci->u.l.base;
+}
+// MOV {T(5)} {local(columns, 5)}
+{
+ const TValue *src_reg = R(15);
+ TValue *dst_reg = R(5);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// MOV {1 Kint(0)} {Tint(0)}
+i_0 = 1;
+// MOV {local(n, 3)} {Tint(2)}
+{
+TValue *reg = R(3);
+i_2 = ivalue(reg);
+}
+// MOV {1 Kint(0)} {Tint(3)}
+i_3 = 1;
+// SUBii {Tint(0), Tint(3)} {Tint(0)}
+{ i_0 = i_0 - i_3; }
+// BR {L2}
+goto L2;
+L1:
+ return result;
+Lraise_error:
+ raviV_raise_error(L, error_code); /* does not return */
+ return result;
+L2:
+// ADDii {Tint(0), Tint(3)} {Tint(0)}
+{ i_0 = i_0 + i_3; }
+// BR {L3}
+goto L3;
+L3:
+// LIii {Tint(2), Tint(0)} {Tbool(4)}
+{ i_4 = i_2 < i_0; }
+// CBR {Tbool(4)} {L5, L4}
+{ if (i_4 != 0) goto L5; else goto L4; }
+L4:
+// MOV {Tint(0)} {Tint(1)}
+i_1 = i_0;
+// MOV {Upval(3, Proc%1, slice)} {T(6)}
+{
+ const TValue *src_reg = cl->upvals[3]->v;
+ TValue *dst_reg = R(16);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// SUBii {Tint(1), 1 Kint(0)} {Tint(5)}
+{ i_5 = i_1 - 1; }
+// MULii {Tint(5), local(m, 2)} {Tint(6)}
+{ i_6 = i_5 * ivalue(R(2)); }
+// ADDii {Tint(6), 1 Kint(0)} {Tint(5)}
+{ i_5 = i_6 + 1; }
+// CALL {T(6), local(A, 0), Tint(5), local(m, 2)} {T(6..), 1 Kint(0)}
+ if (stackoverflow(L,5)) { luaD_growstack(L, 5); base = ci->u.l.base; }
+ L->top = R(16) + 4;
+{
+ const TValue *src_reg = R(2);
+ TValue *dst_reg = R(19);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+{
+ TValue *dst_reg = R(18);
+ setivalue(dst_reg, i_5);
+}
+{
+ const TValue *src_reg = R(0);
+ TValue *dst_reg = R(17);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+{
+ TValue *ra = R(16);
+ int result = luaD_precall(L, ra, 1, 1);
+ if (result) {
+  if (result == 1 && 1 >= 0)
+   L->top = ci->top;
+ }
+ else {  /* Lua function */
+  result = luaV_execute(L);
+  if (result) L->top = ci->top;
+ }
+ base = ci->u.l.base;
+}
+// TPUTik {T(6[6..])} {local(columns, 5), Tint(1)}
+{
+ TValue *tab = R(5);
+ TValue *key = &ival0; ival0.value_.i = i_1;
+ TValue *src = R(16);
+ raviV_settable_i(L, tab, key, src);
+ base = ci->u.l.base;
+}
+// BR {L2}
+goto L2;
+L5:
+// ADDii {local(n, 3), 1 Kint(0)} {Tint(0)}
+{ i_0 = ivalue(R(3)) + 1; }
+// MOV {local(b, 1)} {T(7)}
+{
+ const TValue *src_reg = R(1);
+ TValue *dst_reg = R(17);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// TPUTik {T(7)} {local(columns, 5), Tint(0)}
+{
+ TValue *tab = R(5);
+ TValue *key = &ival0; ival0.value_.i = i_0;
+ TValue *src = R(17);
+ raviV_settable_i(L, tab, key, src);
+ base = ci->u.l.base;
+}
+// MOV {1 Kint(0)} {Tint(3)}
+i_3 = 1;
+// MOV {local(n, 3)} {Tint(4)}
+{
+TValue *reg = R(3);
+i_4 = ivalue(reg);
+}
+// MOV {1 Kint(0)} {Tint(1)}
+i_1 = 1;
+// SUBii {Tint(3), Tint(1)} {Tint(3)}
+{ i_3 = i_3 - i_1; }
+// BR {L6}
+goto L6;
+L6:
+// ADDii {Tint(3), Tint(1)} {Tint(3)}
+{ i_3 = i_3 + i_1; }
+// BR {L7}
+goto L7;
+L7:
+// LIii {Tint(4), Tint(3)} {Tbool(5)}
+{ i_5 = i_4 < i_3; }
+// CBR {Tbool(5)} {L9, L8}
+{ if (i_5 != 0) goto L9; else goto L8; }
+L8:
+// MOV {Tint(3)} {Tint(2)}
+i_2 = i_3;
+// IAPUTiv {Tint(2)} {local(nrow, 4), Tint(2)}
+{
+ RaviArray *arr = arrvalue(R(4));
+ lua_Unsigned ukey = (lua_Unsigned) i_2;
+ lua_Integer *iptr = (lua_Integer *)arr->data;
+ if (ukey < (lua_Unsigned)(arr->len)) {
+ iptr[ukey] = i_2;
+} else {
+ raviH_set_int(L, arr, ukey, i_2);
+}
+}
+// BR {L6}
+goto L6;
+L9:
+// MOV {1 Kint(0)} {Tint(4)}
+i_4 = 1;
+// SUBii {local(n, 3), 1 Kint(0)} {Tint(1)}
+{ i_1 = ivalue(R(3)) - 1; }
+// MOV {Tint(1)} {Tint(5)}
+i_5 = i_1;
+// MOV {1 Kint(0)} {Tint(2)}
+i_2 = 1;
+// SUBii {Tint(4), Tint(2)} {Tint(4)}
+{ i_4 = i_4 - i_2; }
+// BR {L10}
+goto L10;
+L10:
+// ADDii {Tint(4), Tint(2)} {Tint(4)}
+{ i_4 = i_4 + i_2; }
+// BR {L11}
+goto L11;
+L11:
+// LIii {Tint(5), Tint(4)} {Tbool(6)}
+{ i_6 = i_5 < i_4; }
+// CBR {Tbool(6)} {L13, L12}
+{ if (i_6 != 0) goto L13; else goto L12; }
+L12:
+// MOV {Tint(4)} {Tint(3)}
+i_3 = i_4;
+// MOV {Upval(4, Proc%1, partial_pivot)} {T(7)}
+{
+ const TValue *src_reg = cl->upvals[4]->v;
+ TValue *dst_reg = R(17);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(7), local(columns, 5), local(nrow, 4), Tint(3), local(m, 2)} {T(7..), 1 Kint(0)}
+ if (stackoverflow(L,6)) { luaD_growstack(L, 6); base = ci->u.l.base; }
+ L->top = R(17) + 5;
+{
+ const TValue *src_reg = R(2);
+ TValue *dst_reg = R(21);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+{
+ TValue *dst_reg = R(20);
+ setivalue(dst_reg, i_3);
+}
+{
+ const TValue *src_reg = R(4);
+ TValue *dst_reg = R(19);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+{
+ const TValue *src_reg = R(5);
+ TValue *dst_reg = R(18);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+{
+ TValue *ra = R(17);
+ int result = luaD_precall(L, ra, 1, 1);
+ if (result) {
+  if (result == 1 && 1 >= 0)
+   L->top = ci->top;
+ }
+ else {  /* Lua function */
+  result = luaV_execute(L);
+  if (result) L->top = ci->top;
+ }
+ base = ci->u.l.base;
+}
+// MOV {Upval(5, Proc%1, dump_matrix)} {T(5)}
+{
+ const TValue *src_reg = cl->upvals[5]->v;
+ TValue *dst_reg = R(15);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// ADDii {local(n, 3), 1 Kint(0)} {Tint(7)}
 { i_7 = ivalue(R(3)) + 1; }
+// CALL {T(5), local(columns, 5), local(n, 3), Tint(7), local(nrow, 4)} {T(5..), 1 Kint(0)}
  if (stackoverflow(L,6)) { luaD_growstack(L, 6); base = ci->u.l.base; }
  L->top = R(15) + 5;
 {
-const TValue *src_reg = R(4);
-TValue *dst_reg = R(19);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(4);
+ TValue *dst_reg = R(19);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-TValue *dst_reg = R(18);
-setivalue(dst_reg, i_7);
+ TValue *dst_reg = R(18);
+ setivalue(dst_reg, i_7);
 }
 {
-const TValue *src_reg = R(3);
-TValue *dst_reg = R(17);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(3);
+ TValue *dst_reg = R(17);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-const TValue *src_reg = R(5);
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-const TValue *src_reg = cl->upvals[5]->v;
-TValue *dst_reg = R(15);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(5);
+ TValue *dst_reg = R(16);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
  TValue *ra = R(15);
@@ -2324,165 +2578,192 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// ADDii {Tint(3), 1 Kint(0)} {Tint(8)}
 { i_8 = i_3 + 1; }
+// MOV {Tint(8)} {Tint(9)}
 i_9 = i_8;
+// MOV {local(m, 2)} {Tint(10)}
 {
 TValue *reg = R(2);
 i_10 = ivalue(reg);
 }
+// MOV {1 Kint(0)} {Tint(11)}
 i_11 = 1;
+// SUBii {Tint(9), Tint(11)} {Tint(9)}
 { i_9 = i_9 - i_11; }
+// BR {L14}
 goto L14;
 L13:
+// BR {L22}
 goto L22;
 L14:
+// ADDii {Tint(9), Tint(11)} {Tint(9)}
 { i_9 = i_9 + i_11; }
+// BR {L15}
 goto L15;
 L15:
+// LIii {Tint(10), Tint(9)} {Tbool(12)}
 { i_12 = i_10 < i_9; }
+// CBR {Tbool(12)} {L17, L16}
 { if (i_12 != 0) goto L17; else goto L16; }
 L16:
+// MOV {Tint(9)} {Tint(7)}
 i_7 = i_9;
+// TGETik {local(columns, 5), Tint(3)} {T(8)}
 {
  TValue *tab = R(5);
  TValue *key = &ival0; ival0.value_.i = i_3;
- TValue *dst = R(11);
+ TValue *dst = R(18);
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// TOFARRAY {T(8)}
 {
- TValue *ra = R(11);
+ TValue *ra = R(18);
  if (!ttisfarray(ra)) {
   error_code = 3;
   goto Lraise_error;
  }
 }
+// MOV {T(8)} {local(column, 8)}
 {
-const TValue *src_reg = R(11);
-TValue *dst_reg = R(8);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(18);
+ TValue *dst_reg = R(8);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// IAGETik {local(nrow, 4), Tint(7)} {Tint(13)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_7;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_13 = iptr[ukey];
 }
+// FAGETik {local(column, 8), Tint(13)} {Tflt(1)}
 {
  RaviArray *arr = arrvalue(R(8));
  lua_Unsigned ukey = (lua_Unsigned) i_13;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_1 = iptr[ukey];
 }
+// IAGETik {local(nrow, 4), Tint(3)} {Tint(14)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_3;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_14 = iptr[ukey];
 }
+// FAGETik {local(column, 8), Tint(14)} {Tflt(2)}
 {
  RaviArray *arr = arrvalue(R(8));
  lua_Unsigned ukey = (lua_Unsigned) i_14;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_2 = iptr[ukey];
 }
+// DIVff {Tflt(1), Tflt(2)} {Tflt(3)}
 { f_3 = f_1 / f_2; }
+// MOVf {Tflt(3)} {Tflt(0)}
 f_0 = f_3;
+// MOV {Upval(6, Proc%1, write)} {T(8)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(18);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CONCAT {'m(' Ks(0), Tint(7), ',' Ks(1), Tint(3), ') = ' Ks(2)} {T(9)}
  if (stackoverflow(L,5)) { luaD_growstack(L, 5); base = ci->u.l.base; }
 {
 {
-TValue *dst_reg = R(14);
-TValue *src_reg = K(0);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(33);
+ TValue *src_reg = K(0);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(15);
-setivalue(dst_reg, i_7);
+ TValue *dst_reg = R(34);
+ setivalue(dst_reg, i_7);
 }
 {
-TValue *dst_reg = R(16);
-TValue *src_reg = K(1);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(35);
+ TValue *src_reg = K(1);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(17);
-setivalue(dst_reg, i_3);
+ TValue *dst_reg = R(36);
+ setivalue(dst_reg, i_3);
 }
 {
-TValue *dst_reg = R(18);
-TValue *src_reg = K(2);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(37);
+ TValue *src_reg = K(2);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
- L->top = R(14) + 5;
+ L->top = R(33) + 5;
  luaV_concat(L, 5);
  base = ci->u.l.base;
  L->top = ci->top;
 {
-const TValue *src_reg = R(14);
-TValue *dst_reg = R(11);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(33);
+ TValue *dst_reg = R(19);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 }
+// IAGETik {local(nrow, 4), Tint(7)} {Tint(15)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_7;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_15 = iptr[ukey];
 }
+// FAGETik {local(column, 8), Tint(15)} {Tflt(3)}
 {
  RaviArray *arr = arrvalue(R(8));
  lua_Unsigned ukey = (lua_Unsigned) i_15;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_3 = iptr[ukey];
 }
+// IAGETik {local(nrow, 4), Tint(3)} {Tint(16)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_3;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_16 = iptr[ukey];
 }
+// FAGETik {local(column, 8), Tint(16)} {Tflt(2)}
 {
  RaviArray *arr = arrvalue(R(8));
  lua_Unsigned ukey = (lua_Unsigned) i_16;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_2 = iptr[ukey];
 }
+// CALL {T(8), T(9), Tflt(3), ' / ' Ks(3), Tflt(2), '\n' Ks(4)} {T(8..), 1 Kint(0)}
  if (stackoverflow(L,7)) { luaD_growstack(L, 7); base = ci->u.l.base; }
- L->top = R(16) + 6;
+ L->top = R(18) + 6;
 {
-TValue *dst_reg = R(21);
-TValue *src_reg = K(4);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(23);
+ TValue *src_reg = K(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(20);
-setfltvalue(dst_reg, f_2);
+ TValue *dst_reg = R(22);
+ setfltvalue(dst_reg, f_2);
 }
 {
-TValue *dst_reg = R(19);
-TValue *src_reg = K(3);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(21);
+ TValue *src_reg = K(3);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(18);
-setfltvalue(dst_reg, f_3);
+ TValue *dst_reg = R(20);
+ setfltvalue(dst_reg, f_3);
 }
 {
-const TValue *src_reg = R(11);
-TValue *dst_reg = R(17);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(18);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -2494,85 +2775,88 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// MOV {Upval(6, Proc%1, write)} {T(9)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(19);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CONCAT {'Performing R(' Ks(5), Tint(7), ') = R(' Ks(6), Tint(7), ') - m(' Ks(7), Tint(7), ',' Ks(1), Tint(3), ') * R(' Ks(8), Tint(3), ')\n' Ks(9)} {T(10)}
  if (stackoverflow(L,11)) { luaD_growstack(L, 11); base = ci->u.l.base; }
 {
 {
-TValue *dst_reg = R(14);
-TValue *src_reg = K(5);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(33);
+ TValue *src_reg = K(5);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(15);
-setivalue(dst_reg, i_7);
+ TValue *dst_reg = R(34);
+ setivalue(dst_reg, i_7);
 }
 {
-TValue *dst_reg = R(16);
-TValue *src_reg = K(6);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(35);
+ TValue *src_reg = K(6);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(17);
-setivalue(dst_reg, i_7);
+ TValue *dst_reg = R(36);
+ setivalue(dst_reg, i_7);
 }
 {
-TValue *dst_reg = R(18);
-TValue *src_reg = K(7);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(37);
+ TValue *src_reg = K(7);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(19);
-setivalue(dst_reg, i_7);
+ TValue *dst_reg = R(38);
+ setivalue(dst_reg, i_7);
 }
 {
-TValue *dst_reg = R(20);
-TValue *src_reg = K(1);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(39);
+ TValue *src_reg = K(1);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(21);
-setivalue(dst_reg, i_3);
+ TValue *dst_reg = R(40);
+ setivalue(dst_reg, i_3);
 }
 {
-TValue *dst_reg = R(22);
-TValue *src_reg = K(8);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(41);
+ TValue *src_reg = K(8);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(23);
-setivalue(dst_reg, i_3);
+ TValue *dst_reg = R(42);
+ setivalue(dst_reg, i_3);
 }
 {
-TValue *dst_reg = R(24);
-TValue *src_reg = K(9);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(43);
+ TValue *src_reg = K(9);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
- L->top = R(14) + 11;
+ L->top = R(33) + 11;
  luaV_concat(L, 11);
  base = ci->u.l.base;
  L->top = ci->top;
 {
-const TValue *src_reg = R(14);
-TValue *dst_reg = R(11);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(33);
+ TValue *dst_reg = R(20);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 }
+// CALL {T(9), T(10)} {T(9..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(16) + 2;
+ L->top = R(19) + 2;
 {
-const TValue *src_reg = R(11);
-TValue *dst_reg = R(17);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(19);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -2584,37 +2868,47 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// MOV {Tint(3)} {Tint(18)}
 i_18 = i_3;
+// ADDii {local(n, 3), 1 Kint(0)} {Tint(19)}
 { i_19 = ivalue(R(3)) + 1; }
+// MOV {Tint(19)} {Tint(20)}
 i_20 = i_19;
+// MOV {1 Kint(0)} {Tint(21)}
 i_21 = 1;
+// SUBii {Tint(18), Tint(21)} {Tint(18)}
 { i_18 = i_18 - i_21; }
+// BR {L18}
 goto L18;
 L17:
+// MOV {Upval(6, Proc%1, write)} {T(10)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(20);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(10), 'Post elimination column ' Ks(10), Tint(3), '\n' Ks(4)} {T(10..), 1 Kint(0)}
  if (stackoverflow(L,5)) { luaD_growstack(L, 5); base = ci->u.l.base; }
- L->top = R(16) + 4;
+ L->top = R(20) + 4;
 {
-TValue *dst_reg = R(19);
-TValue *src_reg = K(4);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(23);
+ TValue *src_reg = K(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(18);
-setivalue(dst_reg, i_3);
+ TValue *dst_reg = R(22);
+ setivalue(dst_reg, i_3);
 }
 {
-TValue *dst_reg = R(17);
-TValue *src_reg = K(10);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(21);
+ TValue *src_reg = K(10);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(20);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -2626,39 +2920,42 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// MOV {Upval(5, Proc%1, dump_matrix)} {T(11)}
+{
+ const TValue *src_reg = cl->upvals[5]->v;
+ TValue *dst_reg = R(21);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// ADDii {local(n, 3), 1 Kint(0)} {Tint(9)}
 { i_9 = ivalue(R(3)) + 1; }
+// CALL {T(11), local(columns, 5), local(n, 3), Tint(9), local(nrow, 4)} {T(11..), 1 Kint(0)}
  if (stackoverflow(L,6)) { luaD_growstack(L, 6); base = ci->u.l.base; }
- L->top = R(15) + 5;
+ L->top = R(21) + 5;
 {
-const TValue *src_reg = R(4);
-TValue *dst_reg = R(19);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(4);
+ TValue *dst_reg = R(25);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-TValue *dst_reg = R(18);
-setivalue(dst_reg, i_9);
+ TValue *dst_reg = R(24);
+ setivalue(dst_reg, i_9);
 }
 {
-const TValue *src_reg = R(3);
-TValue *dst_reg = R(17);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(3);
+ TValue *dst_reg = R(23);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-const TValue *src_reg = R(5);
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(5);
+ TValue *dst_reg = R(22);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-const TValue *src_reg = cl->upvals[5]->v;
-TValue *dst_reg = R(15);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(15);
+ TValue *ra = R(21);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -2670,67 +2967,84 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// BR {L10}
 goto L10;
 L18:
+// ADDii {Tint(18), Tint(21)} {Tint(18)}
 { i_18 = i_18 + i_21; }
+// BR {L19}
 goto L19;
 L19:
+// LIii {Tint(20), Tint(18)} {Tbool(22)}
 { i_22 = i_20 < i_18; }
+// CBR {Tbool(22)} {L21, L20}
 { if (i_22 != 0) goto L21; else goto L20; }
 L20:
+// MOV {Tint(18)} {Tint(17)}
 i_17 = i_18;
+// TGETik {local(columns, 5), Tint(17)} {T(10)}
 {
  TValue *tab = R(5);
  TValue *key = &ival0; ival0.value_.i = i_17;
- TValue *dst = R(11);
+ TValue *dst = R(20);
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// TOFARRAY {T(10)}
 {
- TValue *ra = R(11);
+ TValue *ra = R(20);
  if (!ttisfarray(ra)) {
   error_code = 3;
   goto Lraise_error;
  }
 }
+// MOV {T(10)} {local(col, 9)}
 {
-const TValue *src_reg = R(11);
-TValue *dst_reg = R(9);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(20);
+ TValue *dst_reg = R(9);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// IAGETik {local(nrow, 4), Tint(7)} {Tint(23)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_7;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_23 = iptr[ukey];
 }
+// IAGETik {local(nrow, 4), Tint(7)} {Tint(24)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_7;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_24 = iptr[ukey];
 }
+// FAGETik {local(col, 9), Tint(24)} {Tflt(2)}
 {
  RaviArray *arr = arrvalue(R(9));
  lua_Unsigned ukey = (lua_Unsigned) i_24;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_2 = iptr[ukey];
 }
+// IAGETik {local(nrow, 4), Tint(3)} {Tint(25)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_3;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_25 = iptr[ukey];
 }
+// FAGETik {local(col, 9), Tint(25)} {Tflt(1)}
 {
  RaviArray *arr = arrvalue(R(9));
  lua_Unsigned ukey = (lua_Unsigned) i_25;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_1 = iptr[ukey];
 }
+// MULff {Tflt(0), Tflt(1)} {Tflt(4)}
 { f_4 = f_0 * f_1; }
+// SUBff {Tflt(2), Tflt(4)} {Tflt(1)}
 { f_1 = f_2 - f_4; }
+// FAPUTfv {Tflt(1)} {local(col, 9), Tint(23)}
 {
  RaviArray *arr = arrvalue(R(9));
  lua_Unsigned ukey = (lua_Unsigned) i_23;
@@ -2741,33 +3055,39 @@ dst_reg->value_.n = src_reg->value_.n;
  raviH_set_float(L, arr, ukey, f_1);
 }
 }
+// BR {L18}
 goto L18;
 L21:
+// BR {L14}
 goto L14;
 L22:
+// TGETik {local(columns, 5), local(n, 3)} {T(12)}
 {
  TValue *tab = R(5);
  TValue *key = R(3);
- TValue *dst = R(11);
+ TValue *dst = R(22);
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// IAGETik {local(nrow, 4), local(n, 3)} {Tint(4)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) ivalue(R(3));
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_4 = iptr[ukey];
 }
+// GETik {T(12), Tint(4)} {T(13)}
 {
- TValue *tab = R(11);
+ TValue *tab = R(22);
  TValue *key = &ival0; ival0.value_.i = i_4;
- TValue *dst = R(10);
+ TValue *dst = R(23);
  luaV_gettable(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// EQ {T(13), 0.000000000000 Kflt(0)} {T(14)}
 {
  int result = 0;
- TValue *rb = R(10);
+ TValue *rb = R(23);
  TValue *rc = &fval1; fval1.value_.n = 0;
  if (ttisinteger(rb) && ttisinteger(rc))
   result = (ivalue(rb) == ivalue(rc));
@@ -2775,30 +3095,34 @@ L22:
   result = luaV_equalobj(L, rb, rc);
   base = ci->u.l.base;
  }
- setbvalue(R(12), result != 0);
+ setbvalue(R(24), result != 0);
 }
+// CBR {T(14)} {L23, L24}
 {
-const TValue *src_reg = R(12);
+const TValue *src_reg = R(24);
 if (!l_isfalse(src_reg)) goto L23;
 else goto L24;
 }
 L23:
+// LOADGLOBAL {Upval(_ENV), 'error' Ks(11)} {T(13)}
 {
  TValue *tab = cl->upvals[7]->v;
  TValue *key = K(11);
- TValue *dst = R(10);
+ TValue *dst = R(23);
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// CALL {T(13), 'no unique solution exists' Ks(12)} {T(13..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(10) + 2;
+ L->top = R(23) + 2;
 {
-TValue *dst_reg = R(11);
-TValue *src_reg = K(12);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(24);
+ TValue *src_reg = K(12);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
- TValue *ra = R(10);
+ TValue *ra = R(23);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -2810,28 +3134,31 @@ dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
  }
  base = ci->u.l.base;
 }
+// BR {L24}
 goto L24;
 L24:
+// MOV {Upval(8, Proc%1, numarray)} {T(15)}
+{
+ const TValue *src_reg = cl->upvals[8]->v;
+ TValue *dst_reg = R(25);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(15), local(n, 3), 0.000000000000 Kflt(0)} {T(15..), 1 Kint(0)}
  if (stackoverflow(L,4)) { luaD_growstack(L, 4); base = ci->u.l.base; }
- L->top = R(18) + 3;
+ L->top = R(25) + 3;
 {
-TValue *dst_reg = R(20);
-setfltvalue(dst_reg, 0);
+ TValue *dst_reg = R(27);
+ setfltvalue(dst_reg, 0);
 }
 {
-const TValue *src_reg = R(3);
-TValue *dst_reg = R(19);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(3);
+ TValue *dst_reg = R(26);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-const TValue *src_reg = cl->upvals[8]->v;
-TValue *dst_reg = R(18);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(18);
+ TValue *ra = R(25);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -2843,54 +3170,62 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// TOFARRAY {T(15[15..])}
 {
- TValue *ra = R(18);
+ TValue *ra = R(25);
  if (!ttisfarray(ra)) {
   error_code = 3;
   goto Lraise_error;
  }
 }
+// MOV {T(15[15..])} {local(x, 6)}
 {
-const TValue *src_reg = R(18);
-TValue *dst_reg = R(6);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(25);
+ TValue *dst_reg = R(6);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// TGETik {local(columns, 5), local(n, 3)} {T(16)}
 {
  TValue *tab = R(5);
  TValue *key = R(3);
- TValue *dst = R(13);
+ TValue *dst = R(26);
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// TOFARRAY {T(16)}
 {
- TValue *ra = R(13);
+ TValue *ra = R(26);
  if (!ttisfarray(ra)) {
   error_code = 3;
   goto Lraise_error;
  }
 }
+// MOV {T(16)} {local(a, 7)}
 {
-const TValue *src_reg = R(13);
-TValue *dst_reg = R(7);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(26);
+ TValue *dst_reg = R(7);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// MOV {Upval(6, Proc%1, write)} {T(16)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(26);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(16), 'Performing back substitution\n' Ks(13)} {T(16..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(16) + 2;
+ L->top = R(26) + 2;
 {
-TValue *dst_reg = R(17);
-TValue *src_reg = K(13);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(27);
+ TValue *src_reg = K(13);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(26);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -2902,31 +3237,37 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// IAGETik {local(nrow, 4), local(n, 3)} {Tint(5)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) ivalue(R(3));
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_5 = iptr[ukey];
 }
+// FAGETik {local(b, 1), Tint(5)} {Tflt(1)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) i_5;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_1 = iptr[ukey];
 }
+// IAGETik {local(nrow, 4), local(n, 3)} {Tint(2)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) ivalue(R(3));
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_2 = iptr[ukey];
 }
+// FAGETik {local(a, 7), Tint(2)} {Tflt(3)}
 {
  RaviArray *arr = arrvalue(R(7));
  lua_Unsigned ukey = (lua_Unsigned) i_2;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_3 = iptr[ukey];
 }
+// DIVff {Tflt(1), Tflt(3)} {Tflt(4)}
 { f_4 = f_1 / f_3; }
+// FAPUTfv {Tflt(4)} {local(x, 6), local(n, 3)}
 {
  RaviArray *arr = arrvalue(R(6));
  lua_Unsigned ukey = (lua_Unsigned) ivalue(R(3));
@@ -2937,69 +3278,77 @@ dst_reg->value_.n = src_reg->value_.n;
  raviH_set_float(L, arr, ukey, f_4);
 }
 }
+// MOV {Upval(6, Proc%1, write)} {T(17)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(27);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// FAGETik {local(x, 6), local(n, 3)} {Tflt(4)}
 {
  RaviArray *arr = arrvalue(R(6));
  lua_Unsigned ukey = (lua_Unsigned) ivalue(R(3));
  lua_Number *iptr = (lua_Number *)arr->data;
  f_4 = iptr[ukey];
 }
+// CALL {T(17), 'x[' Ks(14), local(n, 3), '] = b[' Ks(15), local(n, 3), '] / a[' Ks(16), local(n, 3), '] = ' Ks(17), Tflt(4), '\n' Ks(4)} {T(17..), 1 Kint(0)}
  if (stackoverflow(L,11)) { luaD_growstack(L, 11); base = ci->u.l.base; }
- L->top = R(16) + 10;
+ L->top = R(27) + 10;
 {
-TValue *dst_reg = R(25);
-TValue *src_reg = K(4);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(36);
+ TValue *src_reg = K(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(24);
-setfltvalue(dst_reg, f_4);
+ TValue *dst_reg = R(35);
+ setfltvalue(dst_reg, f_4);
 }
 {
-TValue *dst_reg = R(23);
-TValue *src_reg = K(17);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(34);
+ TValue *src_reg = K(17);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = R(3);
-TValue *dst_reg = R(22);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(3);
+ TValue *dst_reg = R(33);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-TValue *dst_reg = R(21);
-TValue *src_reg = K(16);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(32);
+ TValue *src_reg = K(16);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = R(3);
-TValue *dst_reg = R(20);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(3);
+ TValue *dst_reg = R(31);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-TValue *dst_reg = R(19);
-TValue *src_reg = K(15);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(30);
+ TValue *src_reg = K(15);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = R(3);
-TValue *dst_reg = R(18);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(3);
+ TValue *dst_reg = R(29);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
 {
-TValue *dst_reg = R(17);
-TValue *src_reg = K(14);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(28);
+ TValue *src_reg = K(14);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(27);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -3011,35 +3360,57 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// SUBii {local(n, 3), 1 Kint(0)} {Tint(3)}
 { i_3 = ivalue(R(3)) - 1; }
+// MOV {Tint(3)} {Tint(9)}
 i_9 = i_3;
+// MOV {1 Kint(0)} {Tint(10)}
 i_10 = 1;
+// MOV {-1 Kint(1)} {Tint(11)}
 i_11 = -1;
+// LIii {0 Kint(2), Tint(11)} {Tbool(12)}
 { i_12 = 0 < i_11; }
+// SUBii {Tint(9), Tint(11)} {Tint(9)}
 { i_9 = i_9 - i_11; }
+// BR {L25}
 goto L25;
 L25:
+// ADDii {Tint(9), Tint(11)} {Tint(9)}
 { i_9 = i_9 + i_11; }
+// CBR {Tbool(12)} {L26, L27}
 { if (i_12 != 0) goto L26; else goto L27; }
 L26:
+// LIii {Tint(10), Tint(9)} {Tbool(7)}
 { i_7 = i_10 < i_9; }
+// CBR {Tbool(7)} {L29, L28}
 { if (i_7 != 0) goto L29; else goto L28; }
 L27:
+// LIii {Tint(9), Tint(10)} {Tbool(7)}
 { i_7 = i_9 < i_10; }
+// CBR {Tbool(7)} {L29, L28}
 { if (i_7 != 0) goto L29; else goto L28; }
 L28:
+// MOV {Tint(9)} {Tint(6)}
 i_6 = i_9;
+// INIT {Tflt(4)}
 f_4 = (lua_Number)0;
+// ADDii {Tint(6), 1 Kint(0)} {Tint(20)}
 { i_20 = i_6 + 1; }
+// MOV {Tint(20)} {Tint(21)}
 i_21 = i_20;
+// MOV {local(n, 3)} {Tint(22)}
 {
 TValue *reg = R(3);
 i_22 = ivalue(reg);
 }
+// MOV {1 Kint(0)} {Tint(17)}
 i_17 = 1;
+// SUBii {Tint(21), Tint(17)} {Tint(21)}
 { i_21 = i_21 - i_17; }
+// BR {L30}
 goto L30;
 L29:
+// RET {local(x, 6)} {L1}
 {
  TValue *stackbase = ci->func;
  int wanted = ci->nresults;
@@ -3048,10 +3419,10 @@ L29:
  int j = 0;
  if (0 < wanted) {
 {
-const TValue *src_reg = R(6);
-TValue *dst_reg = S(0);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(6);
+ TValue *dst_reg = S(0);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
  }
  j++;
@@ -3064,80 +3435,99 @@ dst_reg->value_.n = src_reg->value_.n;
 }
 goto L1;
 L30:
+// ADDii {Tint(21), Tint(17)} {Tint(21)}
 { i_21 = i_21 + i_17; }
+// BR {L31}
 goto L31;
 L31:
+// LIii {Tint(22), Tint(21)} {Tbool(26)}
 { i_26 = i_22 < i_21; }
+// CBR {Tbool(26)} {L33, L32}
 { if (i_26 != 0) goto L33; else goto L32; }
 L32:
+// MOV {Tint(21)} {Tint(18)}
 i_18 = i_21;
+// TGETik {local(columns, 5), Tint(18)} {T(18)}
 {
  TValue *tab = R(5);
  TValue *key = &ival0; ival0.value_.i = i_18;
- TValue *dst = R(13);
+ TValue *dst = R(28);
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// TOFARRAY {T(18)}
 {
- TValue *ra = R(13);
+ TValue *ra = R(28);
  if (!ttisfarray(ra)) {
   error_code = 3;
   goto Lraise_error;
  }
 }
+// MOV {T(18)} {local(a, 7)}
 {
-const TValue *src_reg = R(13);
-TValue *dst_reg = R(7);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(28);
+ TValue *dst_reg = R(7);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// IAGETik {local(nrow, 4), Tint(6)} {Tint(27)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_6;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_27 = iptr[ukey];
 }
+// FAGETik {local(a, 7), Tint(27)} {Tflt(0)}
 {
  RaviArray *arr = arrvalue(R(7));
  lua_Unsigned ukey = (lua_Unsigned) i_27;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_0 = iptr[ukey];
 }
+// FAGETik {local(x, 6), Tint(18)} {Tflt(3)}
 {
  RaviArray *arr = arrvalue(R(6));
  lua_Unsigned ukey = (lua_Unsigned) i_18;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_3 = iptr[ukey];
 }
+// MULff {Tflt(0), Tflt(3)} {Tflt(1)}
 { f_1 = f_0 * f_3; }
+// ADDff {Tflt(4), Tflt(1)} {Tflt(3)}
 { f_3 = f_4 + f_1; }
+// MOVf {Tflt(3)} {Tflt(4)}
 f_4 = f_3;
+// BR {L34}
 goto L34;
 L33:
+// MOV {Upval(6, Proc%1, write)} {T(21)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(31);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(21), 'sum = ' Ks(18), Tflt(4), '\n' Ks(4)} {T(21..), 1 Kint(0)}
  if (stackoverflow(L,5)) { luaD_growstack(L, 5); base = ci->u.l.base; }
- L->top = R(16) + 4;
+ L->top = R(31) + 4;
 {
-TValue *dst_reg = R(19);
-TValue *src_reg = K(4);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(34);
+ TValue *src_reg = K(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(18);
-setfltvalue(dst_reg, f_4);
+ TValue *dst_reg = R(33);
+ setfltvalue(dst_reg, f_4);
 }
 {
-TValue *dst_reg = R(17);
-TValue *src_reg = K(18);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(32);
+ TValue *src_reg = K(18);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(31);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -3149,52 +3539,62 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// TGETik {local(columns, 5), Tint(6)} {T(22)}
 {
  TValue *tab = R(5);
  TValue *key = &ival0; ival0.value_.i = i_6;
- TValue *dst = R(13);
+ TValue *dst = R(32);
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// TOFARRAY {T(22)}
 {
- TValue *ra = R(13);
+ TValue *ra = R(32);
  if (!ttisfarray(ra)) {
   error_code = 3;
   goto Lraise_error;
  }
 }
+// MOV {T(22)} {local(a, 7)}
 {
-const TValue *src_reg = R(13);
-TValue *dst_reg = R(7);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(32);
+ TValue *dst_reg = R(7);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// IAGETik {local(nrow, 4), Tint(6)} {Tint(21)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_6;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_21 = iptr[ukey];
 }
+// FAGETik {local(b, 1), Tint(21)} {Tflt(1)}
 {
  RaviArray *arr = arrvalue(R(1));
  lua_Unsigned ukey = (lua_Unsigned) i_21;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_1 = iptr[ukey];
 }
+// SUBff {Tflt(1), Tflt(4)} {Tflt(0)}
 { f_0 = f_1 - f_4; }
+// IAGETik {local(nrow, 4), Tint(6)} {Tint(22)}
 {
  RaviArray *arr = arrvalue(R(4));
  lua_Unsigned ukey = (lua_Unsigned) i_6;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_22 = iptr[ukey];
 }
+// FAGETik {local(a, 7), Tint(22)} {Tflt(1)}
 {
  RaviArray *arr = arrvalue(R(7));
  lua_Unsigned ukey = (lua_Unsigned) i_22;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_1 = iptr[ukey];
 }
+// DIVff {Tflt(0), Tflt(1)} {Tflt(2)}
 { f_2 = f_0 / f_1; }
+// FAPUTfv {Tflt(2)} {local(x, 6), Tint(6)}
 {
  RaviArray *arr = arrvalue(R(6));
  lua_Unsigned ukey = (lua_Unsigned) i_6;
@@ -3205,72 +3605,81 @@ dst_reg->value_.n = src_reg->value_.n;
  raviH_set_float(L, arr, ukey, f_2);
 }
 }
+// MOV {Upval(6, Proc%1, write)} {T(22)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(32);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// FAGETik {local(x, 6), Tint(6)} {Tflt(2)}
 {
  RaviArray *arr = arrvalue(R(6));
  lua_Unsigned ukey = (lua_Unsigned) i_6;
  lua_Number *iptr = (lua_Number *)arr->data;
  f_2 = iptr[ukey];
 }
+// CALL {T(22), 'x[' Ks(14), Tint(6), '] = (b[' Ks(24), Tint(6), '] - sum) / a[' Ks(25), Tint(6), ', ' Ks(21), Tint(6), '] = ' Ks(17), Tflt(2), '\n' Ks(4)} {T(22..), 1 Kint(0)}
  if (stackoverflow(L,13)) { luaD_growstack(L, 13); base = ci->u.l.base; }
- L->top = R(16) + 12;
+ L->top = R(32) + 12;
 {
-TValue *dst_reg = R(27);
-TValue *src_reg = K(4);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(43);
+ TValue *src_reg = K(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(26);
-setfltvalue(dst_reg, f_2);
+ TValue *dst_reg = R(42);
+ setfltvalue(dst_reg, f_2);
 }
 {
-TValue *dst_reg = R(25);
-TValue *src_reg = K(17);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(41);
+ TValue *src_reg = K(17);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(24);
-setivalue(dst_reg, i_6);
+ TValue *dst_reg = R(40);
+ setivalue(dst_reg, i_6);
 }
 {
-TValue *dst_reg = R(23);
-TValue *src_reg = K(21);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(39);
+ TValue *src_reg = K(21);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(22);
-setivalue(dst_reg, i_6);
+ TValue *dst_reg = R(38);
+ setivalue(dst_reg, i_6);
 }
 {
-TValue *dst_reg = R(21);
-TValue *src_reg = K(25);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(37);
+ TValue *src_reg = K(25);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(20);
-setivalue(dst_reg, i_6);
+ TValue *dst_reg = R(36);
+ setivalue(dst_reg, i_6);
 }
 {
-TValue *dst_reg = R(19);
-TValue *src_reg = K(24);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(35);
+ TValue *src_reg = K(24);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(18);
-setivalue(dst_reg, i_6);
+ TValue *dst_reg = R(34);
+ setivalue(dst_reg, i_6);
 }
 {
-TValue *dst_reg = R(17);
-TValue *src_reg = K(14);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(33);
+ TValue *src_reg = K(14);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(32);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -3282,27 +3691,34 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// BR {L25}
 goto L25;
 L34:
+// ADDii {Tint(6), 1 Kint(0)} {Tint(28)}
 { i_28 = i_6 + 1; }
+// EQii {Tint(18), Tint(28)} {Tbool(29)}
 { i_29 = i_18 == i_28; }
+// CBR {Tbool(29)} {L35, L36}
 { if (i_29 != 0) goto L35; else goto L36; }
 L35:
+// MOV {Upval(6, Proc%1, write)} {T(18)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(28);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(18), 'sum = ' Ks(18)} {T(18..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(16) + 2;
+ L->top = R(28) + 2;
 {
-TValue *dst_reg = R(17);
-TValue *src_reg = K(18);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(29);
+ TValue *src_reg = K(18);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(28);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -3314,23 +3730,27 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// BR {L37}
 goto L37;
 L36:
+// MOV {Upval(6, Proc%1, write)} {T(19)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(29);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(19), 'sum = sum + ' Ks(19)} {T(19..), 1 Kint(0)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(16) + 2;
+ L->top = R(29) + 2;
 {
-TValue *dst_reg = R(17);
-TValue *src_reg = K(19);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(30);
+ TValue *src_reg = K(19);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(29);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -3342,55 +3762,63 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// BR {L37}
 goto L37;
 L37:
+// MOV {Upval(6, Proc%1, write)} {T(20)}
+{
+ const TValue *src_reg = cl->upvals[6]->v;
+ TValue *dst_reg = R(30);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(20), 'a[' Ks(20), Tint(6), ', ' Ks(21), Tint(18), '] * x[' Ks(22), Tint(18), ']' Ks(23), '\n' Ks(4)} {T(20..), 1 Kint(0)}
  if (stackoverflow(L,10)) { luaD_growstack(L, 10); base = ci->u.l.base; }
- L->top = R(16) + 9;
+ L->top = R(30) + 9;
 {
-TValue *dst_reg = R(24);
-TValue *src_reg = K(4);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(38);
+ TValue *src_reg = K(4);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(23);
-TValue *src_reg = K(23);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(37);
+ TValue *src_reg = K(23);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(22);
-setivalue(dst_reg, i_18);
+ TValue *dst_reg = R(36);
+ setivalue(dst_reg, i_18);
 }
 {
-TValue *dst_reg = R(21);
-TValue *src_reg = K(22);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(35);
+ TValue *src_reg = K(22);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(20);
-setivalue(dst_reg, i_18);
+ TValue *dst_reg = R(34);
+ setivalue(dst_reg, i_18);
 }
 {
-TValue *dst_reg = R(19);
-TValue *src_reg = K(21);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(33);
+ TValue *src_reg = K(21);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-TValue *dst_reg = R(18);
-setivalue(dst_reg, i_6);
+ TValue *dst_reg = R(32);
+ setivalue(dst_reg, i_6);
 }
 {
-TValue *dst_reg = R(17);
-TValue *src_reg = K(20);
-dst_reg->tt_ = src_reg->tt_; dst_reg->value_.gc = src_reg->value_.gc;
+ TValue *dst_reg = R(31);
+ TValue *src_reg = K(20);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.gc = src_reg->value_.gc;
 }
 {
-const TValue *src_reg = cl->upvals[6]->v;
-TValue *dst_reg = R(16);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
-}
-{
- TValue *ra = R(16);
+ TValue *ra = R(30);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -3402,6 +3830,7 @@ dst_reg->value_.n = src_reg->value_.n;
  }
  base = ci->u.l.base;
 }
+// BR {L30}
 goto L30;
 }
 EXPORT LClosure *mymain(lua_State *L) {
@@ -3469,7 +3898,7 @@ EXPORT LClosure *mymain(lua_State *L) {
  f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
  f->numparams = 1;
  f->is_vararg = 0;
- f->maxstacksize = 2;
+ f->maxstacksize = 3;
  f->k = luaM_newvector(L, 0, TValue);
  f->sizek = 0;
  for (int i = 0; i < 0; i++)
@@ -3490,7 +3919,7 @@ EXPORT LClosure *mymain(lua_State *L) {
  f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
  f->numparams = 4;
  f->is_vararg = 0;
- f->maxstacksize = 8;
+ f->maxstacksize = 9;
  f->k = luaM_newvector(L, 5, TValue);
  f->sizek = 5;
  for (int i = 0; i < 5; i++)
@@ -3536,7 +3965,7 @@ EXPORT LClosure *mymain(lua_State *L) {
  f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
  f->numparams = 4;
  f->is_vararg = 0;
- f->maxstacksize = 6;
+ f->maxstacksize = 7;
  f->k = luaM_newvector(L, 2, TValue);
  f->sizek = 2;
  for (int i = 0; i < 2; i++)
@@ -3565,7 +3994,7 @@ EXPORT LClosure *mymain(lua_State *L) {
  f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
  f->numparams = 4;
  f->is_vararg = 0;
- f->maxstacksize = 14;
+ f->maxstacksize = 33;
  f->k = luaM_newvector(L, 26, TValue);
  f->sizek = 26;
  for (int i = 0; i < 26; i++)

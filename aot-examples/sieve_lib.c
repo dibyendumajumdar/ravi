@@ -745,10 +745,15 @@ TValue fval2; settt_(&fval2, LUA_TNUMFLT);
 TValue bval2; settt_(&bval2, LUA_TBOOLEAN);
 TValue nilval; setnilvalue(&nilval);
 L0:
+// INIT {Tint(0)}
 i_0 = 0;
+// INIT {Tint(1)}
 i_1 = 0;
+// INIT {Tint(2)}
 i_2 = 0;
+// INIT {Tint(3)}
 i_3 = 0;
+// LOADGLOBAL {Upval(_ENV), 'table' Ks(0)} {T(0)}
 {
  TValue *tab = cl->upvals[0]->v;
  TValue *key = K(0);
@@ -756,6 +761,7 @@ i_3 = 0;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// GETsk {T(0), 'intarray' Ks(1)} {T(1)}
 {
  TValue *tab = R(1);
  TValue *key = K(1);
@@ -763,11 +769,12 @@ i_3 = 0;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// CALL {T(1), 8190 Kint(0)} {T(1..), 1 Kint(1)}
  if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
  L->top = R(2) + 2;
 {
-TValue *dst_reg = R(3);
-setivalue(dst_reg, 8190);
+ TValue *dst_reg = R(3);
+ setivalue(dst_reg, 8190);
 }
 {
  TValue *ra = R(2);
@@ -782,6 +789,7 @@ setivalue(dst_reg, 8190);
  }
  base = ci->u.l.base;
 }
+// TOIARRAY {T(1[1..])}
 {
  TValue *ra = R(2);
  if (!ttisiarray(ra)) {
@@ -789,16 +797,22 @@ setivalue(dst_reg, 8190);
   goto Lraise_error;
  }
 }
+// MOV {T(1[1..])} {local(flags, 0)}
 {
-const TValue *src_reg = R(2);
-TValue *dst_reg = R(0);
-dst_reg->tt_ = src_reg->tt_;
-dst_reg->value_.n = src_reg->value_.n;
+ const TValue *src_reg = R(2);
+ TValue *dst_reg = R(0);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
 }
+// MOV {0 Kint(2)} {Tint(5)}
 i_5 = 0;
+// MOV {100000 Kint(3)} {Tint(6)}
 i_6 = 100000;
+// MOV {1 Kint(1)} {Tint(7)}
 i_7 = 1;
+// SUBii {Tint(5), Tint(7)} {Tint(5)}
 { i_5 = i_5 - i_7; }
+// BR {L2}
 goto L2;
 L1:
  return result;
@@ -806,20 +820,32 @@ Lraise_error:
  raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
+// ADDii {Tint(5), Tint(7)} {Tint(5)}
 { i_5 = i_5 + i_7; }
+// BR {L3}
 goto L3;
 L3:
+// LIii {Tint(6), Tint(5)} {Tbool(8)}
 { i_8 = i_6 < i_5; }
+// CBR {Tbool(8)} {L5, L4}
 { if (i_8 != 0) goto L5; else goto L4; }
 L4:
+// MOV {Tint(5)} {Tint(4)}
 i_4 = i_5;
+// MOVi {0 Kint(2)} {Tint(3)}
 i_3 = 0;
+// MOV {0 Kint(2)} {Tint(10)}
 i_10 = 0;
+// MOV {8190 Kint(0)} {Tint(11)}
 i_11 = 8190;
+// MOV {1 Kint(1)} {Tint(12)}
 i_12 = 1;
+// SUBii {Tint(10), Tint(12)} {Tint(10)}
 { i_10 = i_10 - i_12; }
+// BR {L6}
 goto L6;
 L5:
+// RET {Tint(3)} {L1}
 {
  TValue *stackbase = ci->func;
  int wanted = ci->nresults;
@@ -828,8 +854,8 @@ L5:
  int j = 0;
  if (0 < wanted) {
 {
-TValue *dst_reg = S(0);
-setivalue(dst_reg, i_3);
+ TValue *dst_reg = S(0);
+ setivalue(dst_reg, i_3);
 }
  }
  j++;
@@ -842,13 +868,19 @@ setivalue(dst_reg, i_3);
 }
 goto L1;
 L6:
+// ADDii {Tint(10), Tint(12)} {Tint(10)}
 { i_10 = i_10 + i_12; }
+// BR {L7}
 goto L7;
 L7:
+// LIii {Tint(11), Tint(10)} {Tbool(13)}
 { i_13 = i_11 < i_10; }
+// CBR {Tbool(13)} {L9, L8}
 { if (i_13 != 0) goto L9; else goto L8; }
 L8:
+// MOV {Tint(10)} {Tint(9)}
 i_9 = i_10;
+// IAPUTiv {1 Kint(1)} {local(flags, 0), Tint(9)}
 {
  RaviArray *arr = arrvalue(R(0));
  lua_Unsigned ukey = (lua_Unsigned) i_9;
@@ -859,57 +891,92 @@ i_9 = i_10;
  raviH_set_int(L, arr, ukey, 1);
 }
 }
+// BR {L6}
 goto L6;
 L9:
+// MOV {0 Kint(2)} {Tint(11)}
 i_11 = 0;
+// MOV {8190 Kint(0)} {Tint(12)}
 i_12 = 8190;
+// MOV {1 Kint(1)} {Tint(13)}
 i_13 = 1;
+// SUBii {Tint(11), Tint(13)} {Tint(11)}
 { i_11 = i_11 - i_13; }
+// BR {L10}
 goto L10;
 L10:
+// ADDii {Tint(11), Tint(13)} {Tint(11)}
 { i_11 = i_11 + i_13; }
+// BR {L11}
 goto L11;
 L11:
+// LIii {Tint(12), Tint(11)} {Tbool(9)}
 { i_9 = i_12 < i_11; }
+// CBR {Tbool(9)} {L13, L12}
 { if (i_9 != 0) goto L13; else goto L12; }
 L12:
+// MOV {Tint(11)} {Tint(10)}
 i_10 = i_11;
+// BR {L14}
 goto L14;
 L13:
+// BR {L2}
 goto L2;
 L14:
+// IAGETik {local(flags, 0), Tint(10)} {Tint(14)}
 {
  RaviArray *arr = arrvalue(R(0));
  lua_Unsigned ukey = (lua_Unsigned) i_10;
  lua_Integer *iptr = (lua_Integer *)arr->data;
  i_14 = iptr[ukey];
 }
+// EQii {Tint(14), 1 Kint(1)} {Tbool(15)}
 { i_15 = i_14 == 1; }
+// CBR {Tbool(15)} {L15, L16}
 { if (i_15 != 0) goto L15; else goto L16; }
 L15:
+// ADDii {Tint(10), Tint(10)} {Tint(14)}
 { i_14 = i_10 + i_10; }
+// ADDii {Tint(14), 3 Kint(4)} {Tint(16)}
 { i_16 = i_14 + 3; }
+// MOVi {Tint(16)} {Tint(2)}
 i_2 = i_16;
+// ADDii {Tint(10), Tint(2)} {Tint(14)}
 { i_14 = i_10 + i_2; }
+// MOV {Tint(14)} {Tint(17)}
 i_17 = i_14;
+// MOV {8190 Kint(0)} {Tint(18)}
 i_18 = 8190;
+// MOV {Tint(2)} {Tint(19)}
 i_19 = i_2;
+// LIii {0 Kint(2), Tint(19)} {Tbool(20)}
 { i_20 = 0 < i_19; }
+// SUBii {Tint(17), Tint(19)} {Tint(17)}
 { i_17 = i_17 - i_19; }
+// BR {L17}
 goto L17;
 L16:
+// BR {L10}
 goto L10;
 L17:
+// ADDii {Tint(17), Tint(19)} {Tint(17)}
 { i_17 = i_17 + i_19; }
+// CBR {Tbool(20)} {L18, L19}
 { if (i_20 != 0) goto L18; else goto L19; }
 L18:
+// LIii {Tint(18), Tint(17)} {Tbool(21)}
 { i_21 = i_18 < i_17; }
+// CBR {Tbool(21)} {L21, L20}
 { if (i_21 != 0) goto L21; else goto L20; }
 L19:
+// LIii {Tint(17), Tint(18)} {Tbool(21)}
 { i_21 = i_17 < i_18; }
+// CBR {Tbool(21)} {L21, L20}
 { if (i_21 != 0) goto L21; else goto L20; }
 L20:
+// MOV {Tint(17)} {Tint(16)}
 i_16 = i_17;
+// IAPUTiv {0 Kint(2)} {local(flags, 0), Tint(16)}
 {
  RaviArray *arr = arrvalue(R(0));
  lua_Unsigned ukey = (lua_Unsigned) i_16;
@@ -920,10 +987,14 @@ i_16 = i_17;
  raviH_set_int(L, arr, ukey, 0);
 }
 }
+// BR {L17}
 goto L17;
 L21:
+// ADDii {Tint(3), 1 Kint(1)} {Tint(17)}
 { i_17 = i_3 + 1; }
+// MOVi {Tint(17)} {Tint(3)}
 i_3 = i_17;
+// BR {L16}
 goto L16;
 }
 EXPORT LClosure *mymain(lua_State *L) {

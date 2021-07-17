@@ -72,7 +72,7 @@ static bool is_block_terminated(BasicBlock *block);
 static Pseudo *instruct_move(Proc *proc, enum opcode op, Pseudo *target, Pseudo *src);
 static void linearize_function(LinearizerState *linearizer);
 static Instruction *allocate_instruction(Proc *proc, enum opcode op);
-static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_temp_pseudo);
+static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local);
 
 /**
  * Allocates a register by reusing a free'd register if possible otherwise
@@ -207,15 +207,12 @@ static const Constant *add_constant(Proc *proc, const Constant *c)
 			break;
 		}
 		Constant *c1 = (Constant *) raviX_allocator_allocate(&proc->linearizer->constant_allocator, 0);
-		assert(c1); // FIXME
 		memcpy(c1, c, sizeof(Constant));
 		c1->index = reg;
 		raviX_set_add(proc->constants, c1);
-		// printf("Created new constant of type %d and assigned reg %d\n", c->type, reg);
 		return c1;
 	} else {
 		const Constant *c1 = (Constant *) entry->key;
-		// printf("Found constant at reg %d\n", c1->index);
 		return c1;
 	}
 }
@@ -242,6 +239,13 @@ static const Constant *allocate_integer_constant(Proc *proc, int i)
 {
 	Constant c = {.type = RAVI_TNUMINT, .i = i};
 	assert(c.type == RAVI_TNUMINT);
+	return add_constant(proc, &c);
+}
+
+static const Constant *allocate_string_constant(Proc *proc, const StringObject *s)
+{
+	Constant c = {.type = RAVI_TSTRING, .s = s};
+	assert(c.type == RAVI_TSTRING);
 	return add_constant(proc, &c);
 }
 
@@ -287,13 +291,6 @@ Instruction *raviX_last_instruction(BasicBlock *block)
 	if (raviX_ptrlist_size((PtrList *)block->insns) == 0)
 		return NULL;
 	return (Instruction *)raviX_ptrlist_last((PtrList *)block->insns);
-}
-
-static const Constant *allocate_string_constant(Proc *proc, const StringObject *s)
-{
-	Constant c = {.type = RAVI_TSTRING, .s = s};
-	assert(c.type == RAVI_TSTRING);
-	return add_constant(proc, &c);
 }
 
 static Pseudo *allocate_symbol_pseudo(Proc *proc, LuaSymbol *sym, unsigned reg)
@@ -393,7 +390,7 @@ static Pseudo *allocate_range_pseudo(Proc *proc, Pseudo *orig_pseudo)
 	pseudo->type = PSEUDO_RANGE;
 	pseudo->regnum = orig_pseudo->regnum;
 	if (orig_pseudo->type == PSEUDO_TEMP_ANY) {
-		orig_pseudo->freed = 1;
+		orig_pseudo->freed = 1; // No need to free the original register
 	}
 	return pseudo;
 }
@@ -409,6 +406,13 @@ static Pseudo *allocate_range_select_pseudo(Proc *proc, Pseudo *range_pseudo, in
 	pseudo->type = PSEUDO_RANGE_SELECT;
 	pseudo->regnum = range_pseudo->regnum + pick;
 	pseudo->range_pseudo = range_pseudo;
+	return pseudo;
+}
+
+static inline Pseudo *convert_range_to_temp(Pseudo *pseudo)
+{
+	assert(pseudo->type == PSEUDO_RANGE);
+	pseudo->type = PSEUDO_TEMP_ANY;
 	return pseudo;
 }
 
@@ -538,13 +542,6 @@ static void linearize_statement_list(Proc *proc, AstNodeList *list)
 	END_FOR_EACH_PTR(node)
 }
 
-static inline Pseudo *convert_range_to_temp(Pseudo *pseudo)
-{
-	assert(pseudo->type == PSEUDO_RANGE);
-	pseudo->type = PSEUDO_TEMP_ANY;
-	return pseudo;
-}
-
 static Pseudo *linearize_literal(Proc *proc, AstNode *expr)
 {
 	assert(expr->type == EXPR_LITERAL);
@@ -574,7 +571,6 @@ static Pseudo *linearize_literal(Proc *proc, AstNode *expr)
 
 static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 {
-	// TODO if any expr is range we need to convert to temp?
 	UnaryOperatorType op = node->unary_expr.unary_op;
 	Pseudo *subexpr = linearize_expression(proc, node->unary_expr.expr);
 	ravitype_t subexpr_type = node->unary_expr.expr->common_expr.type.type_code;
@@ -655,7 +651,6 @@ static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 
 static Pseudo *instruct_move(Proc *proc, enum opcode op, Pseudo *target, Pseudo *src)
 {
-	// TODO we should use type specific MOVE instructions
 	Instruction *mov = allocate_instruction(proc, op);
 	add_instruction_operand(proc, mov, src);
 	add_instruction_target(proc, mov, target);
@@ -758,8 +753,6 @@ static void create_binary_instruction(Proc *proc, enum opcode targetop, Pseudo *
 
 static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 {
-	// TODO if any expr is range we need to convert to temp?
-
 	BinaryOperatorType op = node->binary_expr.binary_op;
 
 	if (op == BINOPR_AND) {
@@ -982,8 +975,6 @@ static Pseudo *linearize_symbol_expression(Proc *proc, AstNode *expr)
 	} else if (sym->symbol_type == SYM_UPVALUE) {
 		/* upvalue index is the position of upvalue in the function, we treat this as the pseudo register for
 		 * the upvalue */
-		/* TODO maybe the pseudo be pre-created when we start linearizing the function and stored in the symbol
-		 * like we do for locals? */
 		return allocate_symbol_pseudo(proc, sym, sym->upvalue.upvalue_index);
 	} else {
 		handle_error(proc->linearizer->ast_container, "feature not yet implemented");
@@ -1068,6 +1059,13 @@ static void instruct_indexed_store(Proc *proc, ravitype_t table_type, Pseudo *ta
 	add_instruction(proc, insn);
 }
 
+/**
+ * we can have situations where
+ * we don't know if an expression of global e is a read or write. We assume
+ * initially it is a read (i.e. load) operation. But later on as we know
+ * more it may be clear that the opcode should be a store. This function converts
+ * a load opcode to a store.
+ */
 static void convert_loadglobal_to_store(Proc *proc, Instruction *insn, Pseudo *value_pseudo,
 					ravitype_t value_type)
 {
@@ -1080,13 +1078,20 @@ static void convert_loadglobal_to_store(Proc *proc, Instruction *insn, Pseudo *v
 	Pseudo *pseudo;
 	// Move the loadglobal operands to target
 	FOR_EACH_PTR(insn->operands, Pseudo, pseudo) { add_instruction_target(proc, insn, pseudo); }
-	END_FOR_EACH_PTR(pseudo);
+	END_FOR_EACH_PTR(pseudo)
 	raviX_ptrlist_remove_all((PtrList **)&insn->operands);
 	// Add new operand
 	add_instruction_operand(proc, insn, value_pseudo);
 	add_instruction(proc, insn);
 }
 
+/**
+ * In assignment and local statements we can have situations where
+ * we don't know if an expression of type e[y] is a read or write. We assume
+ * initially it is a read (i.e. load) operation. But later on as we know
+ * more it may be clear that the opcode should be a store. This function converts
+ * a load opcode to a store.
+ */
 static void convert_indexed_load_to_store(Proc *proc, Instruction *insn, Pseudo *value_pseudo,
 					  ravitype_t value_type)
 {
@@ -1129,7 +1134,7 @@ static void convert_indexed_load_to_store(Proc *proc, Instruction *insn, Pseudo 
 	Pseudo *pseudo;
 	// Move the get operands to put target (table, key)
 	FOR_EACH_PTR(insn->operands, Pseudo, pseudo) { add_instruction_target(proc, insn, pseudo); }
-	END_FOR_EACH_PTR(pseudo);
+	END_FOR_EACH_PTR(pseudo)
 	raviX_ptrlist_remove_all((PtrList **)&insn->operands);
 	// Add new operand
 	add_instruction_operand(proc, insn, value_pseudo);
@@ -1282,6 +1287,23 @@ static Pseudo *linearize_table_constructor(Proc *proc, AstNode *expr)
 	return target;
 }
 
+/* Used for local variable declarations without an initializer.
+ * The Ravi parser doesn't allow this; it requires explicit table
+ * constructor. So this is an enhancement.
+ */
+static Pseudo *linearize_table_constructor_inplace(Proc *proc, Pseudo *target, ravitype_t type_code)
+{
+	enum opcode op = op_newtable;
+	if (type_code == RAVI_TARRAYINT)
+		op = op_newiarray;
+	else if (type_code == RAVI_TARRAYFLT)
+		op = op_newfarray;
+	Instruction *insn = allocate_instruction(proc, op);
+	add_instruction_target(proc, insn, target);
+	add_instruction(proc, insn);
+	return target;
+}
+
 /** Is the type NIL-able */
 static bool is_nillable(const VariableType *var_type)
 {
@@ -1405,8 +1427,14 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 						    valinfo[ne-1].vartype,
 						    allocate_range_select_pseudo(proc, last_val_pseudo, pick));
 			} else {
-				// TODO store NIL
-				linearize_init(proc, varinfo[i].pseudo);
+				if (varinfo[i].vartype->type_code == RAVI_TTABLE ||
+				    varinfo[i].vartype->type_code == RAVI_TARRAYFLT ||
+				    varinfo[i].vartype->type_code == RAVI_TARRAYINT) {
+					linearize_table_constructor_inplace(proc, varinfo[i].pseudo, varinfo[i].vartype->type_code);
+				}
+				else {
+					linearize_init(proc, varinfo[i].pseudo);
+				}
 			}
 		}
 		else {
@@ -1420,32 +1448,6 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 			free_temp_pseudo(proc, valinfo[i].pseudo, false);
 		}
 	}
-#if 0
-	while (nv > 0) {
-		if (nv > ne) {
-			if (last_val_pseudo != NULL && last_val_pseudo->type == PSEUDO_RANGE) {
-				int pick = nv - ne;
-				linearize_store_var(proc, varinfo[nv - 1].vartype, varinfo[nv - 1].pseudo,
-						    valinfo[ne - 1].vartype,
-						    allocate_range_select_pseudo(proc, last_val_pseudo, pick));
-			} else {
-				// TODO store NIL
-			}
-			nv--;
-		} else {
-			if (valinfo[ne - 1].pseudo->type == PSEUDO_RANGE) {
-				/* Only the topmost expression can be a range ... assert */
-				assert(ne == note_ne);
-				valinfo[ne - 1].pseudo = allocate_range_select_pseudo(proc, valinfo[ne - 1].pseudo, 0);
-			}
-			linearize_store_var(proc, varinfo[nv - 1].vartype, varinfo[nv - 1].pseudo,
-					    valinfo[ne - 1].vartype, valinfo[ne - 1].pseudo);
-			free_temp_pseudo(proc, valinfo[ne - 1].pseudo, false);
-			nv--;
-			ne--;
-		}
-	}
-#endif
 }
 
 /*
@@ -1730,8 +1732,8 @@ static void linearize_if_statement(Proc *proc, AstNode *ifnode)
 			NEXT_PTR_LIST(BasicBlock, true_block);
 		}
 		END_FOR_EACH_PTR(node)
-		FINISH_PTR_LIST(block);
-		FINISH_PTR_LIST(true_block);
+		FINISH_PTR_LIST(block)
+		FINISH_PTR_LIST(true_block)
 	}
 	{
 		PREPARE_PTR_LIST(if_true_blocks, BasicBlock, true_block);
@@ -1741,7 +1743,7 @@ static void linearize_if_statement(Proc *proc, AstNode *ifnode)
 			NEXT_PTR_LIST(BasicBlock, true_block);
 		}
 		END_FOR_EACH_PTR(node)
-		FINISH_PTR_LIST(true_block);
+		FINISH_PTR_LIST(true_block)
 	}
 
 	if (else_block) {
@@ -2417,7 +2419,6 @@ static BasicBlock *create_block(Proc *proc)
  */
 static void start_block(Proc *proc, BasicBlock *bb_to_start)
 {
-	// printf("Starting block %d\n", bb_to_start->index);
 	if (proc->current_bb && !is_block_terminated(proc->current_bb)) {
 		instruct_br(proc, allocate_block_pseudo(proc, bb_to_start));
 	}
@@ -2464,7 +2465,6 @@ static void start_scope(LinearizerState *linearizer, Proc *proc, Scope *scope)
 				reg = allocate_register(&proc->local_pseudos);
 				allocate_symbol_pseudo(proc, sym, reg);
 			}
-			// printf("Assigning register %d to local %s\n", (int)reg, getstr(sym->var.var_name));
 		}
 	}
 	END_FOR_EACH_PTR(sym)
@@ -2488,7 +2488,6 @@ static void end_scope(LinearizerState *linearizer, Proc *proc)
 			Pseudo *pseudo = sym->variable.pseudo;
 			if (pseudo->type == PSEUDO_SYMBOL) {
 				assert(pseudo && pseudo->type == PSEUDO_SYMBOL && pseudo->symbol == sym);
-				// printf("Free register %d for local %s\n", (int)pseudo->regnum, getstr(sym->var.var_name));
 				free_register(proc, &proc->local_pseudos, pseudo->regnum);
 			}
 			else if (pseudo->type == PSEUDO_TEMP_INT || pseudo->type == PSEUDO_TEMP_FLT || pseudo->type == PSEUDO_TEMP_BOOL) {
@@ -2519,7 +2518,6 @@ static void linearize_function(LinearizerState *linearizer)
 	linearize_statement_list(proc, func_expr->function_expr.function_statement_list);
 	end_scope(linearizer, proc);
 	if (!is_block_terminated(proc->current_bb)) {
-		//instruct_br(proc, allocate_block_pseudo(proc, proc->nodes[EXIT_BLOCK]));
 		Instruction *insn = allocate_instruction(proc, op_ret);
 		add_instruction_target(proc, insn, allocate_block_pseudo(proc, proc->nodes[EXIT_BLOCK]));
 		add_instruction(proc, insn);
@@ -2643,7 +2641,8 @@ const char *raviX_opcode_name(unsigned int opcode) {
 	return op_codenames[opcode];
 }
 
-/* Outputs a single instruction. A prefix and suffix can be prepended/appended for formatting reasons.
+/*
+Outputs a single instruction. A prefix and suffix can be prepended/appended for formatting reasons.
 Each instruction is output in following format.
 instruction_name { operands } { targets }
 */

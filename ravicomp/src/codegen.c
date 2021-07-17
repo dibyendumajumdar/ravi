@@ -1,3 +1,5 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "cppcoreguidelines-narrowing-conversions"
 /******************************************************************************
  * Copyright (C) 2020-2021 Dibyendu Majumdar
  *
@@ -1306,7 +1308,7 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 			raviX_buffer_add_string(&fn->body, " }\n");
 		}
 	}
-	END_FOR_EACH_PTR(pseudo);
+	END_FOR_EACH_PTR(pseudo)
 	/* Set any excess results to nil */
 	raviX_buffer_add_string(&fn->body, " while (j < wanted) {\n");
 	{
@@ -1968,7 +1970,7 @@ static int emit_op_closure(Function *fn, Instruction *insn)
 		}
 		i++;
 	}
-	END_FOR_EACH_PTR(cursor);
+	END_FOR_EACH_PTR(cursor)
 	if (parent_index == -1) {
 		assert(0);
 		return -1;
@@ -2696,7 +2698,7 @@ static int generate_lua_proc(Proc *proc, TextBuffer *mb)
 					 sym->upvalue.value_type.type_code);
 		i++;
 	}
-	END_FOR_EACH_PTR(sym);
+	END_FOR_EACH_PTR(sym)
 
 	// Load child protos recursively
 	if (get_num_childprocs(proc) > 0) {
@@ -2716,7 +2718,7 @@ static int generate_lua_proc(Proc *proc, TextBuffer *mb)
 			raviX_buffer_add_string(mb, "}\n");
 			i++;
 		}
-		END_FOR_EACH_PTR(childproc);
+		END_FOR_EACH_PTR(childproc)
 	}
 	return 0;
 }
@@ -2771,13 +2773,13 @@ static int generate_C_code(struct Ravi_CompilerInterface *ravi_interface, Proc *
 		if (rc != 0)
 			return rc;
 	}
-	END_FOR_EACH_PTR(childproc);
+	END_FOR_EACH_PTR(childproc)
 	return 0;
 }
 
 static inline AstNode *get_parent_function_of_upvalue(LuaSymbol *symbol)
 {
-	AstNode *upvalue_function = symbol->upvalue.target_function;
+	AstNode *upvalue_function = symbol->upvalue.target_variable_function;
 	AstNode *parent_function = upvalue_function->function_expr.parent_function;
 	return parent_function;
 }
@@ -2818,7 +2820,7 @@ static unsigned get_upvalue_idx(Proc *proc, LuaSymbol *upvalue_symbol, bool *in_
 			return sym->upvalue.upvalue_index;
 		}
 	}
-	END_FOR_EACH_PTR(sym);
+	END_FOR_EACH_PTR(sym)
 	assert(0);
 	return 0;
 }
@@ -2837,7 +2839,7 @@ static void compute_upvalue_attributes(Proc *proc)
 		sym->upvalue.is_in_parent_stack = in_stack ? 1 : 0;
 		sym->upvalue.parent_upvalue_index = idx; // TODO check overflow?
 	}
-	END_FOR_EACH_PTR(sym);
+	END_FOR_EACH_PTR(sym)
 }
 
 /*
@@ -2848,7 +2850,7 @@ static void preprocess_upvalues(Proc *proc)
 	compute_upvalue_attributes(proc);
 	Proc *child_proc;
 	FOR_EACH_PTR(proc->procs, Proc, child_proc) { preprocess_upvalues(child_proc); }
-	END_FOR_EACH_PTR(childproc);
+	END_FOR_EACH_PTR(childproc)
 }
 
 static void debug_message(void *context, const char *filename, long long line, const char *message)
@@ -2904,3 +2906,5 @@ void raviX_generate_C_tofile(LinearizerState *linearizer, const char *mainfunc, 
 	fprintf(fp, "%s\n", mb.buf);
 	raviX_buffer_free(&mb);
 }
+
+#pragma clang diagnostic pop

@@ -30,6 +30,7 @@ The parser retains the syntactic structure - including constant expressions and 
 syntax nodes because these are useful for testing and understanding.
 
 A later pass simplifies the AST - see ast_simplify.c
+Generic for loops are transformed to while loops in ast_lower.c
 */
 
 #include "fnv_hash.h"
@@ -247,7 +248,7 @@ static LuaSymbol *search_for_variable_in_block(Scope *scope, const StringObject 
 			break;
 		}
 	}
-	END_FOR_EACH_PTR_REVERSE(symbol);
+	END_FOR_EACH_PTR_REVERSE(symbol)
 	return NULL;
 }
 
@@ -271,45 +272,47 @@ static LuaSymbol *search_upvalue_in_function(AstNode *function, const StringObje
 			break;
 		}
 	}
-	END_FOR_EACH_PTR(symbol);
+	END_FOR_EACH_PTR(symbol)
 	return NULL;
 }
 
 /* Each function has a list of upvalues, searches this list for given name, and adds it if not found.
  * Returns true if added, false means the function already has the upvalue.
  */
-static bool add_upvalue_in_function(ParserState *parser, AstNode *function, LuaSymbol *sym)
+static bool add_upvalue_in_function(ParserState *parser, AstNode *function, LuaSymbol *symbol)
 {
-	assert(sym->symbol_type == SYM_LOCAL || sym->symbol_type == SYM_ENV);
-	LuaSymbol *symbol;
-	FOR_EACH_PTR(function->function_expr.upvalues, LuaSymbol, symbol)
+	assert(symbol->symbol_type == SYM_LOCAL || symbol->symbol_type == SYM_ENV);
 	{
-		switch (symbol->symbol_type) {
-		case SYM_UPVALUE: {
-			assert(symbol->upvalue.target_variable->symbol_type == SYM_LOCAL ||
-			       symbol->upvalue.target_variable->symbol_type == SYM_ENV);
-			if (sym == symbol->upvalue.target_variable) {
-				return false;
+		LuaSymbol *cursor;
+		FOR_EACH_PTR(function->function_expr.upvalues, LuaSymbol, cursor)
+		{
+			switch (cursor->symbol_type) {
+			case SYM_UPVALUE: {
+				assert(cursor->upvalue.target_variable->symbol_type == SYM_LOCAL ||
+				       cursor->upvalue.target_variable->symbol_type == SYM_ENV);
+				if (symbol == cursor->upvalue.target_variable) {
+					return false;
+				}
+				break;
 			}
-			break;
+			default:
+				break;
+			}
 		}
-		default:
-			break;
-		}
+		END_FOR_EACH_PTR(cursor)
 	}
-	END_FOR_EACH_PTR(symbol);
 	LuaSymbol *upvalue = (LuaSymbol *) raviX_allocator_allocate(&parser->container->symbol_allocator, 0);
 	upvalue->symbol_type = SYM_UPVALUE;
-	upvalue->upvalue.target_variable = sym;
-	upvalue->upvalue.target_function = function;
+	upvalue->upvalue.target_variable = symbol;
+	upvalue->upvalue.target_variable_function = function;
 	upvalue->upvalue.upvalue_index = raviX_ptrlist_size(
 	    (const PtrList *)function->function_expr.upvalues); /* position of upvalue in function */
-	copy_type(&upvalue->upvalue.value_type, &sym->variable.value_type);
+	copy_type(&upvalue->upvalue.value_type, &symbol->variable.value_type);
 	raviX_add_symbol(parser->container, &function->function_expr.upvalues, upvalue);
-	if (sym->symbol_type == SYM_LOCAL) {
-		sym->variable.escaped = 1;	     /* mark original variable as having escaped */
-		sym->variable.block->need_close = 1; /* mark block containing variable as needing close operation */
-		sym->variable.block->function->function_expr.need_close = 1;
+	if (symbol->symbol_type == SYM_LOCAL) {
+		symbol->variable.escaped = 1;	     /* mark original variable as having escaped */
+		symbol->variable.block->need_close = 1; /* mark block containing variable as needing close operation */
+		symbol->variable.block->function->function_expr.need_close = 1; /* mark function as needing close too */
 	}
 	return true;
 }
@@ -391,11 +394,11 @@ static void add_upvalue_for_ENV(ParserState *parser)
 		// added to all functions in the tree up to the function where the local
 		// is defined.
 		add_upvalue_in_levels_upto(parser, parser->current_function, symbol->variable.block->function, symbol);
-	} else if (symbol->symbol_type == SYM_UPVALUE && symbol->upvalue.target_function != parser->current_function) {
+	} else if (symbol->symbol_type == SYM_UPVALUE && symbol->upvalue.target_variable_function != parser->current_function) {
 		// We found an upvalue but it is not at the same level
 		// Ensure all levels have the upvalue
 		// Note that if the upvalue refers to special _ENV symbol then target function will be NULL
-		add_upvalue_in_levels_upto(parser, parser->current_function, symbol->upvalue.target_function,
+		add_upvalue_in_levels_upto(parser, parser->current_function, symbol->upvalue.target_variable_function,
 					   symbol->upvalue.target_variable);
 	}
 }
@@ -421,11 +424,11 @@ static AstNode *new_symbol_reference(ParserState *parser, const StringObject *va
 			// TODO Following search could be avoided if above returned the symbol
 			symbol = search_upvalue_in_function(parser->current_function, varname);
 		} else if (symbol->symbol_type == SYM_UPVALUE &&
-			   symbol->upvalue.target_function != parser->current_function) {
+			   symbol->upvalue.target_variable_function != parser->current_function) {
 			// We found an upvalue but it is not at the same level
 			// Ensure all levels have the upvalue
 			// Note that if the uvalue refers to special _ENV symbol then target function will be NULL
-			add_upvalue_in_levels_upto(parser, parser->current_function, symbol->upvalue.target_function,
+			add_upvalue_in_levels_upto(parser, parser->current_function, symbol->upvalue.target_variable_function,
 						   symbol->upvalue.target_variable);
 			// TODO Following search could be avoided if above returned the symbol
 			symbol = search_upvalue_in_function(parser->current_function, varname);
@@ -617,6 +620,9 @@ static AstNode *parse_table_constructor(ParserState *parser)
 	checknext(ls, '{');
 	AstNode *table_expr = allocate_expr_ast_node(parser, EXPR_TABLE_LITERAL);
 	set_type(&table_expr->table_expr.type, RAVI_TTABLE);
+	// Inferred type will be updated by typechecker and eventually
+	// used to decide if the type of the literal should be changed
+	table_expr->table_expr.inferred_type_code = RAVI_TTABLE;
 	table_expr->table_expr.expr_list = NULL;
 	do {
 		if (ls->t.token == '}')
@@ -1465,7 +1471,7 @@ static AstNode *parse_local_statement(ParserState *parser)
 	/* local symbols are only added to scope at the end of the local statement */
 	LuaSymbol *sym = NULL;
 	FOR_EACH_PTR(node->local_stmt.var_list, LuaSymbol, sym) { add_local_symbol_to_current_scope(parser, sym); }
-	END_FOR_EACH_PTR(sym);
+	END_FOR_EACH_PTR(sym)
 	return node;
 }
 

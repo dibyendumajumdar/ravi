@@ -621,7 +621,7 @@ const VariableType *raviX_upvalue_symbol_type(const LuaUpvalueSymbol *symbol)
 const LuaVariableSymbol *raviX_upvalue_target_variable(const LuaUpvalueSymbol *symbol)
 {
 	if (symbol->target_variable->symbol_type == SYM_ENV) {
-		assert(symbol->target_function == NULL);
+		assert(symbol->target_variable_function == NULL);
 		return NULL;
 	}
 	assert(symbol->target_variable->symbol_type == SYM_LOCAL);
@@ -630,10 +630,10 @@ const LuaVariableSymbol *raviX_upvalue_target_variable(const LuaUpvalueSymbol *s
 const FunctionExpression *raviX_upvalue_target_function(const LuaUpvalueSymbol *symbol)
 {
 	if (symbol->target_variable->symbol_type == SYM_ENV) {
-		assert(symbol->target_function == NULL);
+		assert(symbol->target_variable_function == NULL);
 		return NULL;
 	}
-	assert(symbol->target_function->type == EXPR_FUNCTION);
-	return &symbol->target_function->function_expr;
+	assert(symbol->target_variable_function->type == EXPR_FUNCTION);
+	return &symbol->target_variable_function->function_expr;
 }
 unsigned raviX_upvalue_index(const LuaUpvalueSymbol *symbol) { return symbol->upvalue_index; }
