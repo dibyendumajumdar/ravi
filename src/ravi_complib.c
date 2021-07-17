@@ -1,25 +1,25 @@
 /******************************************************************************
-* Copyright (C) 2020-2021 Dibyendu Majumdar
-*
-* Permission is hereby granted, free of charge, to any person obtaining
-* a copy of this software and associated documentation files (the
-* "Software"), to deal in the Software without restriction, including
-* without limitation the rights to use, copy, modify, merge, publish,
-* distribute, sublicense, and/or sell copies of the Software, and to
-* permit persons to whom the Software is furnished to do so, subject to
-* the following conditions:
-*
-* The above copyright notice and this permission notice shall be
-* included in all copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-******************************************************************************/
+ * Copyright (C) 2020-2021 Dibyendu Majumdar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ ******************************************************************************/
 #include "ravi_api.h"
 
 #define LUA_CORE
@@ -68,12 +68,7 @@ static void setup_lua_closure(lua_State* L, LClosure* (*load_in_lua)(lua_State*)
 /* JIT compile chunk of code and return function closure, optional options string can include
  * --verbose and --dump-ir.
  */
-static int load_and_compile(lua_State* L) {
-  const char *s = luaL_checkstring(L, 1);
-  const char *options = "";
-  if (lua_isstring(L, 2)) {
-    options = luaL_checkstring(L, 2);
-  }
+static int load_and_compile_internal(lua_State* L, const char* s, const char* options) {
   struct CompilerContext ccontext = {.L = L, .jit = G(L)->ravi_state};
 
   struct Ravi_CompilerInterface ravicomp_interface = {.source = s,
@@ -114,9 +109,77 @@ static int load_and_compile(lua_State* L) {
 #endif
   }
   else {
-    lua_error(L);
     return 0;
   }
+}
+
+const char* read_file(const char* filename, char* error_message, size_t message_size) {
+  FILE* fp = fopen(filename, "r");
+  if (fp == NULL) {
+    snprintf(error_message, message_size, "Failed to open file %s", filename);
+    return NULL;
+  }
+  if (fseek(fp, 0, SEEK_END) != 0) {
+    snprintf(error_message, message_size, "Failed to seek to file end");
+    fclose(fp);
+    return NULL;
+  }
+  long long len = ftell(fp);
+  if (fseek(fp, 0, SEEK_SET) != 0) {
+    snprintf(error_message, message_size, "Failed to seek to file beginning");
+    fclose(fp);
+    return NULL;
+  }
+  char* buffer = (char*)calloc(1, len + 10);
+  if (!buffer) {
+    snprintf(error_message, message_size, "out of memory");
+    fclose(fp);
+    return NULL;
+  }
+  size_t n = fread(buffer, 1, len, fp);
+  if (n == 0) {
+    snprintf(error_message, message_size, "Failed to read file");
+    fclose(fp);
+    free(buffer);
+    return NULL;
+  }
+  fclose(fp);
+  return buffer;
+}
+
+static int load_and_compile(lua_State* L) {
+  const char* s = luaL_checkstring(L, 1);
+  const char* options = "";
+  if (lua_isstring(L, 2)) {
+    options = luaL_checkstring(L, 2);
+  }
+  int rc = load_and_compile_internal(L, s, options);
+  if (rc == 0) {
+    luaL_error(L, "Failed to compile");
+  }
+  return rc;
+}
+
+static int load_and_compile_file(lua_State* L) {
+  const char* fname = luaL_checkstring(L, 1);
+  const char* options = "";
+  if (lua_isstring(L, 2)) {
+    options = luaL_checkstring(L, 2);
+  }
+  char errmsg[1024];
+  errmsg[0] = 0;
+  const char* s = read_file(fname, errmsg, sizeof errmsg);
+  if (s == NULL) {
+    luaL_error(L, errmsg);
+    return 0;
+  }
+  // FIXME we should use pcall here
+  int rc = load_and_compile_internal(L, s, options);
+  free((void *)s);
+  if (rc == 0) {
+    luaL_error(L, "Failed to compile");
+  }
+  return rc;
 }
 
 /* Compile given chunk of code and generate C code, optional arg specifies name of main function */
@@ -156,9 +219,7 @@ static int generate(lua_State* L) {
 }
 
 static const luaL_Reg ravilib[] = {
-    {"load", load_and_compile},
-    {"compile", generate},
-    {NULL, NULL}};
+    {"load", load_and_compile}, {"loadfile", load_and_compile_file}, {"compile", generate}, {NULL, NULL}};
 
 int(raviopen_compiler)(lua_State* L) {
   luaL_newlib(L, ravilib);
