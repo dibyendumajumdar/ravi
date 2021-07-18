@@ -133,123 +133,115 @@ struct insn_desc {
   unsigned char op_modes[5];
 };
 
-#define OUTPUT_FLAG (1 << 7)
+#define OUT_FLAG (1 << 7)
 
 static const struct insn_desc insn_descs[] = {
-  {MIR_MOV, "mov", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FMOV, "fmov", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DMOV, "dmov", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDMOV, "ldmov", {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_EXT8, "ext8", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_EXT16, "ext16", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_EXT32, "ext32", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UEXT8, "uext8", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UEXT16, "uext16", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UEXT32, "uext32", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_I2F, "i2f", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_I2D, "i2d", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_I2LD, "i2ld", {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UI2F, "ui2f", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UI2D, "ui2d", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UI2LD, "ui2ld", {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_F2I, "f2i", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_D2I, "d2i", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LD2I, "ld2i", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_F2D, "f2d", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_F2LD, "f2ld", {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_D2F, "d2f", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_D2LD, "d2ld", {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LD2F, "ld2f", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_LD2D, "ld2d", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_NEG, "neg", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_NEGS, "negs", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FNEG, "fneg", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DNEG, "dneg", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDNEG, "ldneg", {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_ADD, "add", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_ADDS, "adds", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FADD, "fadd", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DADD, "dadd", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDADD,
-   "ldadd",
-   {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_SUB, "sub", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_SUBS, "subs", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FSUB, "fsub", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DSUB, "dsub", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDSUB,
-   "ldsub",
-   {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_MUL, "mul", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_MULS, "muls", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FMUL, "fmul", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DMUL, "dmul", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDMUL,
-   "ldmul",
-   {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_DIV, "div", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_DIVS, "divs", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UDIV, "udiv", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UDIVS, "udivs", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FDIV, "fdiv", {MIR_OP_FLOAT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DDIV, "ddiv", {MIR_OP_DOUBLE | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDDIV,
-   "lddiv",
-   {MIR_OP_LDOUBLE | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_MOD, "mod", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_MODS, "mods", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UMOD, "umod", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UMODS, "umods", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_AND, "and", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_ANDS, "ands", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_OR, "or", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_ORS, "ors", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_XOR, "xor", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_XORS, "xors", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_LSH, "lsh", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_LSHS, "lshs", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_RSH, "rsh", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_RSHS, "rshs", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_URSH, "ursh", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_URSHS, "urshs", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_EQ, "eq", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_EQS, "eqs", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FEQ, "feq", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DEQ, "deq", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDEQ, "ldeq", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_NE, "ne", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_NES, "nes", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FNE, "fne", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DNE, "dne", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDNE, "ldne", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_LT, "lt", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_LTS, "lts", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_ULT, "ult", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_ULTS, "ults", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FLT, "flt", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DLT, "dlt", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDLT, "ldlt", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_LE, "le", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_LES, "les", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_ULE, "ule", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_ULES, "ules", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FLE, "fle", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DLE, "dle", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDLE, "ldle", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_GT, "gt", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_GTS, "gts", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UGT, "ugt", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UGTS, "ugts", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FGT, "fgt", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DGT, "dgt", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDGT, "ldgt", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
-  {MIR_GE, "ge", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_GES, "ges", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UGE, "uge", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_UGES, "uges", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_FGE, "fge", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
-  {MIR_DGE, "dge", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
-  {MIR_LDGE, "ldge", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_MOV, "mov", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FMOV, "fmov", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DMOV, "dmov", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDMOV, "ldmov", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_EXT8, "ext8", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_EXT16, "ext16", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_EXT32, "ext32", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UEXT8, "uext8", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UEXT16, "uext16", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UEXT32, "uext32", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_I2F, "i2f", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_I2D, "i2d", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_I2LD, "i2ld", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UI2F, "ui2f", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UI2D, "ui2d", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UI2LD, "ui2ld", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_F2I, "f2i", {MIR_OP_INT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_D2I, "d2i", {MIR_OP_INT | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LD2I, "ld2i", {MIR_OP_INT | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_F2D, "f2d", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_F2LD, "f2ld", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_D2F, "d2f", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_D2LD, "d2ld", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LD2F, "ld2f", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_LD2D, "ld2d", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_NEG, "neg", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_NEGS, "negs", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FNEG, "fneg", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DNEG, "dneg", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDNEG, "ldneg", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_ADD, "add", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_ADDS, "adds", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FADD, "fadd", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DADD, "dadd", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDADD, "ldadd", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_SUB, "sub", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_SUBS, "subs", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FSUB, "fsub", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DSUB, "dsub", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDSUB, "ldsub", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_MUL, "mul", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_MULS, "muls", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FMUL, "fmul", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DMUL, "dmul", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDMUL, "ldmul", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_DIV, "div", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_DIVS, "divs", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UDIV, "udiv", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UDIVS, "udivs", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FDIV, "fdiv", {MIR_OP_FLOAT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DDIV, "ddiv", {MIR_OP_DOUBLE | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDDIV, "lddiv", {MIR_OP_LDOUBLE | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_MOD, "mod", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_MODS, "mods", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UMOD, "umod", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UMODS, "umods", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_AND, "and", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_ANDS, "ands", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_OR, "or", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_ORS, "ors", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_XOR, "xor", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_XORS, "xors", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_LSH, "lsh", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_LSHS, "lshs", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_RSH, "rsh", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_RSHS, "rshs", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_URSH, "ursh", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_URSHS, "urshs", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_EQ, "eq", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_EQS, "eqs", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FEQ, "feq", {MIR_OP_INT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DEQ, "deq", {MIR_OP_INT | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDEQ, "ldeq", {MIR_OP_INT | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_NE, "ne", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_NES, "nes", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FNE, "fne", {MIR_OP_INT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DNE, "dne", {MIR_OP_INT | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDNE, "ldne", {MIR_OP_INT | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_LT, "lt", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_LTS, "lts", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_ULT, "ult", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_ULTS, "ults", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FLT, "flt", {MIR_OP_INT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DLT, "dlt", {MIR_OP_INT | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDLT, "ldlt", {MIR_OP_INT | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_LE, "le", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_LES, "les", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_ULE, "ule", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_ULES, "ules", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FLE, "fle", {MIR_OP_INT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DLE, "dle", {MIR_OP_INT | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDLE, "ldle", {MIR_OP_INT | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_GT, "gt", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_GTS, "gts", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UGT, "ugt", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UGTS, "ugts", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FGT, "fgt", {MIR_OP_INT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DGT, "dgt", {MIR_OP_INT | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDGT, "ldgt", {MIR_OP_INT | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
+  {MIR_GE, "ge", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_GES, "ges", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UGE, "uge", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_UGES, "uges", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_FGE, "fge", {MIR_OP_INT | OUT_FLAG, MIR_OP_FLOAT, MIR_OP_FLOAT, MIR_OP_BOUND}},
+  {MIR_DGE, "dge", {MIR_OP_INT | OUT_FLAG, MIR_OP_DOUBLE, MIR_OP_DOUBLE, MIR_OP_BOUND}},
+  {MIR_LDGE, "ldge", {MIR_OP_INT | OUT_FLAG, MIR_OP_LDOUBLE, MIR_OP_LDOUBLE, MIR_OP_BOUND}},
   {MIR_JMP, "jmp", {MIR_OP_LABEL, MIR_OP_BOUND}},
   {MIR_BT, "bt", {MIR_OP_LABEL, MIR_OP_INT, MIR_OP_BOUND}},
   {MIR_BTS, "bts", {MIR_OP_LABEL, MIR_OP_INT, MIR_OP_BOUND}},
@@ -297,10 +289,10 @@ static const struct insn_desc insn_descs[] = {
   {MIR_INLINE, "inline", {MIR_OP_BOUND}},
   {MIR_SWITCH, "switch", {MIR_OP_BOUND}},
   {MIR_RET, "ret", {MIR_OP_BOUND}},
-  {MIR_ALLOCA, "alloca", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_BSTART, "bstart", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_BOUND}},
+  {MIR_ALLOCA, "alloca", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_BSTART, "bstart", {MIR_OP_INT | OUT_FLAG, MIR_OP_BOUND}},
   {MIR_BEND, "bend", {MIR_OP_INT, MIR_OP_BOUND}},
-  {MIR_VA_ARG, "va_arg", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_UNDEF, MIR_OP_BOUND}},
+  {MIR_VA_ARG, "va_arg", {MIR_OP_INT | OUT_FLAG, MIR_OP_INT, MIR_OP_UNDEF, MIR_OP_BOUND}},
   {MIR_VA_BLOCK_ARG,
    "va_block_arg",
    {MIR_OP_INT, MIR_OP_INT, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
@@ -325,11 +317,11 @@ static void check_and_prepare_insn_descs (MIR_context_t ctx) {
 }
 
 static MIR_op_mode_t type2mode (MIR_type_t type) {
-  return (type == MIR_T_UNDEF ? MIR_OP_UNDEF
-          : type == MIR_T_F   ? MIR_OP_FLOAT
-          : type == MIR_T_D   ? MIR_OP_DOUBLE
-          : type == MIR_T_LD  ? MIR_OP_LDOUBLE
-                              : MIR_OP_INT);
+  return (type == MIR_T_UNDEF
+            ? MIR_OP_UNDEF
+            : type == MIR_T_F
+                ? MIR_OP_FLOAT
+                : type == MIR_T_D ? MIR_OP_DOUBLE : type == MIR_T_LD ? MIR_OP_LDOUBLE : MIR_OP_INT);
 }
 
 /* New Page */
@@ -598,7 +590,7 @@ static void parallel_error (MIR_context_t ctx, const char *err_message) {
 MIR_context_t MIR_init (void) {
   MIR_context_t ctx;
 
-  mir_assert (MIR_OP_BOUND < OUTPUT_FLAG);
+  mir_assert (MIR_OP_BOUND < OUT_FLAG);
   if ((ctx = malloc (sizeof (struct MIR_context))) == NULL)
     default_error (MIR_alloc_error, "Not enough memory for ctx");
   ctx->string_ctx = NULL;
@@ -1745,8 +1737,8 @@ MIR_op_mode_t _MIR_insn_code_op_mode (MIR_context_t ctx, MIR_insn_code_t code, s
   if (nop >= insn_code_nops (ctx, code)) return MIR_OP_BOUND;
   mode = insn_descs[code].op_modes[nop];
   mir_assert (out_p != NULL);
-  *out_p = (mode & OUTPUT_FLAG) != 0;
-  return *out_p ? mode ^ OUTPUT_FLAG : mode;
+  *out_p = (mode & OUT_FLAG) != 0;
+  return *out_p ? mode ^ OUT_FLAG : mode;
 }
 
 MIR_op_mode_t MIR_insn_op_mode (MIR_context_t ctx, MIR_insn_t insn, size_t nop, int *out_p) {
@@ -1792,8 +1784,8 @@ MIR_op_mode_t MIR_insn_op_mode (MIR_context_t ctx, MIR_insn_t insn, size_t nop, 
     return type2mode (VARR_GET (MIR_var_t, proto->args, nop - args_start - proto->nres).type);
   }
   mode = insn_descs[code].op_modes[nop];
-  *out_p = (mode & OUTPUT_FLAG) != 0;
-  return *out_p ? mode ^ OUTPUT_FLAG : mode;
+  *out_p = (mode & OUT_FLAG) != 0;
+  return *out_p ? mode ^ OUT_FLAG : mode;
 }
 
 static MIR_insn_t create_insn (MIR_context_t ctx, size_t nops, MIR_insn_code_t code) {
@@ -2831,18 +2823,20 @@ void MIR_simplify_op (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn, 
       curr_module = m;
     }
     if (move_p) return;
-    type = (op->mode == MIR_OP_FLOAT     ? MIR_T_F
-            : op->mode == MIR_OP_DOUBLE  ? MIR_T_D
-            : op->mode == MIR_OP_LDOUBLE ? MIR_T_LD
-            : op->mode == MIR_OP_MEM     ? op->u.mem.type
-                                         : MIR_T_I64);
+    type = (op->mode == MIR_OP_FLOAT ? MIR_T_F
+                                     : op->mode == MIR_OP_DOUBLE
+                                         ? MIR_T_D
+                                         : op->mode == MIR_OP_LDOUBLE
+                                             ? MIR_T_LD
+                                             : op->mode == MIR_OP_MEM ? op->u.mem.type : MIR_T_I64);
     new_op = MIR_new_reg_op (ctx, vn_add_val (ctx, func, type, MIR_INSN_BOUND, *op, *op));
     MIR_insert_insn_before (ctx, func_item, insn,
                             MIR_new_insn (ctx,
-                                          type == MIR_T_F    ? MIR_FMOV
-                                          : type == MIR_T_D  ? MIR_DMOV
-                                          : type == MIR_T_LD ? MIR_LDMOV
-                                                             : MIR_MOV,
+                                          type == MIR_T_F
+                                            ? MIR_FMOV
+                                            : type == MIR_T_D
+                                                ? MIR_DMOV
+                                                : type == MIR_T_LD ? MIR_LDMOV : MIR_MOV,
                                           new_op, *op));
     *op = new_op;
     break;
@@ -2929,10 +2923,9 @@ void MIR_simplify_op (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn, 
                   || mem_op.u.mem.type == MIR_T_LD
                 ? mem_op.u.mem.type
                 : MIR_T_I64);
-      code = (type == MIR_T_F    ? MIR_FMOV
-              : type == MIR_T_D  ? MIR_DMOV
-              : type == MIR_T_LD ? MIR_LDMOV
-                                 : MIR_MOV);
+      code
+        = (type == MIR_T_F ? MIR_FMOV
+                           : type == MIR_T_D ? MIR_DMOV : type == MIR_T_LD ? MIR_LDMOV : MIR_MOV);
       new_op = MIR_new_reg_op (ctx, vn_add_val (ctx, func, type, MIR_INSN_BOUND, mem_op, mem_op));
       if (out_p)
         new_insn = MIR_new_insn (ctx, code, mem_op, new_op);
@@ -2991,10 +2984,10 @@ static void make_one_ret (MIR_context_t ctx, MIR_item_t func_item) {
     if (one_last_ret_p) {
       ret_reg_op = first_ret_insn->ops[i];
     } else {
-      mov_code = (res_types[i] == MIR_T_F    ? MIR_FMOV
-                  : res_types[i] == MIR_T_D  ? MIR_DMOV
-                  : res_types[i] == MIR_T_LD ? MIR_LDMOV
-                                             : MIR_MOV);
+      mov_code
+        = (res_types[i] == MIR_T_F
+             ? MIR_FMOV
+             : res_types[i] == MIR_T_D ? MIR_DMOV : res_types[i] == MIR_T_LD ? MIR_LDMOV : MIR_MOV);
       ret_reg = _MIR_new_temp_reg (ctx, mov_code == MIR_MOV ? MIR_T_I64 : res_types[i], func);
       ret_reg_op = MIR_new_reg_op (ctx, ret_reg);
       VARR_PUSH (MIR_op_t, ret_ops, ret_reg_op);
@@ -3022,10 +3015,10 @@ static void make_one_ret (MIR_context_t ctx, MIR_item_t func_item) {
       insn = VARR_GET (MIR_insn_t, temp_insns, i);
       mir_assert (func->nres == MIR_insn_nops (ctx, insn));
       for (j = 0; j < func->nres; j++) {
-        mov_code = (res_types[j] == MIR_T_F    ? MIR_FMOV
-                    : res_types[j] == MIR_T_D  ? MIR_DMOV
-                    : res_types[j] == MIR_T_LD ? MIR_LDMOV
-                                               : MIR_MOV);
+        mov_code = (res_types[j] == MIR_T_F
+                      ? MIR_FMOV
+                      : res_types[j] == MIR_T_D ? MIR_DMOV
+                                                : res_types[j] == MIR_T_LD ? MIR_LDMOV : MIR_MOV);
         reg_op = insn->ops[j];
         mir_assert (reg_op.mode == MIR_OP_REG);
         ret_reg_op = VARR_GET (MIR_op_t, ret_ops, j);
@@ -3132,12 +3125,14 @@ static int simplify_func (MIR_context_t ctx, MIR_item_t func_item, int mem_float
 
     if ((code == MIR_MOV || code == MIR_FMOV || code == MIR_DMOV || code == MIR_LDMOV)
         && insn->ops[0].mode == MIR_OP_MEM && insn->ops[1].mode == MIR_OP_MEM) {
-      temp_op = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx,
-                                                        code == MIR_MOV    ? MIR_T_I64
-                                                        : code == MIR_FMOV ? MIR_T_F
-                                                        : code == MIR_DMOV ? MIR_T_D
-                                                                           : MIR_T_LD,
-                                                        func));
+      temp_op
+        = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx,
+                                                  code == MIR_MOV
+                                                    ? MIR_T_I64
+                                                    : code == MIR_FMOV
+                                                        ? MIR_T_F
+                                                        : code == MIR_DMOV ? MIR_T_D : MIR_T_LD,
+                                                  func));
       MIR_insert_insn_after (ctx, func_item, insn, MIR_new_insn (ctx, code, insn->ops[0], temp_op));
       insn->ops[0] = temp_op;
     }
@@ -3283,38 +3278,41 @@ static void add_blk_move (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t be
   MIR_func_t func = func_item->u.func;
   size_t blk_size = (src_size + 7) / 8 * 8;
   MIR_insn_t insn;
-  MIR_reg_t addr_reg = _MIR_new_temp_reg (ctx, MIR_T_I64, func);
-  MIR_op_t addr = MIR_new_reg_op (ctx, addr_reg);
-  MIR_op_t disp = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
   MIR_op_t size = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
-  MIR_op_t step = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
-  MIR_op_t temp = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
-  MIR_label_t loop = MIR_new_label (ctx), skip = MIR_new_label (ctx);
 
   insn = MIR_new_insn (ctx, MIR_MOV, size, MIR_new_int_op (ctx, blk_size));
   MIR_insert_insn_before (ctx, func_item, before, insn);
   insn = MIR_new_insn (ctx, MIR_ALLOCA, dest, size);
   MIR_insert_insn_before (ctx, func_item, before, insn);
-  insn = MIR_new_insn (ctx, MIR_MOV, disp, MIR_new_int_op (ctx, 0));
-  MIR_insert_insn_before (ctx, func_item, before, insn);
-  insn = MIR_new_insn (ctx, MIR_BLT, MIR_new_label_op (ctx, skip), size, disp);
-  MIR_insert_insn_before (ctx, func_item, before, insn);
-  MIR_insert_insn_before (ctx, func_item, before, loop);
-  insn = MIR_new_insn (ctx, MIR_ADD, addr, src, disp);
-  MIR_insert_insn_before (ctx, func_item, before, insn);
-  insn = MIR_new_insn (ctx, MIR_MOV, temp, MIR_new_mem_op (ctx, MIR_T_I64, 0, addr_reg, 0, 1));
-  MIR_insert_insn_before (ctx, func_item, before, insn);
-  insn = MIR_new_insn (ctx, MIR_ADD, addr, dest, disp);
-  MIR_insert_insn_before (ctx, func_item, before, insn);
-  insn = MIR_new_insn (ctx, MIR_MOV, MIR_new_mem_op (ctx, MIR_T_I64, 0, addr_reg, 0, 1), temp);
-  MIR_insert_insn_before (ctx, func_item, before, insn);
-  insn = MIR_new_insn (ctx, MIR_MOV, step, MIR_new_int_op (ctx, 8));
-  MIR_insert_insn_before (ctx, func_item, before, insn);
-  insn = MIR_new_insn (ctx, MIR_ADD, disp, disp, step);
-  MIR_insert_insn_before (ctx, func_item, before, insn);
-  insn = MIR_new_insn (ctx, MIR_BLT, MIR_new_label_op (ctx, loop), disp, size);
-  MIR_insert_insn_before (ctx, func_item, before, insn);
-  MIR_insert_insn_before (ctx, func_item, before, skip);
+  if (blk_size != 0) {
+    MIR_reg_t addr_reg = _MIR_new_temp_reg (ctx, MIR_T_I64, func);
+    MIR_op_t addr = MIR_new_reg_op (ctx, addr_reg);
+    MIR_op_t disp = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
+    MIR_op_t step = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
+    MIR_op_t temp = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
+    MIR_label_t loop = MIR_new_label (ctx), skip = MIR_new_label (ctx);
+
+    insn = MIR_new_insn (ctx, MIR_MOV, disp, MIR_new_int_op (ctx, 0));
+    MIR_insert_insn_before (ctx, func_item, before, insn);
+    insn = MIR_new_insn (ctx, MIR_BLE, MIR_new_label_op (ctx, skip), size, disp);
+    MIR_insert_insn_before (ctx, func_item, before, insn);
+    MIR_insert_insn_before (ctx, func_item, before, loop);
+    insn = MIR_new_insn (ctx, MIR_ADD, addr, src, disp);
+    MIR_insert_insn_before (ctx, func_item, before, insn);
+    insn = MIR_new_insn (ctx, MIR_MOV, temp, MIR_new_mem_op (ctx, MIR_T_I64, 0, addr_reg, 0, 1));
+    MIR_insert_insn_before (ctx, func_item, before, insn);
+    insn = MIR_new_insn (ctx, MIR_ADD, addr, dest, disp);
+    MIR_insert_insn_before (ctx, func_item, before, insn);
+    insn = MIR_new_insn (ctx, MIR_MOV, MIR_new_mem_op (ctx, MIR_T_I64, 0, addr_reg, 0, 1), temp);
+    MIR_insert_insn_before (ctx, func_item, before, insn);
+    insn = MIR_new_insn (ctx, MIR_MOV, step, MIR_new_int_op (ctx, 8));
+    MIR_insert_insn_before (ctx, func_item, before, insn);
+    insn = MIR_new_insn (ctx, MIR_ADD, disp, disp, step);
+    MIR_insert_insn_before (ctx, func_item, before, insn);
+    insn = MIR_new_insn (ctx, MIR_BLT, MIR_new_label_op (ctx, loop), disp, size);
+    MIR_insert_insn_before (ctx, func_item, before, insn);
+    MIR_insert_insn_before (ctx, func_item, before, skip);
+  }
 }
 
 /* Only simplified code should be inlined because we need already
@@ -3395,12 +3393,12 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
                         MIR_new_reg_op (ctx, op.u.mem.base), var.size);
         } else {
           if (var.type == MIR_T_RBLK) op = MIR_new_reg_op (ctx, op.u.mem.base);
-          new_insn = MIR_new_insn (ctx,
-                                   type == MIR_T_F    ? MIR_FMOV
-                                   : type == MIR_T_D  ? MIR_DMOV
-                                   : type == MIR_T_LD ? MIR_LDMOV
-                                                      : MIR_MOV,
-                                   MIR_new_reg_op (ctx, new_reg), op);
+          new_insn
+            = MIR_new_insn (ctx,
+                            type == MIR_T_F
+                              ? MIR_FMOV
+                              : type == MIR_T_D ? MIR_DMOV : type == MIR_T_LD ? MIR_LDMOV : MIR_MOV,
+                            MIR_new_reg_op (ctx, new_reg), op);
           MIR_insert_insn_before (ctx, func_item, ret_label, new_insn);
         }
       }
@@ -3446,10 +3444,11 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
           mir_assert (ret_insn->ops[i].mode == MIR_OP_REG);
           ret_reg = ret_insn->ops[i].u.reg;
           new_insn = MIR_new_insn (ctx,
-                                   res_types[i] == MIR_T_F    ? MIR_FMOV
-                                   : res_types[i] == MIR_T_D  ? MIR_DMOV
-                                   : res_types[i] == MIR_T_LD ? MIR_LDMOV
-                                                              : MIR_MOV,
+                                   res_types[i] == MIR_T_F
+                                     ? MIR_FMOV
+                                     : res_types[i] == MIR_T_D
+                                         ? MIR_DMOV
+                                         : res_types[i] == MIR_T_LD ? MIR_LDMOV : MIR_MOV,
                                    call->ops[i + 2], MIR_new_reg_op (ctx, ret_reg));
           MIR_insert_insn_before (ctx, func_item, ret_label, new_insn);
         }
@@ -3569,7 +3568,11 @@ MIR_item_t _MIR_builtin_func (MIR_context_t ctx, MIR_module_t module, const char
 #include <sys/mman.h>
 #include <unistd.h>
 
+#if defined(__riscv)
+#define PROT_WRITE_EXEC (PROT_WRITE | PROT_READ | PROT_EXEC)
+#else
 #define PROT_WRITE_EXEC (PROT_WRITE | PROT_EXEC)
+#endif
 #define PROT_READ_EXEC (PROT_READ | PROT_EXEC)
 
 #if defined(__APPLE__) && defined(__aarch64__)
@@ -3733,7 +3736,7 @@ uint8_t *_MIR_publish_code_by_addr (MIR_context_t ctx, void *addr, const uint8_t
   code_holder_t *ch_ptr = get_last_code_holder (ctx, 0);
   uint8_t *res = NULL;
 
-  if (ch_ptr != NULL && ch_ptr->free == addr && ch_ptr->free + code_len < ch_ptr->bound)
+  if (ch_ptr != NULL && ch_ptr->free == addr && ch_ptr->free + code_len <= ch_ptr->bound)
     res = add_code (ctx, ch_ptr, code, code_len);
   return res;
 }
@@ -5619,7 +5622,7 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
                          || (insn_code == MIR_SWITCH
                              && VARR_LENGTH (MIR_op_t, scan_insn_ops) > 0))) {
             op = MIR_new_label_op (ctx, create_label_desc (ctx, name));
-          } else if (!expr_p && !ref_p && func_reg_p (ctx, func->u.func, name)) {
+          } else if (!expr_p && !ref_p && func != NULL && func_reg_p (ctx, func->u.func, name)) {
             op.mode = MIR_OP_REG;
             op.u.reg = MIR_reg (ctx, name, func->u.func);
           } else if ((item = item_tab_find (ctx, name, module)) != NULL) {
@@ -6008,6 +6011,15 @@ void _MIR_dump_code (const char *name, int index, uint8_t *code, size_t code_len
 #include "mir-ppc64.c"
 #elif defined(__s390x__)
 #include "mir-s390x.c"
+#elif defined(__riscv)
+#if __riscv_xlen != 64 || __riscv_flen < 64 || !__riscv_float_abi_double || !__riscv_mul \
+  || !__riscv_div || !__riscv_compressed
+#error "only 64-bit RISCV supported (at least rv64imafdc)"
+#endif
+#if __riscv_flen == 128
+#error "RISCV 128-bit floats (Q set) is not supported"
+#endif
+#include "mir-riscv64.c"
 #else
 #error "undefined or unsupported generation target"
 #endif

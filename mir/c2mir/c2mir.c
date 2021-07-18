@@ -34,6 +34,8 @@
 #include "ppc64/cppc64.h"
 #elif defined(__s390x__)
 #include "s390x/cs390x.h"
+#elif defined(__riscv)
+#include "riscv64/criscv64.h"
 #else
 #error "undefined or unsupported generation target for C"
 #endif
@@ -336,6 +338,8 @@ typedef struct {
 #include "ppc64/cppc64-code.c"
 #elif defined(__s390x__)
 #include "s390x/cs390x-code.c"
+#elif defined(__riscv)
+#include "riscv64/criscv64-code.c"
 #else
 #error "undefined or unsupported generation target for C"
 #endif
@@ -5371,6 +5375,7 @@ struct check_ctx {
   node_t curr_unnamed_anon_struct_union_member;
   node_t curr_switch;
   VARR (decl_t) * func_decls_for_allocation;
+  VARR (node_t) * possible_incomplete_decls;
   node_t n_i1_node;
   HTAB (case_t) * case_tab;
   node_t curr_func_def, curr_loop, curr_loop_switch;
@@ -5386,6 +5391,7 @@ struct check_ctx {
 #define curr_unnamed_anon_struct_union_member check_ctx->curr_unnamed_anon_struct_union_member
 #define curr_switch check_ctx->curr_switch
 #define func_decls_for_allocation check_ctx->func_decls_for_allocation
+#define possible_incomplete_decls check_ctx->possible_incomplete_decls
 #define n_i1_node check_ctx->n_i1_node
 #define case_tab check_ctx->case_tab
 #define curr_func_def check_ctx->curr_func_def
@@ -9065,6 +9071,12 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
     if (declarator->code != N_IGNORE) {
       create_decl (c2m_ctx, curr_scope, r, decl_spec, NULL, initializer,
                    context != NULL && context->code == N_FUNC);
+      decl_t decl = r->attr;
+      if ((initializer == NULL || initializer->code == N_IGNORE) && !decl->decl_spec.typedef_p
+          && !decl->decl_spec.extern_p
+          && (decl->decl_spec.type->mode == TM_STRUCT || decl->decl_spec.type->mode == TM_UNION)) {
+        VARR_PUSH (node_t, possible_incomplete_decls, r);
+      }
     } else if (decl_spec.type->mode == TM_STRUCT || decl_spec.type->mode == TM_UNION) {
       if (NL_HEAD (decl_spec.type->u.tag_type->u.ops)->code != N_ID)
         error (c2m_ctx, POS (r), "unnamed struct/union with no instances");
@@ -9569,8 +9581,17 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
 }
 
 static void do_context (c2m_ctx_t c2m_ctx, node_t r) {
+  check_ctx_t check_ctx = c2m_ctx->check_ctx;
+
   VARR_TRUNC (node_t, call_nodes, 0);
+  VARR_TRUNC (node_t, possible_incomplete_decls, 0);
   check (c2m_ctx, r, NULL);
+  for (size_t i = 0; i < VARR_LENGTH (node_t, possible_incomplete_decls); i++) {
+    node_t spec_decl = VARR_GET (node_t, possible_incomplete_decls, i);
+    decl_t decl = spec_decl->attr;
+    if (incomplete_type_p (c2m_ctx, decl->decl_spec.type))
+      error (c2m_ctx, POS (spec_decl), "incomplete struct or union");
+  }
 }
 
 static void context_init (c2m_ctx_t c2m_ctx) {
@@ -9587,6 +9608,7 @@ static void context_init (c2m_ctx_t c2m_ctx) {
   curr_unnamed_anon_struct_union_member = NULL;
   HTAB_CREATE (case_t, case_tab, 100, case_hash, case_eq, NULL);
   VARR_CREATE (decl_t, func_decls_for_allocation, 1024);
+  VARR_CREATE (node_t, possible_incomplete_decls, 512);
 }
 
 static void context_finish (c2m_ctx_t c2m_ctx) {
@@ -9598,6 +9620,7 @@ static void context_finish (c2m_ctx_t c2m_ctx) {
   symbol_finish (c2m_ctx);
   if (case_tab != NULL) HTAB_DESTROY (case_t, case_tab);
   if (func_decls_for_allocation != NULL) VARR_DESTROY (decl_t, func_decls_for_allocation);
+  if (possible_incomplete_decls != NULL) VARR_DESTROY (node_t, possible_incomplete_decls);
   free (c2m_ctx->check_ctx);
 }
 
@@ -10732,6 +10755,8 @@ static inline void gen_multiple_load_store (c2m_ctx_t c2m_ctx, struct type *type
 #include "ppc64/cppc64-ABI-code.c"
 #elif defined(__s390x__)
 #include "s390x/cs390x-ABI-code.c"
+#elif defined(__riscv)
+#include "riscv64/criscv64-ABI-code.c"
 #else
 typedef int target_arg_info_t; /* whatever */
 /* Initiate ARG_INFO for generating call, prototype, or prologue. */
@@ -11394,7 +11419,7 @@ static void gen_initializer (c2m_ctx_t c2m_ctx, size_t init_start, op_t var,
       global_name = NULL;
       rel_offset = init_el.offset + data_size;
     }
-    if (rel_offset < size) { /* fill the tail: */
+    if (rel_offset < size || size == 0) { /* fill the tail: */
       data = MIR_new_bss (ctx, global_name, size - rel_offset);
       if (global_name != NULL) var.decl->item = data;
     }
@@ -11778,7 +11803,15 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
     op1 = gen (c2m_ctx, arr, NULL, NULL, TRUE, NULL);
     op2 = gen (c2m_ctx, NL_EL (r->u.ops, 1), NULL, NULL, TRUE, NULL);
     ind_t = get_mir_type (c2m_ctx, ((struct expr *) NL_EL (r->u.ops, 1)->attr)->type);
+#if MIR_PTR32
     op2 = force_reg (c2m_ctx, op2, ind_t);
+#else
+    if (op2.mir_op.mode != MIR_OP_REG) {
+      op2 = force_reg (c2m_ctx, op2, ind_t);
+    } else if (ind_t != MIR_T_I64 && ind_t != MIR_T_U64) {
+      op2 = cast (c2m_ctx, op2, ind_t == MIR_T_I32 ? MIR_T_I64 : MIR_T_U64, FALSE);
+    }
+#endif
     if (type->mode == TM_PTR && type->arr_type != NULL) { /* it was an array */
       size = type_size (c2m_ctx, type->arr_type);
       op1 = force_reg_or_mem (c2m_ctx, op1, MIR_T_I64);
@@ -12088,16 +12121,19 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
       param_list = func_type->u.func_type->param_list;
       param = NL_HEAD (param_list->u.ops);
       for (node_t arg = NL_HEAD (args->u.ops); arg != NULL; arg = NL_NEXT (arg)) {
+        struct type *arg_type;
         e = arg->attr;
         struct_p = e->type->mode == TM_STRUCT || e->type->mode == TM_UNION;
         op2 = gen (c2m_ctx, arg, NULL, NULL, !struct_p, NULL);
         assert (param != NULL || NL_HEAD (param_list->u.ops) == NULL
                 || func_type->u.func_type->dots_p);
+        arg_type = e->type;
         if (struct_p) {
         } else if (param != NULL) {
           assert (param->code == N_SPEC_DECL || param->code == N_TYPE);
           decl_spec = get_param_decl_spec (param);
-          t = get_mir_type (c2m_ctx, decl_spec->type);
+          arg_type = decl_spec->type;
+          t = get_mir_type (c2m_ctx, arg_type);
           t = promote_mir_int_type (t);
           op2 = promote (c2m_ctx, op2, t, FALSE);
         } else {
@@ -12105,7 +12141,7 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
           t = promote_mir_int_type (t);
           op2 = promote (c2m_ctx, op2, t == MIR_T_F ? MIR_T_D : t, FALSE);
         }
-        target_add_call_arg_op (c2m_ctx, e->type, &arg_info, op2);
+        target_add_call_arg_op (c2m_ctx, arg_type, &arg_info, op2);
         if (param != NULL) param = NL_NEXT (param);
       }
       call_insn = MIR_new_insn_arr (ctx, (inline_p ? MIR_INLINE : MIR_CALL),
@@ -13151,6 +13187,8 @@ static void init_include_dirs (c2m_ctx_t c2m_ctx) {
 #endif
 #elif defined(__linux__) && defined(__s390x__)
   VARR_PUSH (char_ptr_t, system_headers, "/usr/include/s390x-linux-gnu");
+#elif defined(__linux__) && defined(__riscv)
+  VARR_PUSH (char_ptr_t, system_headers, "/usr/include/riscv64-linux-gnu");
 #endif
 #if defined(__APPLE__) || defined(__unix__)
   VARR_PUSH (char_ptr_t, system_headers, "/usr/include");

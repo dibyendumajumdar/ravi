@@ -226,6 +226,15 @@ static inline struct all_gen_ctx **all_gen_ctx_loc (MIR_context_t ctx) {
 #include "mir-gen-ppc64.c"
 #elif defined(__s390x__)
 #include "mir-gen-s390x.c"
+#elif defined(__riscv)
+#if __riscv_xlen != 64 || __riscv_flen < 64 || !__riscv_float_abi_double || !__riscv_mul \
+  || !__riscv_div || !__riscv_compressed
+#error "only 64-bit RISCV supported (at least rv64imafd)"
+#endif
+#if __riscv_flen == 128
+#error "RISCV 128-bit floats (Q set) is not supported"
+#endif
+#include "mir-gen-riscv64.c"
 #else
 #error "undefined or unsupported generation target"
 #endif
@@ -3973,7 +3982,7 @@ static void setup_loc_profits (gen_ctx_t gen_ctx, MIR_reg_t breg) {
 static void quality_assign (gen_ctx_t gen_ctx) {
   MIR_reg_t loc, curr_loc, best_loc, i, reg, breg, var, nregs = get_nregs (gen_ctx);
   MIR_type_t type;
-  int slots_num;
+  int n, slots_num;
   int j, k;
   live_range_t lr;
   bitmap_t bm;
@@ -4039,7 +4048,12 @@ static void quality_assign (gen_ctx_t gen_ctx) {
     type = MIR_reg_type (gen_ctx->ctx, reg, curr_func_item->u.func);
     if (bitmap_bit_p (curr_cfg->call_crossed_bregs, breg))
       bitmap_ior (conflict_locs, conflict_locs, call_used_hard_regs[type]);
-    for (loc = 0; loc <= MAX_HARD_REG; loc++) {
+    for (n = 0; n <= MAX_HARD_REG; n++) {
+#ifdef TARGET_HARD_REG_ALLOC_ORDER
+      loc = TARGET_HARD_REG_ALLOC_ORDER (n);
+#else
+      loc = n;
+#endif
       if (bitmap_bit_p (conflict_locs, loc)) continue;
       if (!target_hard_reg_type_ok_p (loc, type) || target_fixed_hard_reg_p (loc)) continue;
       if ((slots_num = target_locs_num (loc, type)) > 1) {
@@ -4139,10 +4153,11 @@ static MIR_reg_t change_reg (gen_ctx_t gen_ctx, MIR_op_t *mem_op, MIR_reg_t reg,
   MIR_reg_t hard_reg;
   MIR_disp_t offset;
   MIR_insn_code_t code;
-  MIR_insn_t new_insn;
+  MIR_insn_t new_insn, new_insns[3];
   MIR_type_t type;
   bb_insn_t bb_insn, new_bb_insn;
   MIR_op_t hard_reg_op;
+  size_t n;
 
   gen_assert (loc != MIR_NON_HARD_REG);
   if (loc <= MAX_HARD_REG) return loc;
@@ -4164,25 +4179,48 @@ static MIR_reg_t change_reg (gen_ctx_t gen_ctx, MIR_op_t *mem_op, MIR_reg_t reg,
   hard_reg = get_temp_hard_reg (type, first_p);
   setup_used_hard_regs (gen_ctx, type, hard_reg);
   offset = target_get_stack_slot_offset (gen_ctx, type, loc - MAX_HARD_REG - 1);
-  *mem_op = _MIR_new_hard_reg_mem_op (ctx, type, offset, FP_HARD_REG, MIR_NON_HARD_REG, 0);
+  n = 0;
+  if (target_valid_mem_offset_p (gen_ctx, type, offset)) {
+    *mem_op = _MIR_new_hard_reg_mem_op (ctx, type, offset, FP_HARD_REG, MIR_NON_HARD_REG, 0);
+  } else {
+    MIR_reg_t temp_hard_reg
+      = (first_p && !out_p) || (out_p && !first_p) ? TEMP_INT_HARD_REG1 : TEMP_INT_HARD_REG2;
+    new_insns[0] = MIR_new_insn (ctx, MIR_MOV, _MIR_new_hard_reg_op (ctx, temp_hard_reg),
+                                 MIR_new_int_op (ctx, offset));
+    new_insns[1] = MIR_new_insn (ctx, MIR_ADD, _MIR_new_hard_reg_op (ctx, temp_hard_reg),
+                                 _MIR_new_hard_reg_op (ctx, temp_hard_reg),
+                                 _MIR_new_hard_reg_op (ctx, FP_HARD_REG));
+    n = 2;
+    *mem_op = _MIR_new_hard_reg_mem_op (ctx, type, 0, temp_hard_reg, MIR_NON_HARD_REG, 0);
+  }
   if (hard_reg == MIR_NON_HARD_REG) return hard_reg;
   hard_reg_op = _MIR_new_hard_reg_op (ctx, hard_reg);
-  if (out_p) {
-    new_insn = MIR_new_insn (ctx, code, *mem_op, hard_reg_op);
-    MIR_insert_insn_after (ctx, curr_func_item, insn, new_insn);
+  if (!out_p) {
+    new_insns[n++] = MIR_new_insn (ctx, code, hard_reg_op, *mem_op);
   } else {
-    new_insn = MIR_new_insn (ctx, code, hard_reg_op, *mem_op);
-    MIR_insert_insn_before (ctx, curr_func_item, insn, new_insn);
+    new_insns[n++] = MIR_new_insn (ctx, code, *mem_op, hard_reg_op);
+    for (size_t i = 0, j = n - 1; i < j; i++, j--) { /* reverse for subsequent correct insertion: */
+      new_insn = new_insns[i];
+      new_insns[i] = new_insns[j];
+      new_insns[j] = new_insn;
+    }
   }
-  if (optimize_level == 0) {
-    new_insn->data = get_insn_data_bb (insn);
-  } else {
-    bb_insn = insn->data;
-    new_bb_insn = create_bb_insn (gen_ctx, new_insn, bb_insn->bb);
+  for (size_t i = 0; i < n; i++) {
+    new_insn = new_insns[i];
     if (out_p)
-      DLIST_INSERT_AFTER (bb_insn_t, bb_insn->bb->bb_insns, bb_insn, new_bb_insn);
+      MIR_insert_insn_after (ctx, curr_func_item, insn, new_insn);
     else
-      DLIST_INSERT_BEFORE (bb_insn_t, bb_insn->bb->bb_insns, bb_insn, new_bb_insn);
+      MIR_insert_insn_before (ctx, curr_func_item, insn, new_insn);
+    if (optimize_level == 0) {
+      new_insn->data = get_insn_data_bb (insn);
+    } else {
+      bb_insn = insn->data;
+      new_bb_insn = create_bb_insn (gen_ctx, new_insn, bb_insn->bb);
+      if (out_p)
+        DLIST_INSERT_AFTER (bb_insn_t, bb_insn->bb->bb_insns, bb_insn, new_bb_insn);
+      else
+        DLIST_INSERT_BEFORE (bb_insn_t, bb_insn->bb->bb_insns, bb_insn, new_bb_insn);
+    }
   }
   return hard_reg;
 }
@@ -4802,6 +4840,78 @@ static MIR_insn_t combine_branch_and_cmp (gen_ctx_t gen_ctx, bb_insn_t bb_insn) 
   }
 }
 
+static MIR_insn_t combine_exts (gen_ctx_t gen_ctx, bb_insn_t bb_insn) {
+  MIR_context_t ctx = gen_ctx->ctx;
+  MIR_insn_t def_insn, new_insn, insn = bb_insn->insn;
+  MIR_insn_code_t code = insn->code;
+  MIR_op_t op, saved_op;
+  int size, size2, sign_p = FALSE, sign2_p = FALSE, ok_p;
+
+  switch (code) {
+  case MIR_EXT8: sign2_p = TRUE;
+  case MIR_UEXT8: size2 = 1; break;
+  case MIR_EXT16: sign2_p = TRUE;
+  case MIR_UEXT16: size2 = 2; break;
+  case MIR_EXT32: sign2_p = TRUE;
+  case MIR_UEXT32: size2 = 3; break;
+  default: return NULL;
+  }
+  op = insn->ops[1];
+  if (op.mode != MIR_OP_HARD_REG || !safe_hreg_substitution_p (gen_ctx, op.u.hard_reg, bb_insn))
+    return NULL;
+  def_insn = hreg_refs_addr[op.u.hard_reg].insn;
+  switch (def_insn->code) {
+  case MIR_EXT8: sign_p = TRUE;
+  case MIR_UEXT8: size = 1; break;
+  case MIR_EXT16: sign_p = TRUE;
+  case MIR_UEXT16: size = 2; break;
+  case MIR_EXT32: sign_p = TRUE;
+  case MIR_UEXT32: size = 3; break;
+  default: return NULL;
+  }
+  if (obsolete_op_p (gen_ctx, def_insn->ops[1], hreg_refs_addr[op.u.hard_reg].insn_num))
+    return NULL;
+  if (size2 <= size) {
+    /* [u]ext<n> b,a; ... [u]ext<m> c,b -> [u]ext<m> c,a when <m> <= <n>: */
+    saved_op = insn->ops[1];
+    insn->ops[1] = def_insn->ops[1];
+    if (!target_insn_ok_p (gen_ctx, insn)) {
+      insn->ops[1] = saved_op;
+      return NULL;
+    }
+    DEBUG ({
+      fprintf (debug_file, "      changing to ");
+      print_bb_insn (gen_ctx, bb_insn, TRUE);
+    });
+    combine_delete_insn (gen_ctx, def_insn, bb_insn);
+    return insn;
+  } else if (sign_p == sign2_p && size < size2) {
+    saved_op = def_insn->ops[0];
+    def_insn->ops[0] = insn->ops[0];
+    ok_p = target_insn_ok_p (gen_ctx, insn);
+    def_insn->ops[0] = saved_op;
+    if (!ok_p) return NULL;
+    gen_move_insn_before (gen_ctx, insn, def_insn);
+    DEBUG ({
+      fprintf (debug_file, "      moving insn ");
+      print_bb_insn (gen_ctx, def_insn->data, FALSE);
+      fprintf (debug_file, "      before insn ");
+      print_bb_insn (gen_ctx, bb_insn, TRUE);
+    });
+    def_insn->ops[0] = insn->ops[0];
+    DEBUG ({
+      fprintf (debug_file, "      changing it to ");
+      print_bb_insn (gen_ctx, def_insn->data, TRUE);
+      // deleted_insns_num++;
+      fprintf (debug_file, "      deleting insn ");
+      print_bb_insn (gen_ctx, bb_insn, TRUE);
+    });
+    gen_delete_insn (gen_ctx, insn);
+    return def_insn;
+  }
+  return NULL;
+}
+
 static MIR_insn_t combine_mul_div_substitute (gen_ctx_t gen_ctx, bb_insn_t bb_insn) {
   MIR_context_t ctx = gen_ctx->ctx;
   MIR_insn_t def_insn = NULL, new_insns[6], insn = bb_insn->insn;
@@ -4966,6 +5076,7 @@ static void combine (gen_ctx_t gen_ctx) {
         } else if (code == MIR_RET) {
           /* ret is transformed in machinize and should be not modified after that */
         } else if ((new_insn = combine_branch_and_cmp (gen_ctx, bb_insn)) != NULL
+                   || (new_insn = combine_exts (gen_ctx, bb_insn)) != NULL
                    || (new_insn = combine_mul_div_substitute (gen_ctx, bb_insn)) != NULL) {
           bb_insn = new_insn->data;
           insn = new_insn;
