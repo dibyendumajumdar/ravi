@@ -647,6 +647,14 @@ static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 	}
 	add_instruction_target(proc, insn, target);
 	add_instruction(proc, insn);
+
+	if (targetop == op_toint || targetop == op_toflt) {
+		insn = allocate_instruction(proc, op_mov, node->line_number);
+		add_instruction_operand(proc, insn, target);
+		target = allocate_temp_pseudo(proc, targetop == op_toint ? RAVI_TNUMINT: RAVI_TNUMFLT);
+		add_instruction_target(proc, insn, target);
+		add_instruction(proc, insn);
+	}
 	return target;
 }
 

@@ -47,3 +47,5 @@ dofile("inputs/44_gauss3.lua")
 dofile("inputs/45_notequal.lua")
 dofile("inputs/46_notequal.lua")
 dofile("inputs/47_bug.lua")
+dofile("inputs/48_bug.lua")
+

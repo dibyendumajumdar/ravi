@@ -1036,7 +1036,8 @@ static bool refers_to_same_register(Function *fn, Pseudo *src, Pseudo *dst)
 	if (src->type == PSEUDO_LUASTACK || dst->type == PSEUDO_LUASTACK) {
 		return src->type == dst->type && src->stackidx == dst->stackidx;
 	}
-	if (src->type == PSEUDO_SYMBOL && dst->type != PSEUDO_SYMBOL)
+	if ((src->type == PSEUDO_SYMBOL || dst->type == PSEUDO_SYMBOL) &&
+	    src->type != dst->type)
 		// a temp reg can never equate local reg
 		return false;
 	if (src->type == PSEUDO_SYMBOL && dst->type == PSEUDO_SYMBOL) {
