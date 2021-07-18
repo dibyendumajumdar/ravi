@@ -724,11 +724,17 @@ static LuaSymbol *parse_local_variable_declaration(ParserState *parser)
 	return new_local_symbol(parser, name, tt, pusertype);
 }
 
+static void add_parameter_to_current_function(ParserState *parser, LuaSymbolList **list, LuaSymbol *symbol)
+{
+	symbol->variable.function_parameter = 1;
+	raviX_add_symbol(parser->container, list, symbol);
+	add_local_symbol_to_current_scope(parser, symbol);
+}
+
 static bool parse_parameter_list(ParserState *parser, LuaSymbolList **list)
 {
 	LexerState *ls = parser->ls;
 	/* parlist -> [ param { ',' param } ] */
-	int nparams = 0;
 	bool is_vararg = false;
 	if (ls->t.token != ')') { /* is 'parlist' not empty? */
 		do {
@@ -736,10 +742,7 @@ static bool parse_parameter_list(ParserState *parser, LuaSymbolList **list)
 			case TOK_NAME: { /* param -> NAME */
 					 /* RAVI change - add type */
 				LuaSymbol *symbol = parse_local_variable_declaration(parser);
-				symbol->variable.function_parameter = 1;
-				raviX_add_symbol(parser->container, list, symbol);
-				add_local_symbol_to_current_scope(parser, symbol);
-				nparams++;
+				add_parameter_to_current_function(parser, list, symbol);
 				break;
 			}
 			case TOK_DOTS: { /* param -> '...' */
@@ -762,7 +765,7 @@ static void parse_function_body(ParserState *parser, AstNode *func_ast, int isme
 	checknext(ls, '(');
 	if (ismethod) {
 		LuaSymbol *symbol = new_localvarliteral(parser, "self"); /* create 'self' parameter */
-		raviX_add_symbol(parser->container, &func_ast->function_expr.args, symbol);
+		add_parameter_to_current_function(parser, &func_ast->function_expr.args, symbol);
 	}
 	bool is_vararg = parse_parameter_list(parser, &func_ast->function_expr.args);
 	func_ast->function_expr.is_vararg = is_vararg;
