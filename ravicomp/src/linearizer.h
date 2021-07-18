@@ -200,6 +200,7 @@ struct Instruction {
 	PseudoList *operands;
 	PseudoList *targets;
 	BasicBlock *block; /* owning block */
+	unsigned line_number; /* Carry forward line number info */
 };
 
 /* Basic block.
