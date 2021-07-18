@@ -1484,6 +1484,12 @@ static int emit_op_call(Function *fn, Instruction *insn)
 	return 0;
 }
 
+static Pseudo *fix_if_range(Function *fn, Pseudo *pseudo)
+{
+	if (pseudo->type != PSEUDO_RANGE)
+		return pseudo;
+	return raviX_allocate_range_select_pseudo(fn->proc, pseudo, 0);
+}
 // We invoke luaV_concat() to concatenate values
 // luaV_concat requires that the values to be concatenated are at the top of the stack
 // and that L->top points just past the values.
@@ -1506,7 +1512,7 @@ static int emit_op_concat(Function *fn, Instruction *insn)
 	// to L->top, second to L->top+1 etc.
 	for (unsigned j = 0; j < n; j++) {
 		Pseudo tmp = {.type = PSEUDO_TEMP_ANY, .regnum = start_reg + j};
-		emit_move(fn, get_operand(insn, j), &tmp);
+		emit_move(fn, fix_if_range(fn, get_operand(insn, j)), &tmp);
 	}
 	// L->top must be just past the last arg
 	raviX_buffer_add_string(&fn->body, " L->top = ");

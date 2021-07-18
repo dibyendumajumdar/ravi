@@ -7,9 +7,10 @@ L0 (entry)
 	INIT {Tint(3)}
 	LOADGLOBAL {Upval(_ENV), 'table' Ks(0)} {T(0)}
 	GETsk {T(0), 'intarray' Ks(1)} {T(1)}
-	CALL {T(1), 8190 Kint(0)} {T(1..), 1 Kint(1)}
-	TOIARRAY {T(1[1..])}
-	MOV {T(1[1..])} {local(flags, 0)}
+	MOV {T(1)} {T(2)}
+	CALL {T(2), 8190 Kint(0)} {T(2..), 1 Kint(1)}
+	TOIARRAY {T(2[2..])}
+	MOV {T(2[2..])} {local(flags, 0)}
 	MOV {0 Kint(2)} {Tint(5)}
 	MOV {100000 Kint(3)} {Tint(6)}
 	MOV {1 Kint(1)} {Tint(7)}
@@ -769,15 +770,22 @@ i_3 = 0;
  raviV_gettable_sskey(L, tab, key, dst);
  base = ci->u.l.base;
 }
-// CALL {T(1), 8190 Kint(0)} {T(1..), 1 Kint(1)}
- if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
- L->top = R(2) + 2;
+// MOV {T(1)} {T(2)}
 {
+ const TValue *src_reg = R(2);
  TValue *dst_reg = R(3);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
+// CALL {T(2), 8190 Kint(0)} {T(2..), 1 Kint(1)}
+ if (stackoverflow(L,3)) { luaD_growstack(L, 3); base = ci->u.l.base; }
+ L->top = R(3) + 2;
+{
+ TValue *dst_reg = R(4);
  setivalue(dst_reg, 8190);
 }
 {
- TValue *ra = R(2);
+ TValue *ra = R(3);
  int result = luaD_precall(L, ra, 1, 1);
  if (result) {
   if (result == 1 && 1 >= 0)
@@ -789,17 +797,17 @@ i_3 = 0;
  }
  base = ci->u.l.base;
 }
-// TOIARRAY {T(1[1..])}
+// TOIARRAY {T(2[2..])}
 {
- TValue *ra = R(2);
+ TValue *ra = R(3);
  if (!ttisiarray(ra)) {
   error_code = 2;
   goto Lraise_error;
  }
 }
-// MOV {T(1[1..])} {local(flags, 0)}
+// MOV {T(2[2..])} {local(flags, 0)}
 {
- const TValue *src_reg = R(2);
+ const TValue *src_reg = R(3);
  TValue *dst_reg = R(0);
  dst_reg->tt_ = src_reg->tt_;
  dst_reg->value_.n = src_reg->value_.n;
@@ -1007,7 +1015,7 @@ EXPORT LClosure *mymain(lua_State *L) {
  f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
  f->numparams = 0;
  f->is_vararg = 0;
- f->maxstacksize = 3;
+ f->maxstacksize = 4;
  f->k = luaM_newvector(L, 2, TValue);
  f->sizek = 2;
  for (int i = 0; i < 2; i++)

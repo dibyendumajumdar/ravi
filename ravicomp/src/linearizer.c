@@ -400,7 +400,7 @@ static Pseudo *allocate_range_pseudo(Proc *proc, Pseudo *orig_pseudo)
 A PSEUDO_RANGE_SELECT picks or selects a particular offset in the range
 specified by a PSEUDO_RANGE. Pick of 0 means pick first value from the range.
 */
-static Pseudo *allocate_range_select_pseudo(Proc *proc, Pseudo *range_pseudo, int pick)
+Pseudo *raviX_allocate_range_select_pseudo(Proc *proc, Pseudo *range_pseudo, int pick)
 {
 	assert(range_pseudo->type == PSEUDO_RANGE);
 	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
@@ -1162,11 +1162,13 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 	Instruction *insn = allocate_instruction(proc, op_call, expr->line_number);
 
 	// if call site is a symbol copy to temp so that when return values are copied they end up in the temp space
-	if (callsite_pseudo->type == PSEUDO_SYMBOL) {
+	//if (callsite_pseudo->type == PSEUDO_SYMBOL) {
+	// FIXME are there scenarios where we can avoid the move?
+	// I think callsite would need to be at the top of the stack / and be a temp?
 		Pseudo *temp = allocate_temp_pseudo(proc, RAVI_TANY);
 		instruct_move(proc, op_mov, temp, callsite_pseudo, expr->line_number);
 		callsite_pseudo = temp;
-	}
+	//}
 
 	Pseudo *self_arg = NULL; /* For method call */
 	if (expr->function_call_expr.method_name) {
@@ -1436,7 +1438,7 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 				int pick = i - ne + 1;
 				linearize_store_var(proc, varinfo[i].vartype, varinfo[i].pseudo,
 						    valinfo[ne-1].vartype,
-						    allocate_range_select_pseudo(proc, last_val_pseudo, pick), line_number);
+				    raviX_allocate_range_select_pseudo(proc, last_val_pseudo, pick), line_number);
 			} else {
 				if (varinfo[i].vartype->type_code == RAVI_TTABLE ||
 				    varinfo[i].vartype->type_code == RAVI_TARRAYFLT ||
@@ -1452,7 +1454,7 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 			if (valinfo[i].pseudo->type == PSEUDO_RANGE) {
 				/* Only the topmost expression can be a range ... assert */
 				assert(i == note_ne-1);
-				valinfo[i].pseudo = allocate_range_select_pseudo(proc, valinfo[i].pseudo, 0);
+				valinfo[i].pseudo = raviX_allocate_range_select_pseudo(proc, valinfo[i].pseudo, 0);
 			}
 			linearize_store_var(proc, varinfo[i].vartype, varinfo[i].pseudo,
 					    valinfo[i].vartype, valinfo[i].pseudo, line_number);
@@ -1574,7 +1576,7 @@ static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 	assert(result);
 	if (result->type == PSEUDO_RANGE && expr->common_expr.truncate_results) {
 		// Need to truncate the results to 1
-		return allocate_range_select_pseudo(proc, result, 0);
+		return raviX_allocate_range_select_pseudo(proc, result, 0);
 	}
 	return result;
 }

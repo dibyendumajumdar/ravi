@@ -290,6 +290,8 @@ void raviX_output_instruction(Instruction *insn, TextBuffer *buffer);
 // Specialized output format that is similar to HTML Table but is
 // designed primarily for graphwiz dot format
 void raviX_output_basic_block_as_table(Proc *proc, BasicBlock *bb, TextBuffer *mb);
+// fix a range pseudo
+Pseudo *raviX_allocate_range_select_pseudo(Proc *proc, Pseudo *range_pseudo, int pick);
 
 Instruction *raviX_last_instruction(BasicBlock *block);
 
