@@ -1067,7 +1067,7 @@ static int emit_move_flttemp(Function *fn, Pseudo *src, Pseudo *dst)
 		raviX_buffer_add_string(&fn->body, " = ");
 		emit_varname(fn, src);
 		raviX_buffer_add_string(&fn->body, ";\n");
-	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL) {
+	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL || src->type == PSEUDO_RANGE_SELECT) {
 		raviX_buffer_add_string(&fn->body, "{\nTValue *reg = ");
 		emit_reg_accessor(fn, src, 0);
 		raviX_buffer_add_string(&fn->body, ";\n");
@@ -1097,7 +1097,7 @@ static int emit_move_inttemp(Function *fn, Pseudo *src, Pseudo *dst)
 		raviX_buffer_add_string(&fn->body, " = ");
 		emit_varname(fn, src);
 		raviX_buffer_add_string(&fn->body, ";\n");
-	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL) {
+	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL || src->type == PSEUDO_RANGE_SELECT) {
 		raviX_buffer_add_string(&fn->body, "{\nTValue *reg = ");
 		emit_reg_accessor(fn, src, 0);
 		raviX_buffer_add_string(&fn->body, ";\n");
