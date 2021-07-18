@@ -62,7 +62,8 @@ L8
 	TGETik {local(a, 0), Tint(7)} {T(4)}
 	GETik {T(4), Tint(2)} {T(0)}
 	TOFLT {T(0)}
-	FAPUTfv {T(0)} {local(xi, 2), Tint(7)}
+	MOV {T(0)} {Tflt(1)}
+	FAPUTfv {Tflt(1)} {local(xi, 2), Tint(7)}
 	BR {L6}
 L9
 	BR {L2}
@@ -949,7 +950,7 @@ LClosure *cl = clLvalue(ci->func);
 TValue *k = cl->p->k;
 StkId base = ci->u.l.base;
 lua_Integer i_0 = 0, i_1 = 0, i_2 = 0, i_3 = 0, i_4 = 0, i_5 = 0, i_6 = 0, i_7 = 0, i_8 = 0, i_9 = 0, i_10 = 0, i_11 = 0;
-lua_Number f_0 = 0;
+lua_Number f_0 = 0, f_1 = 0;
 TValue ival0; settt_(&ival0, LUA_TNUMINT);
 TValue fval0; settt_(&fval0, LUA_TNUMFLT);
 TValue bval0; settt_(&bval0, LUA_TBOOLEAN);
@@ -1202,15 +1203,20 @@ i_7 = i_8;
   goto Lraise_error;
  }
 }
-// FAPUTfv {T(0)} {local(xi, 2), Tint(7)}
+// MOV {T(0)} {Tflt(1)}
+{
+TValue *reg = R(3);
+f_1 = fltvalue(reg);
+}
+// FAPUTfv {Tflt(1)} {local(xi, 2), Tint(7)}
 {
  RaviArray *arr = arrvalue(R(2));
  lua_Unsigned ukey = (lua_Unsigned) i_7;
  lua_Number *iptr = (lua_Number *)arr->data;
  if (ukey < (lua_Unsigned)(arr->len)) {
- iptr[ukey] = fltvalue(R(3));
+ iptr[ukey] = f_1;
 } else {
- raviH_set_float(L, arr, ukey, fltvalue(R(3)));
+ raviH_set_float(L, arr, ukey, f_1);
 }
 }
 // BR {L6}
