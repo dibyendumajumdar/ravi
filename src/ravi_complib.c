@@ -83,7 +83,7 @@ static int load_and_compile_internal(lua_State* L, const char* s, const char* op
   ravicomp_interface.compiler_options = options;
   int rc = raviX_compile(&ravicomp_interface);
   if (ravicomp_interface.generated_code && strstr(options, "--verbose") != NULL) {
-    fprintf(stdout, "%s\n", ravicomp_interface.generated_code);
+    ravi_writestring(L, ravicomp_interface.generated_code, strlen(ravicomp_interface.generated_code));
   }
   if (rc == 0) {
 #ifdef USE_MIRJIT
