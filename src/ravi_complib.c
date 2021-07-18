@@ -102,6 +102,7 @@ static int load_and_compile_internal(lua_State* L, const char* s, const char* op
       rc = -1;
     }
     raviX_release(&ravicomp_interface);
+    // If successful the closure will be left on top of stack
     return rc == 0 ? 1 : 0;
 #else
     raviX_release(&ravicomp_interface);

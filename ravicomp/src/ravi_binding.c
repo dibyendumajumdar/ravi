@@ -78,11 +78,7 @@ int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 		raviX_buffer_add_string(&buf, "\nEnd of IR dump*/\n");
 	}
 	rc = raviX_generate_C(linearizer, &buf, compiler_interface);
-	if (rc != 0) {
-		raviX_buffer_free(&buf);
-	} else {
-		compiler_interface->generated_code = buf.buf;
-	}
+	compiler_interface->generated_code = buf.buf;
 
 L_exit:
 	raviX_destroy_linearizer(linearizer);
