@@ -94,7 +94,7 @@ void raviX_buffer_add_fstring(TextBuffer *mb, const char *fmt, ...)
 		va_start(args, fmt);
 		int n = vsnprintf(mb->buf + mb->pos, estimated_size, fmt, args);
 		va_end(args);
-		if (n > estimated_size) {
+		if (n >= estimated_size) {
 			estimated_size = n + 1; // allow for 0 byte
 		} else if (n < 0) {
 			fprintf(stderr, "Buffer conversion error\n");
