@@ -153,6 +153,7 @@ static LuaFunc Lua_functions[] = {
     { "luaD_inctop", luaD_inctop },
     { "luaM_realloc_", luaM_realloc_ },
     { "luaV_concat", luaV_concat },
+    { "printf", printf },
     { NULL, NULL }
 };
 

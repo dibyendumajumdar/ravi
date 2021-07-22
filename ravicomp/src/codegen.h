@@ -28,6 +28,9 @@
 #include "ravi_api.h"
 #include "linearizer.h"
 
+// FIXME this needs to be obtained from luaconf.h
+#define RAVI_DEFER_STATEMENT
+
 RAVICOMP_EXPORT int raviX_generate_C(LinearizerState *linearizer, TextBuffer *mb, struct Ravi_CompilerInterface *ravi_interface);
 RAVICOMP_EXPORT void raviX_generate_C_tofile(LinearizerState *linearizer, const char *mainfunc, FILE *fp);
 

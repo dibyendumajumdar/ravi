@@ -614,6 +614,7 @@ static const char Lua_header[] =
     "#define tointeger(o,i) \\\n"
     "  (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))\n"
     "#define tointegerns(o, i) (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointegerns(o, i, LUA_FLOORN2I))\n"
+    "extern int printf(const char *, ...);\n"
     "extern int luaV_tonumber_(const TValue *obj, lua_Number *n);\n"
     "extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);\n"
     "extern int luaV_tointegerns(const TValue *obj, lua_Integer *p, int mode);\n"
@@ -1298,7 +1299,7 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 		} else {
 			/* copy values starting at the range to L->top */
 			// raviX_buffer_add_fstring(&fn->body, " j = %d;\n", i);
-			raviX_buffer_add_fstring(&fn->body, " {\n int reg = %d;\n", pseudo->regnum);
+			raviX_buffer_add_fstring(&fn->body, " {\n int reg = %d;\n", compute_register_from_base(fn, pseudo));
 			raviX_buffer_add_string(&fn->body, "  while (j < wanted) {\n");
 			raviX_buffer_add_string(&fn->body, "   TValue *dest_reg = S(j);\n");
 			raviX_buffer_add_string(&fn->body, "   TValue *src_reg = R(reg);\n");
