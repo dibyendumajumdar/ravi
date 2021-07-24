@@ -2546,7 +2546,7 @@ void raviX_output_pseudo(Pseudo *pseudo, TextBuffer *mb)
 		const Constant *constant = pseudo->constant;
 		const char *tc = "";
 		if (constant->type == RAVI_TNUMFLT) {
-			raviX_buffer_add_fstring(mb, "%.12f", constant->n);
+			raviX_buffer_add_double(mb, constant->n);
 			tc = "flt";
 		} else if (constant->type == RAVI_TNUMINT) {
 			raviX_buffer_add_fstring(mb, "%lld", (long long)constant->i);

@@ -40,7 +40,7 @@ L4
 	LOADGLOBAL {Upval(_ENV), 'table' Ks(0)} {T(3)}
 	GETsk {T(3), 'numarray' Ks(1)} {T(2)}
 	MOV {T(2)} {T(0)}
-	CALL {T(0), Tint(1), 0.000000000000 Kflt(0)} {T(0..), 1 Kint(0)}
+	CALL {T(0), Tint(1), 0E0 Kflt(0)} {T(0..), 1 Kint(0)}
 	TOFARRAY {T(0[0..])}
 	MOV {T(0[0..])} {local(xi, 2)}
 	MOV {local(xi, 2)} {T(5)}
@@ -114,7 +114,7 @@ L4
 	LOADGLOBAL {Upval(_ENV), 'table' Ks(2)} {T(3)}
 	GETsk {T(3), 'numarray' Ks(3)} {T(5)}
 	MOV {T(5)} {T(9)}
-	CALL {T(9), Tint(2), 0.000000000000 Kflt(0)} {T(9..), 1 Kint(0)}
+	CALL {T(9), Tint(2), 0E0 Kflt(0)} {T(9..), 1 Kint(0)}
 	TOFARRAY {T(9[9..])}
 	MOV {T(9[9..])} {local(xi, 4)}
 	MOV {local(xi, 4)} {T(11)}
@@ -136,7 +136,7 @@ L8
 	MOV {Tint(9)} {Tint(8)}
 	TGETik {local(a, 0), Tint(3)} {T(11)}
 	TGETik {local(c, 3), Tint(8)} {T(10)}
-	MOVf {0.000000000000 Kflt(0)} {Tflt(0)}
+	MOVf {0E0 Kflt(0)} {Tflt(0)}
 	TOFARRAY {T(11)}
 	MOV {T(11)} {local(ai, 5)}
 	TOFARRAY {T(10)}
@@ -169,7 +169,7 @@ define Proc%4
 L0 (entry)
 	TOINT {local(n, 0)}
 	NEWTABLE {T(0)}
-	DIVfi {1.000000000000 Kflt(0), local(n, 0)} {Tflt(1)}
+	DIVfi {1E0 Kflt(0), local(n, 0)} {Tflt(1)}
 	DIVfi {Tflt(1), local(n, 0)} {Tflt(2)}
 	MOV {T(0)} {local(a, 1)}
 	MOVf {Tflt(2)} {Tflt(0)}
@@ -190,7 +190,7 @@ L4
 	LOADGLOBAL {Upval(_ENV), 'table' Ks(0)} {T(0)}
 	GETsk {T(0), 'numarray' Ks(1)} {T(1)}
 	MOV {T(1)} {T(2)}
-	CALL {T(2), local(n, 0), 0.000000000000 Kflt(1)} {T(2..), 1 Kint(0)}
+	CALL {T(2), local(n, 0), 0E0 Kflt(1)} {T(2..), 1 Kint(0)}
 	TOFARRAY {T(2[2..])}
 	MOV {T(2[2..])} {local(ai, 2)}
 	MOV {local(ai, 2)} {T(4)}
@@ -759,7 +759,8 @@ union GCUnion {
 };
 struct UpVal {
 	TValue *v;
-	lu_mem refcount;
+       unsigned int refcount;
+       unsigned int flags;
 	union {
 		struct {
 			UpVal *next;
@@ -788,10 +789,11 @@ struct UpVal {
 #define tointeger(o,i) \
   (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))
 #define tointegerns(o, i) (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointegerns(o, i, LUA_FLOORN2I))
+extern int printf(const char *, ...);
 extern int luaV_tonumber_(const TValue *obj, lua_Number *n);
 extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);
 extern int luaV_tointegerns(const TValue *obj, lua_Integer *p, int mode);
-extern void luaF_close (lua_State *L, StkId level);
+extern int luaF_close (lua_State *L, StkId level, int status);
 extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);
 extern void luaD_growstack (lua_State *L, int n);
 extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);
@@ -828,6 +830,7 @@ extern void raviV_gettable_sskey(lua_State *L, const TValue *t, TValue *key, TVa
 extern void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, TValue *val);
 extern void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);
 extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);
+extern void raviV_op_defer(lua_State *L, TValue *ra);
 extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);
 extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
 extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
@@ -917,7 +920,10 @@ base = ci->u.l.base;
  base = ci->u.l.base;
 }
 // RET {local(matrix, 0)} {L1}
-luaF_close(L, base);
+{
+luaF_close(L, base, LUA_OK);
+base = ci->u.l.base;
+}
 {
  TValue *stackbase = ci->func;
  int wanted = ci->nresults;
@@ -1087,7 +1093,7 @@ i_2 = i_3;
  dst_reg->tt_ = src_reg->tt_;
  dst_reg->value_.n = src_reg->value_.n;
 }
-// CALL {T(0), Tint(1), 0.000000000000 Kflt(0)} {T(0..), 1 Kint(0)}
+// CALL {T(0), Tint(1), 0E0 Kflt(0)} {T(0..), 1 Kint(0)}
  if (stackoverflow(L,4)) { luaD_growstack(L, 4); base = ci->u.l.base; }
  L->top = R(3) + 3;
 {
@@ -1537,7 +1543,7 @@ i_3 = i_4;
  dst_reg->tt_ = src_reg->tt_;
  dst_reg->value_.n = src_reg->value_.n;
 }
-// CALL {T(9), Tint(2), 0.000000000000 Kflt(0)} {T(9..), 1 Kint(0)}
+// CALL {T(9), Tint(2), 0E0 Kflt(0)} {T(9..), 1 Kint(0)}
  if (stackoverflow(L,4)) { luaD_growstack(L, 4); base = ci->u.l.base; }
  L->top = R(16) + 3;
 {
@@ -1655,7 +1661,7 @@ i_8 = i_9;
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
-// MOVf {0.000000000000 Kflt(0)} {Tflt(0)}
+// MOVf {0E0 Kflt(0)} {Tflt(0)}
 f_0 = 0;
 // TOFARRAY {T(11)}
 {
@@ -1784,8 +1790,8 @@ L0:
  raviV_op_newtable(L, ci, ra, 0, 0);
 base = ci->u.l.base;
 }
-// DIVfi {1.000000000000 Kflt(0), local(n, 0)} {Tflt(1)}
-{ f_1 = 1 / ((lua_Number)(ivalue(R(0)))); }
+// DIVfi {1E0 Kflt(0), local(n, 0)} {Tflt(1)}
+{ f_1 = 1E0 / ((lua_Number)(ivalue(R(0)))); }
 // DIVfi {Tflt(1), local(n, 0)} {Tflt(2)}
 { f_2 = f_1 / ((lua_Number)(ivalue(R(0)))); }
 // MOV {T(0)} {local(a, 1)}
@@ -1851,7 +1857,7 @@ i_0 = i_1;
  dst_reg->tt_ = src_reg->tt_;
  dst_reg->value_.n = src_reg->value_.n;
 }
-// CALL {T(2), local(n, 0), 0.000000000000 Kflt(1)} {T(2..), 1 Kint(0)}
+// CALL {T(2), local(n, 0), 0E0 Kflt(1)} {T(2..), 1 Kint(0)}
  if (stackoverflow(L,4)) { luaD_growstack(L, 4); base = ci->u.l.base; }
  L->top = R(5) + 3;
 {

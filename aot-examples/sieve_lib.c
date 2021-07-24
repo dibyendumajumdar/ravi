@@ -634,7 +634,8 @@ union GCUnion {
 };
 struct UpVal {
 	TValue *v;
-	lu_mem refcount;
+       unsigned int refcount;
+       unsigned int flags;
 	union {
 		struct {
 			UpVal *next;
@@ -663,10 +664,11 @@ struct UpVal {
 #define tointeger(o,i) \
   (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))
 #define tointegerns(o, i) (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointegerns(o, i, LUA_FLOORN2I))
+extern int printf(const char *, ...);
 extern int luaV_tonumber_(const TValue *obj, lua_Number *n);
 extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);
 extern int luaV_tointegerns(const TValue *obj, lua_Integer *p, int mode);
-extern void luaF_close (lua_State *L, StkId level);
+extern int luaF_close (lua_State *L, StkId level, int status);
 extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);
 extern void luaD_growstack (lua_State *L, int n);
 extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);
@@ -703,6 +705,7 @@ extern void raviV_gettable_sskey(lua_State *L, const TValue *t, TValue *key, TVa
 extern void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, TValue *val);
 extern void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);
 extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);
+extern void raviV_op_defer(lua_State *L, TValue *ra);
 extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);
 extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
 extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);

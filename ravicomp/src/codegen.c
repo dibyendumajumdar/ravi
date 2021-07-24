@@ -935,8 +935,9 @@ static int emit_reg_accessor(Function *fn, const Pseudo *pseudo, unsigned discri
 			raviX_buffer_add_fstring(&fn->body, "&ival%u; ival%u.value_.i = %lld", discriminator,
 						 discriminator, pseudo->constant->i);
 		} else if (pseudo->constant->type == RAVI_TNUMFLT) {
-			raviX_buffer_add_fstring(&fn->body, "&fval%u; fval%u.value_.n = %g", discriminator,
-						 discriminator, pseudo->constant->n);
+			raviX_buffer_add_fstring(&fn->body, "&fval%u; fval%u.value_.n = ", discriminator,
+						 discriminator);
+			raviX_buffer_add_double(&fn->body, pseudo->constant->n);
 		} else if (pseudo->constant->type == RAVI_TNIL) {
 			raviX_buffer_add_string(&fn->body, "&nilval");
 		} else if (pseudo->constant->type == RAVI_TBOOLEAN) {
@@ -978,7 +979,7 @@ static void emit_varname_or_constant(Function *fn, Pseudo *pseudo)
 		if (pseudo->constant->type == RAVI_TNUMINT) {
 			raviX_buffer_add_fstring(&fn->body, "%lld", pseudo->constant->i);
 		} else if (pseudo->constant->type == RAVI_TNUMFLT) {
-			raviX_buffer_add_fstring(&fn->body, "%.16g", pseudo->constant->n);
+			raviX_buffer_add_double(&fn->body, pseudo->constant->n);
 		} else {
 			handle_error(fn, "Unexpected pseudo type");
 		}

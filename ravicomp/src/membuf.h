@@ -36,6 +36,7 @@ extern void raviX_buffer_add_bool(TextBuffer *mb, bool value);
 extern void raviX_buffer_add_int(TextBuffer *mb, int value);
 extern void raviX_buffer_add_longlong(TextBuffer *mb, int64_t value);
 extern void raviX_buffer_add_char(TextBuffer *mb, char c);
+extern void raviX_buffer_add_double(TextBuffer *mb, double d);
 
 /* Following add and remove raw bytes */
 
