@@ -920,7 +920,7 @@ static int emit_reg_accessor(Function *fn, const Pseudo *pseudo, unsigned discri
 		raviX_buffer_add_fstring(&fn->body, "R(%d)", compute_register_from_base(fn, pseudo));
 	} else if (pseudo->type == PSEUDO_SYMBOL) {
 		if (pseudo->symbol->symbol_type == SYM_LOCAL) {
-			raviX_buffer_add_fstring(&fn->body, "R(%d)", pseudo->regnum);
+			raviX_buffer_add_fstring(&fn->body, "R(%d)", compute_register_from_base(fn, pseudo));
 		} else if (pseudo->symbol->symbol_type == SYM_UPVALUE) {
 			raviX_buffer_add_fstring(&fn->body, "cl->upvals[%d]->v", pseudo->symbol->upvalue.upvalue_index);
 		} else {
@@ -1410,11 +1410,13 @@ static int emit_op_store_table(Function *fn, Instruction *insn)
 // last argument first.
 static int emit_op_call(Function *fn, Instruction *insn)
 {
-	assert(get_num_targets(insn) == 2);
+	assert(get_num_targets(insn) == 2); // second target operand telss us # of results expected by caller
 	unsigned int n = get_num_operands(insn);
-	// target register is where results should end up after the call
+	// first target register is where results should end up after the call
 	// so it also tells us where we need to place the new frame
 	// Note that this is typically a range starting at a register
+	Pseudo *target_base = get_target(insn, 0);
+	assert(target_base->type == PSEUDO_TEMP_ANY || target_base->type == PSEUDO_RANGE);
 	unsigned target_register = get_target(insn, 0)->regnum;
 	// Number of values expected by the caller
 	// If -1 it means all available values
@@ -1423,6 +1425,7 @@ static int emit_op_call(Function *fn, Instruction *insn)
 	// then n will be on top of that
 	raviX_buffer_add_fstring(
 	    &fn->body, " if (stackoverflow(L,%d)) { luaD_growstack(L, %d); base = ci->u.l.base; }\n", n + 1, n + 1);
+	bool set_top = true; // Do we need to set L->top?
 	if (n > 1) {
 		// We have function arguments (as n=0 is the function itself)
 		Pseudo *last_arg = get_operand(insn, n - 1);
@@ -1457,17 +1460,19 @@ static int emit_op_call(Function *fn, Instruction *insn)
 				// L->top stays where it is ...
 			}
 			n--; // discard the last arg
-		} else {
-			// L->top must be just past the last arg
-			raviX_buffer_add_string(&fn->body, " L->top = ");
-			emit_reg_accessor(fn, get_target(insn, 0), 0);
-			raviX_buffer_add_fstring(&fn->body, " + %d;\n", n);
-		}
+			set_top = false;
+		}	
 	}
-	// Copy the rest of the args
+	// Copy the rest of the args in reverse order
 	for (int j = n - 1; j >= 0; j--) {
 		Pseudo tmp = {.type = PSEUDO_TEMP_ANY, .regnum = target_register + j};
 		emit_move(fn, get_operand(insn, j), &tmp);
+	}
+	if (set_top) {
+		// L->top must be just past the last arg
+		raviX_buffer_add_string(&fn->body, " L->top = ");
+		emit_reg_accessor(fn, get_target(insn, 0), 0);
+		raviX_buffer_add_fstring(&fn->body, " + %d;\n", n);	
 	}
 	// Call the function
 	raviX_buffer_add_string(&fn->body, "{\n TValue *ra = ");
