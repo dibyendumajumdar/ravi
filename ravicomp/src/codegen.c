@@ -2680,13 +2680,9 @@ static int generate_lua_proc(Proc *proc, TextBuffer *mb)
 		// We only need to register string constants
 		if (constant->type == RAVI_TSTRING) {
 			raviX_buffer_add_fstring(mb, " {\n  TValue *o = &f->k[%u];\n", constant->index);
-			if (constant->s->len == 0) {
-				raviX_buffer_add_string(mb, "  o = NULL;\n");
-			} else {
-				raviX_buffer_add_string(mb, "  setsvalue2n(L, o, luaS_newlstr(L, \"");
-				output_string_literal(mb, constant->s->str, constant->s->len);
-				raviX_buffer_add_fstring(mb, "\", %u));\n", constant->s->len);
-			}
+			raviX_buffer_add_string(mb, "  setsvalue2n(L, o, luaS_newlstr(L, \"");
+			output_string_literal(mb, constant->s->str, constant->s->len);
+			raviX_buffer_add_fstring(mb, "\", %u));\n", constant->s->len);
 			raviX_buffer_add_string(mb, " }\n");
 		}
 	}

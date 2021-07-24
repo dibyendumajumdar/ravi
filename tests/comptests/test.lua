@@ -50,6 +50,8 @@ dofile("inputs/47_bug.lua")
 dofile("inputs/48_bug.lua")
 dofile("inputs/49_bug.lua")
 dofile("inputs/50_bug.lua")
+dofile("inputs/51_concat.lua")
+dofile("inputs/52_local_s.lua")
 
 print 'SUCCESS'
 
