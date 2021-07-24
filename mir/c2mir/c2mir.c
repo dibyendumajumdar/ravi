@@ -120,7 +120,7 @@ DEF_HTAB (symbol_t);
 
 struct init_object {
   struct type *container_type;
-  int designator_p;
+  int field_designator_p;
   union {
     mir_llong curr_index;
     node_t curr_member;
@@ -296,6 +296,7 @@ struct type {
   struct type *arr_type; /* NULL or array type before its adjustment */
   struct type_qual type_qual;
   enum type_mode mode;
+  char func_type_before_adjustment_p;
   char unnamed_anon_struct_union_member_type_p;
   int align; /* type align, undefined if < 0  */
   /* Raw type size (w/o alignment type itself requirement but with
@@ -990,9 +991,7 @@ static int get_line (c2m_ctx_t c2m_ctx) { /* translation phase 1 and 2 */
   VARR_TRUNC (char, cs->ln, 0);
   for (c = ln_get (c2m_ctx); c != EOF && c != '\n'; c = ln_get (c2m_ctx))
     VARR_PUSH (char, cs->ln, c);
-#ifdef _WIN32
   if (VARR_LENGTH (char, cs->ln) != 0 && VARR_LAST (char, cs->ln) == '\r') VARR_POP (char, cs->ln);
-#endif
   eof_p = c == EOF;
   if (eof_p) {
     if (VARR_LENGTH (char, cs->ln) == 0) return FALSE;
@@ -1096,6 +1095,8 @@ static void push_str_char (c2m_ctx_t c2m_ctx, VARR (char) * temp, uint64_t ch, i
 #endif
 }
 
+static int pre_skip_if_part_p (c2m_ctx_t c2m_ctx);
+
 static void set_string_val (c2m_ctx_t c2m_ctx, token_t t, VARR (char) * temp, int type) {
   int i, str_len;
   int64_t curr_c, last_c = -1;
@@ -1113,7 +1114,8 @@ static void set_string_val (c2m_ctx_t c2m_ctx, token_t t, VARR (char) * temp, in
   assert (str_len >= start + 2 && (str[start] == '"' || str[start] == '\'')
           && str[start] == str[str_len - 1]);
   for (i = start + 1; i < str_len - 1; i++) {
-    if (!string_p && last_c >= 0) error (c2m_ctx, t->pos, "multibyte character");
+    if (!string_p && last_c >= 0 && !pre_skip_if_part_p (c2m_ctx))
+      error (c2m_ctx, t->pos, "multibyte character");
     last_c = curr_c = str[i];
     if (curr_c != '\\') {
       push_str_char (c2m_ctx, temp, curr_c, type);
@@ -1133,8 +1135,9 @@ static void set_string_val (c2m_ctx_t c2m_ctx, token_t t, VARR (char) * temp, in
     case '\?':
     case '\"': break;
     case 'e':
-      (c2m_options->pedantic_p ? error : warning) (c2m_ctx, t->pos,
-                                                   "non-standard escape sequence \\e");
+      if (!pre_skip_if_part_p (c2m_ctx))
+        (c2m_options->pedantic_p ? error : warning) (c2m_ctx, t->pos,
+                                                     "non-standard escape sequence \\e");
       last_c = curr_c = '\033';
       break;
     case '0':
@@ -1177,10 +1180,12 @@ static void set_string_val (c2m_ctx_t c2m_ctx, token_t t, VARR (char) * temp, in
         }
       }
       if (first_p) {
-        error (c2m_ctx, t->pos, "wrong hexadecimal char %c", curr_c);
+        if (!pre_skip_if_part_p (c2m_ctx))
+          error (c2m_ctx, t->pos, "wrong hexadecimal char %c", curr_c);
       } else if (v > max_char) {
-        (c2m_options->pedantic_p ? error : warning) (c2m_ctx, t->pos,
-                                                     "too big hexadecimal char 0x%x", v);
+        if (!pre_skip_if_part_p (c2m_ctx))
+          (c2m_options->pedantic_p ? error : warning) (c2m_ctx, t->pos,
+                                                       "too big hexadecimal char 0x%x", v);
         curr_c = max_char;
       }
       last_c = curr_c = v;
@@ -1201,34 +1206,43 @@ static void set_string_val (c2m_ctx_t c2m_ctx, token_t t, VARR (char) * temp, in
       }
       last_c = curr_c = v;
       if (n < digits_num) {
-        error (c2m_ctx, t->pos, "unfinished \\%c<hex-digits>", start_c);
+        if (!pre_skip_if_part_p (c2m_ctx))
+          error (c2m_ctx, t->pos, "unfinished \\%c<hex-digits>", start_c);
       } else if (v > max_char && (!string_p || (type != ' ' && type != '8') || v > MAX_UTF8)) {
-        (c2m_options->pedantic_p ? error : warning) (c2m_ctx, t->pos,
-                                                     "too big universal char 0x%lx in \\%c",
-                                                     (unsigned long) v, start_c);
+        if (!pre_skip_if_part_p (c2m_ctx))
+          (c2m_options->pedantic_p ? error : warning) (c2m_ctx, t->pos,
+                                                       "too big universal char 0x%lx in \\%c",
+                                                       (unsigned long) v, start_c);
         last_c = curr_c = max_char;
       } else if ((0xD800 <= v && v <= 0xDFFF)
                  || (v < 0xA0 && v != 0x24 && v != 0x40 && v != 0x60)) {
-        error (c2m_ctx, t->pos, "usage of reserved value 0x%lx in \\%c", (unsigned long) v,
-               start_c);
-        curr_c = -1;
+        if (!pre_skip_if_part_p (c2m_ctx)) {
+          error (c2m_ctx, t->pos, "usage of reserved value 0x%lx in \\%c", (unsigned long) v,
+                 start_c);
+          curr_c = -1;
+        }
       }
       if (n < digits_num) i--;
       break;
     }
-    default: error (c2m_ctx, t->pos, "wrong escape char 0x%x", curr_c); curr_c = -1;
+    default:
+      if (!pre_skip_if_part_p (c2m_ctx)) {
+        error (c2m_ctx, t->pos, "wrong escape char 0x%x", curr_c);
+        curr_c = -1;
+      }
     }
     if (!string_p || curr_c >= 0) push_str_char (c2m_ctx, temp, curr_c, type);
   }
   push_str_char (c2m_ctx, temp, '\0', type);
   if (string_p)
     t->node->u.s = uniq_str (c2m_ctx, VARR_ADDR (char, temp), VARR_LENGTH (char, temp));
-  else if (last_c < 0)
-    error (c2m_ctx, t->pos, "empty char constant");
-  else if (type == 'U' || type == 'u' || type == 'L')
+  else if (last_c < 0) {
+    if (!pre_skip_if_part_p (c2m_ctx)) error (c2m_ctx, t->pos, "empty char constant");
+  } else if (type == 'U' || type == 'u' || type == 'L') {
     t->node->u.ul = last_c;
-  else
+  } else {
     t->node->u.ch = last_c;
+  }
 }
 
 static token_t new_id_token (c2m_ctx_t c2m_ctx, pos_t pos, const char *id_str) {
@@ -1619,6 +1633,7 @@ static token_t get_next_pptoken_1 (c2m_ctx_t c2m_ctx, int header_p) {
         if (stop == '\'' && VARR_LENGTH (char, symbol_text) == 1)
           error (c2m_ctx, pos, "empty character");
       } else {
+        if (curr_c == '\n') cs_unget (c2m_ctx, '\n');
         error (c2m_ctx, pos, "unterminated %s", stop == '"' ? "string" : "char");
         VARR_PUSH (char, symbol_text, stop);
       }
@@ -1969,6 +1984,11 @@ struct pre_ctx {
 #define actual_pre_pos pre_ctx->actual_pre_pos
 #define pptokens_num pre_ctx->pptokens_num
 #define pre_out_token_func pre_ctx->pre_out_token_func
+
+static int pre_skip_if_part_p (c2m_ctx_t c2m_ctx) {
+  pre_ctx_t pre_ctx = c2m_ctx->pre_ctx;
+  return pre_ctx != NULL && skip_if_part_p;
+}
 
 /* It is a token based prerpocessor.
    It is input preprocessor tokens and output is (parser) tokens */
@@ -5501,6 +5521,7 @@ static void init_type (struct type *type) {
   type->arr_type = NULL;
   type->align = -1;
   type->raw_size = MIR_SIZE_MAX;
+  type->func_type_before_adjustment_p = FALSE;
   type->unnamed_anon_struct_union_member_type_p = FALSE;
 }
 
@@ -6780,6 +6801,7 @@ static void adjust_param_type (c2m_ctx_t c2m_ctx, struct type **type_ptr) {
     par_type = create_type (c2m_ctx, NULL);
     par_type->mode = TM_PTR;
     par_type->pos_node = type->pos_node;
+    par_type->func_type_before_adjustment_p = TRUE;
     par_type->u.ptr_type = type;
     *type_ptr = type = par_type;
     make_type_complete (c2m_ctx, type);
@@ -7186,13 +7208,13 @@ static int update_init_object_path (c2m_ctx_t c2m_ctx, size_t mark, struct type 
                init_object.u.curr_member = NL_NEXT (init_object.u.curr_member))
             ;
         } else if (init_object.container_type->mode == TM_UNION
-                   && !init_object.designator_p) { /* no next union member: */
+                   && !init_object.field_designator_p) { /* no next union member: */
           init_object.u.curr_member = NULL;
         } else { /* finding the next named struct member: */
           init_object.u.curr_member = get_adjacent_member (init_object.u.curr_member, TRUE);
         }
         if (init_object.u.curr_member != NULL) {
-          init_object.designator_p = FALSE;
+          init_object.field_designator_p = FALSE;
           el_type = ((decl_t) init_object.u.curr_member->attr)->decl_spec.type;
           break;
         }
@@ -7207,7 +7229,7 @@ static int update_init_object_path (c2m_ctx_t c2m_ctx, size_t mark, struct type 
         && el_type->u.tag_type == value_type->u.tag_type)
       return TRUE;
     init_object.container_type = el_type;
-    init_object.designator_p = FALSE;
+    init_object.field_designator_p = FALSE;
     if (el_type->mode == TM_ARR) {
       init_object.u.curr_index = -1;
     } else {
@@ -7233,7 +7255,7 @@ static int init_compatible_string_p (node_t n, struct type *el_type) {
               && el_type->u.basic_type == get_uint_basic_type (4)));
 }
 
-static int update_path_and_do (c2m_ctx_t c2m_ctx,
+static int update_path_and_do (c2m_ctx_t c2m_ctx, int go_inside_p,
                                void (*action) (c2m_ctx_t c2m_ctx, decl_t member_decl,
                                                struct type **type_ptr, node_t initializer,
                                                int const_only_p, int top_p),
@@ -7245,10 +7267,12 @@ static int update_path_and_do (c2m_ctx_t c2m_ctx,
   struct expr *value_expr = value->attr;
 
   if (!update_init_object_path (c2m_ctx, mark, value_expr == NULL ? NULL : value_expr->type,
-                                value->code == N_LIST || value->code == N_COMPOUND_LITERAL)) {
+                                !go_inside_p || value->code == N_LIST
+                                  || value->code == N_COMPOUND_LITERAL)) {
     error (c2m_ctx, pos, "excess elements in %s initializer", detail);
     return FALSE;
   }
+  if (!go_inside_p) return TRUE;
   init_object = VARR_LAST (init_object_t, init_object_path);
   if (init_object.container_type->mode == TM_ARR) {
     el_type = init_object.container_type->u.arr_type->el_type;
@@ -7401,7 +7425,7 @@ static void process_init_field_designator (c2m_ctx_t c2m_ctx, node_t designator_
   /* We can have *partial* path of containing anon members: pop them */
   while (VARR_LENGTH (init_object_t, init_object_path) != 0) {
     init_object = VARR_LAST (init_object_t, init_object_path);
-    if ((decl = init_object.u.curr_member->attr) == NULL
+    if (!init_object.field_designator_p || (decl = init_object.u.curr_member->attr) == NULL
         || !decl->decl_spec.type->unnamed_anon_struct_union_member_type_p) {
       break;
     }
@@ -7419,13 +7443,13 @@ static void process_init_field_designator (c2m_ctx_t c2m_ctx, node_t designator_
   while (VARR_LENGTH (node_t, containing_anon_members) != 0) {
     init_object.u.curr_member = VARR_POP (node_t, containing_anon_members);
     init_object.container_type = container_type;
-    init_object.designator_p = FALSE;
+    init_object.field_designator_p = FALSE;
     VARR_PUSH (init_object_t, init_object_path, init_object);
     container_type = (decl = init_object.u.curr_member->attr)->decl_spec.type;
   }
   init_object.u.curr_member = get_adjacent_member (designator_member, FALSE);
   init_object.container_type = container_type;
-  init_object.designator_p = TRUE;
+  init_object.field_designator_p = TRUE;
   VARR_PUSH (init_object_t, init_object_path, init_object);
 }
 
@@ -7450,6 +7474,18 @@ static node_t get_compound_literal (node_t n, int *addr_p) {
   return NULL;
 }
 
+static mir_llong get_arr_type_size (c2m_ctx_t c2m_ctx, struct type *arr_type) {
+  node_t size_node;
+  struct expr *sexpr;
+
+  assert (arr_type->mode == TM_ARR);
+  size_node = arr_type->u.arr_type->size;
+  sexpr = size_node->attr;
+  return (size_node->code != N_IGNORE && sexpr->const_p && integer_type_p (sexpr->type)
+            ? sexpr->u.i_val
+            : -1);
+}
+
 static void check_initializer (c2m_ctx_t c2m_ctx, decl_t member_decl, struct type **type_ptr,
                                node_t initializer, int const_only_p, int top_p) {
   struct type *type = *type_ptr;
@@ -7459,7 +7495,6 @@ static void check_initializer (c2m_ctx_t c2m_ctx, decl_t member_decl, struct typ
   mir_llong size_val = 0; /* to remove an uninitialized warning */
   size_t mark, len;
   symbol_t sym;
-  struct expr *sexpr;
   init_object_t init_object;
   int addr_p = FALSE; /* to remove an uninitialized warning */
 
@@ -7531,13 +7566,9 @@ check_one_value:
   }
   mark = VARR_LENGTH (init_object_t, init_object_path);
   init_object.container_type = type;
-  init_object.designator_p = FALSE;
+  init_object.field_designator_p = FALSE;
   if (type->mode == TM_ARR) {
-    size_node = type->u.arr_type->size;
-    sexpr = size_node->attr;
-    size_val = (size_node->code != N_IGNORE && sexpr->const_p && integer_type_p (sexpr->type)
-                  ? sexpr->u.i_val
-                  : -1);
+    size_val = get_arr_type_size (c2m_ctx, type);
     init_object.u.curr_index = -1;
   } else {
     init_object.u.curr_member = NULL;
@@ -7556,44 +7587,63 @@ check_one_value:
       break;
     }
     if ((curr_des = NL_HEAD (des_list->u.ops)) == NULL) {
-      if (!update_path_and_do (c2m_ctx, check_initializer, mark, value, const_only_p, &max_index,
-                               POS (init), "array/struct/union"))
+      if (!update_path_and_do (c2m_ctx, TRUE, check_initializer, mark, value, const_only_p,
+                               &max_index, POS (init), "array/struct/union"))
         break;
     } else {
-      for (; curr_des != NULL; curr_des = NL_NEXT (curr_des)) {
-        VARR_TRUNC (init_object_t, init_object_path, mark + 1);
-        init_object = VARR_POP (init_object_t, init_object_path);
+      struct type *curr_type = type;
+      mir_llong arr_size_val;
+      int first_p = TRUE;
+
+      VARR_TRUNC (init_object_t, init_object_path, mark + 1);
+      for (; curr_des != NULL; curr_des = NL_NEXT (curr_des), first_p = FALSE) {
+        init_object = VARR_LAST (init_object_t, init_object_path);
+        if (first_p) {
+          VARR_POP (init_object_t, init_object_path);
+        } else {
+          if (init_object.container_type->mode == TM_ARR) {
+            curr_type = init_object.container_type->u.arr_type->el_type;
+          } else {
+            assert (init_object.container_type->mode == TM_STRUCT
+                    || init_object.container_type->mode == TM_UNION);
+            decl_t el_decl = init_object.u.curr_member->attr;
+            curr_type = el_decl->decl_spec.type;
+          }
+        }
         if (curr_des->code == N_FIELD_ID) {
           node_t id = NL_HEAD (curr_des->u.ops);
 
-          if (type->mode != TM_STRUCT && type->mode != TM_UNION) {
+          if (curr_type->mode != TM_STRUCT && curr_type->mode != TM_UNION) {
             error (c2m_ctx, POS (curr_des), "field name not in struct or union initializer");
-          } else if (!symbol_find (c2m_ctx, S_REGULAR, id, type->u.tag_type, &sym)) {
+          } else if (!symbol_find (c2m_ctx, S_REGULAR, id, curr_type->u.tag_type, &sym)) {
             error (c2m_ctx, POS (curr_des), "unknown field %s in initializer", id->u.s.s);
           } else {
-            process_init_field_designator (c2m_ctx, sym.def_node, init_object.container_type);
-            if (!update_path_and_do (c2m_ctx, check_initializer, mark, value, const_only_p, NULL,
-                                     POS (init), "struct/union"))
+            process_init_field_designator (c2m_ctx, sym.def_node, curr_type);
+            if (!update_path_and_do (c2m_ctx, NL_NEXT (curr_des) == NULL, check_initializer, mark,
+                                     value, const_only_p, NULL, POS (init), "struct/union"))
               break;
           }
-        } else if (type->mode != TM_ARR) {
+        } else if (curr_type->mode != TM_ARR) {
           error (c2m_ctx, POS (curr_des), "array index in initializer for non-array");
         } else if (!(cexpr = curr_des->attr)->const_p) {
           error (c2m_ctx, POS (curr_des), "nonconstant array index in initializer");
         } else if (!integer_type_p (cexpr->type)) {
           error (c2m_ctx, POS (curr_des), "array index in initializer not of integer type");
-        } else if (incomplete_type_p (c2m_ctx, type) && signed_integer_type_p (cexpr->type)
+        } else if (incomplete_type_p (c2m_ctx, curr_type) && signed_integer_type_p (cexpr->type)
                    && cexpr->u.i_val < 0) {
           error (c2m_ctx, POS (curr_des),
                  "negative array index in initializer for array without size");
-        } else if (size_val >= 0 && size_val <= cexpr->u.u_val) {
+        } else if ((arr_size_val = get_arr_type_size (c2m_ctx, curr_type)) >= 0
+                   && arr_size_val <= cexpr->u.u_val) {
           error (c2m_ctx, POS (curr_des), "array index in initializer exceeds array bounds");
         } else {
           init_object.u.curr_index = cexpr->u.i_val - 1; /* previous el */
-          init_object.designator_p = FALSE;
+          init_object.field_designator_p = FALSE;
+          init_object.container_type = curr_type;
           VARR_PUSH (init_object_t, init_object_path, init_object);
-          if (!update_path_and_do (c2m_ctx, check_initializer, mark, value, const_only_p,
-                                   &max_index, POS (init), "array"))
+          if (!update_path_and_do (c2m_ctx, NL_NEXT (curr_des) == NULL, check_initializer, mark,
+                                   value, const_only_p, first_p ? &max_index : NULL, POS (init),
+                                   "array"))
             break;
         }
       }
@@ -7726,6 +7776,7 @@ static struct type *adjust_type (c2m_ctx_t c2m_ctx, struct type *type) {
   res->mode = TM_PTR;
   res->pos_node = type->pos_node;
   if (type->mode == TM_FUNC) {
+    res->func_type_before_adjustment_p = TRUE;
     res->u.ptr_type = type;
   } else {
     res->arr_type = type;
@@ -8584,8 +8635,11 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
 
       *e->type = *((struct expr *) deref_op->attr)->type;
       break;
-    } else if (e1->type->mode == TM_PTR
-               && (e1->type->u.ptr_type->mode == TM_FUNC || e1->type->arr_type != NULL)) {
+    } else if (e1->type->mode == TM_PTR && e1->type->arr_type != NULL) {
+      *e->type = *e1->type;
+      break;
+    } else if (e1->type->mode == TM_PTR && e1->type->u.ptr_type->mode == TM_FUNC
+               && e1->type->func_type_before_adjustment_p) {
       *e->type = *e1->type;
       break;
     } else if (!e1->lvalue_node) {
@@ -8837,7 +8891,7 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
     void_p = void_type_p (decl_spec->type);
     if (!void_p && !scalar_type_p (decl_spec->type)) {
       error (c2m_ctx, POS (r), "conversion to non-scalar type requested");
-    } else if (!scalar_type_p (t2) && !void_type_p (t2)) {
+    } else if (!void_p && !scalar_type_p (t2) && !void_type_p (t2)) {
       error (c2m_ctx, POS (r), "conversion of non-scalar value requested");
     } else if (t2->mode == TM_PTR && floating_type_p (decl_spec->type)) {
       error (c2m_ctx, POS (r), "conversion of a pointer to floating value requested");
@@ -10888,11 +10942,10 @@ static void collect_init_els (c2m_ctx_t c2m_ctx, decl_t member_decl, struct type
   gen_ctx_t gen_ctx = c2m_ctx->gen_ctx;
   struct type *type = *type_ptr;
   struct expr *cexpr;
-  node_t literal, des_list, curr_des, str, init, value, size_node;
+  node_t literal, des_list, curr_des, str, init, value;
   mir_llong MIR_UNUSED size_val = 0; /* to remove an uninitialized warning */
   size_t mark;
   symbol_t sym;
-  struct expr *sexpr;
   init_el_t init_el;
   int addr_p = FALSE; /* to remove an uninitialized warning */
   int MIR_UNUSED found_p, MIR_UNUSED ok_p;
@@ -10949,13 +11002,11 @@ check_one_value:
   }
   mark = VARR_LENGTH (init_object_t, init_object_path);
   init_object.container_type = type;
-  init_object.designator_p = FALSE;
+  init_object.field_designator_p = FALSE;
   if (type->mode == TM_ARR) {
-    size_node = type->u.arr_type->size;
-    sexpr = size_node->attr;
+    size_val = get_arr_type_size (c2m_ctx, type);
     /* we already figured out the array size during check: */
-    assert (size_node->code != N_IGNORE && sexpr->const_p && integer_type_p (sexpr->type));
-    size_val = sexpr->u.i_val;
+    assert (size_val >= 0);
     init_object.u.curr_index = -1;
   } else {
     init_object.u.curr_member = NULL;
@@ -10968,35 +11019,53 @@ check_one_value:
     assert ((value->code != N_LIST && value->code != N_COMPOUND_LITERAL) || type->mode == TM_ARR
             || type->mode == TM_STRUCT || type->mode == TM_UNION);
     if ((curr_des = NL_HEAD (des_list->u.ops)) == NULL) {
-      ok_p = update_path_and_do (c2m_ctx, collect_init_els, mark, value, const_only_p, NULL,
+      ok_p = update_path_and_do (c2m_ctx, TRUE, collect_init_els, mark, value, const_only_p, NULL,
                                  POS (init), "");
       assert (ok_p);
     } else {
-      for (; curr_des != NULL; curr_des = NL_NEXT (curr_des)) {
-        VARR_TRUNC (init_object_t, init_object_path, mark + 1);
-        init_object = VARR_POP (init_object_t, init_object_path);
+      struct type *curr_type = type;
+      mir_llong arr_size_val;
+      int first_p = TRUE;
+
+      VARR_TRUNC (init_object_t, init_object_path, mark + 1);
+      for (; curr_des != NULL; curr_des = NL_NEXT (curr_des), first_p = FALSE) {
+        init_object = VARR_LAST (init_object_t, init_object_path);
+        if (first_p) {
+          VARR_POP (init_object_t, init_object_path);
+        } else {
+          if (init_object.container_type->mode == TM_ARR) {
+            curr_type = init_object.container_type->u.arr_type->el_type;
+          } else {
+            assert (init_object.container_type->mode == TM_STRUCT
+                    || init_object.container_type->mode == TM_UNION);
+            decl_t el_decl = init_object.u.curr_member->attr;
+            curr_type = el_decl->decl_spec.type;
+          }
+        }
         if (curr_des->code == N_FIELD_ID) {
           node_t id = NL_HEAD (curr_des->u.ops);
 
           /* field should be only in struct/union initializer */
-          assert (type->mode == TM_STRUCT || type->mode == TM_UNION);
-          found_p = symbol_find (c2m_ctx, S_REGULAR, id, type->u.tag_type, &sym);
+          assert (curr_type->mode == TM_STRUCT || curr_type->mode == TM_UNION);
+          found_p = symbol_find (c2m_ctx, S_REGULAR, id, curr_type->u.tag_type, &sym);
           assert (found_p); /* field should present */
-          process_init_field_designator (c2m_ctx, sym.def_node, init_object.container_type);
-          ok_p = update_path_and_do (c2m_ctx, collect_init_els, mark, value, const_only_p, NULL,
-                                     POS (init), "");
+          process_init_field_designator (c2m_ctx, sym.def_node, curr_type);
+          ok_p = update_path_and_do (c2m_ctx, NL_NEXT (curr_des) == NULL, collect_init_els, mark,
+                                     value, const_only_p, NULL, POS (init), "");
           assert (ok_p);
         } else {
           cexpr = curr_des->attr;
           /* index should be in array initializer and const expr of right type and value: */
-          assert (type->mode == TM_ARR && cexpr->const_p && integer_type_p (cexpr->type)
-                  && !incomplete_type_p (c2m_ctx, type) && size_val >= 0
-                  && size_val > cexpr->u.u_val);
+          assert (curr_type->mode == TM_ARR && cexpr->const_p && integer_type_p (cexpr->type)
+                  && !incomplete_type_p (c2m_ctx, curr_type)
+                  && (arr_size_val = get_arr_type_size (c2m_ctx, curr_type)) >= 0
+                  && arr_size_val > cexpr->u.u_val);
           init_object.u.curr_index = cexpr->u.i_val - 1;
-          init_object.designator_p = FALSE;
+          init_object.field_designator_p = FALSE;
+          init_object.container_type = curr_type;
           VARR_PUSH (init_object_t, init_object_path, init_object);
-          ok_p = update_path_and_do (c2m_ctx, collect_init_els, mark, value, const_only_p, NULL,
-                                     POS (init), "");
+          ok_p = update_path_and_do (c2m_ctx, NL_NEXT (curr_des) == NULL, collect_init_els, mark,
+                                     value, const_only_p, NULL, POS (init), "");
           assert (ok_p);
         }
       }
@@ -11797,6 +11866,7 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
     MIR_type_t ind_t;
     node_t arr = NL_HEAD (r->u.ops);
     struct type *type = ((struct expr *) r->attr)->type;
+    struct type *arr_type = ((struct expr *) arr->attr)->type;
     mir_size_t size = type_size (c2m_ctx, type);
 
     t = get_mir_type (c2m_ctx, type);
@@ -11812,8 +11882,10 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
       op2 = cast (c2m_ctx, op2, ind_t == MIR_T_I32 ? MIR_T_I64 : MIR_T_U64, FALSE);
     }
 #endif
-    if (type->mode == TM_PTR && type->arr_type != NULL) { /* it was an array */
+    if (type->mode == TM_PTR && type->arr_type != NULL) { /* elem is an array */
       size = type_size (c2m_ctx, type->arr_type);
+    }
+    if (arr_type->mode == TM_PTR && arr_type->arr_type != NULL) { /* indexing an array */
       op1 = force_reg_or_mem (c2m_ctx, op1, MIR_T_I64);
       assert (op1.mir_op.mode == MIR_OP_REG || op1.mir_op.mode == MIR_OP_MEM);
     } else {
@@ -11882,7 +11954,7 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
     op1 = force_reg (c2m_ctx, op1, MIR_T_I64);
     assert (op1.mir_op.mode == MIR_OP_REG);
     if ((type = ((struct expr *) r->attr)->type)->mode == TM_PTR
-        && type->u.ptr_type->mode == TM_FUNC) {
+        && type->u.ptr_type->mode == TM_FUNC && type->func_type_before_adjustment_p) {
       res = op1;
     } else {
       t = get_mir_type (c2m_ctx, type);
@@ -11996,10 +12068,9 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
                         || decl->decl_spec.linkage == N_EXTERN || decl->decl_spec.static_p
                         || decl->decl_spec.thread_local_p,
                       TRUE);
-    if (decl->scope == top_scope)
-      qsort (VARR_ADDR (init_el_t, init_els) + init_start,
-             VARR_LENGTH (init_el_t, init_els) - init_start, sizeof (init_el_t), cmp_init_el);
-    if (decl->scope == top_scope || decl->decl_spec.static_p) {
+    qsort (VARR_ADDR (init_el_t, init_els) + init_start,
+           VARR_LENGTH (init_el_t, init_els) - init_start, sizeof (init_el_t), cmp_init_el);
+    if (decl->scope == top_scope || decl->decl_spec.static_p || decl->decl_spec.thread_local_p) {
       var = new_op (decl, MIR_new_ref_op (ctx, NULL));
     } else {
       t = get_mir_type (c2m_ctx, expr->type);
@@ -12008,7 +12079,8 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
     }
     gen_initializer (c2m_ctx, init_start, var, global_name,
                      raw_type_size (c2m_ctx, decl->decl_spec.type),
-                     decl->scope != top_scope && !decl->decl_spec.static_p);
+                     decl->scope != top_scope && !decl->decl_spec.static_p
+                       && !decl->decl_spec.thread_local_p);
     VARR_TRUNC (init_el_t, init_els, init_start);
     if (var.mir_op.mode == MIR_OP_REF) var.mir_op.u.ref = var.decl->item;
     res = var;
@@ -12221,9 +12293,8 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
                               || decl->decl_spec.linkage == N_EXTERN || decl->decl_spec.static_p
                               || decl->decl_spec.thread_local_p,
                             TRUE);
-          if (decl->scope == top_scope)
-            qsort (VARR_ADDR (init_el_t, init_els) + init_start,
-                   VARR_LENGTH (init_el_t, init_els) - init_start, sizeof (init_el_t), cmp_init_el);
+          qsort (VARR_ADDR (init_el_t, init_els) + init_start,
+                 VARR_LENGTH (init_el_t, init_els) - init_start, sizeof (init_el_t), cmp_init_el);
           if (id->attr == NULL) {
             node_t saved_scope = curr_scope;
 
@@ -12231,7 +12302,8 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
             check (c2m_ctx, id, NULL);
             curr_scope = saved_scope;
           }
-          if (decl->scope == top_scope || decl->decl_spec.static_p) {
+          if (decl->scope == top_scope || decl->decl_spec.static_p
+              || decl->decl_spec.thread_local_p) {
             var = new_op (decl, MIR_new_ref_op (ctx, NULL));
           } else {
             var = gen (c2m_ctx, id, NULL, NULL, FALSE, NULL);
@@ -12241,7 +12313,8 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
           }
           gen_initializer (c2m_ctx, init_start, var, name,
                            raw_type_size (c2m_ctx, decl->decl_spec.type),
-                           decl->scope != top_scope && !decl->decl_spec.static_p);
+                           decl->scope != top_scope && !decl->decl_spec.static_p
+                             && !decl->decl_spec.thread_local_p);
           VARR_TRUNC (init_el_t, init_els, init_start);
         }
         if (decl->item != NULL && decl->scope == top_scope && !decl->decl_spec.static_p) {
@@ -12280,9 +12353,6 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
     curr_func_def = r;
     curr_call_arg_area_offset = 0;
     collect_args_and_func_types (c2m_ctx, decl_type->u.func_type);
-    res_type = (VARR_LENGTH (MIR_type_t, proto_info.ret_types) == 0
-                  ? MIR_T_UNDEF
-                  : VARR_GET (MIR_type_t, proto_info.ret_types, 0));
     curr_func = ((decl_type->u.func_type->dots_p
                     ? MIR_new_vararg_func_arr
                     : MIR_new_func_arr) (ctx, NL_HEAD (declarator->u.ops)->u.s.s,
@@ -12334,18 +12404,22 @@ static op_t gen (c2m_ctx_t c2m_ctx, node_t r, MIR_label_t true_label, MIR_label_
     gen (c2m_ctx, stmt, NULL, NULL, FALSE, NULL);
     if ((insn = DLIST_TAIL (MIR_insn_t, curr_func->u.func->insns)) == NULL
         || (insn->code != MIR_RET && insn->code != MIR_JMP)) {
-      if (res_type == MIR_T_UNDEF) {
+      if (VARR_LENGTH (MIR_type_t, proto_info.ret_types) == 0) {
         emit_insn (c2m_ctx, MIR_new_ret_insn (ctx, 0));
-      } else if (res_type == MIR_T_D) {
-        emit_insn (c2m_ctx, MIR_new_ret_insn (ctx, 1, MIR_new_double_op (ctx, 0.0)));
-      } else if (res_type == MIR_T_LD) {
-        emit_insn (c2m_ctx, MIR_new_ret_insn (ctx, 1, MIR_new_ldouble_op (ctx, 0.0)));
-      } else if (res_type == MIR_T_F) {
-        emit_insn (c2m_ctx, MIR_new_ret_insn (ctx, 1, MIR_new_float_op (ctx, 0.0)));
       } else {
         VARR_TRUNC (MIR_op_t, ret_ops, 0);
-        for (size_t i = 0; i < VARR_LENGTH (MIR_type_t, proto_info.ret_types); i++)
-          VARR_PUSH (MIR_op_t, ret_ops, MIR_new_int_op (ctx, 0));
+        for (size_t i = 0; i < VARR_LENGTH (MIR_type_t, proto_info.ret_types); i++) {
+          res_type = VARR_GET (MIR_type_t, proto_info.ret_types, i);
+          if (res_type == MIR_T_D) {
+            VARR_PUSH (MIR_op_t, ret_ops, MIR_new_double_op (ctx, 0.0));
+          } else if (res_type == MIR_T_LD) {
+            VARR_PUSH (MIR_op_t, ret_ops, MIR_new_ldouble_op (ctx, 0.0));
+          } else if (res_type == MIR_T_F) {
+            VARR_PUSH (MIR_op_t, ret_ops, MIR_new_float_op (ctx, 0.0));
+          } else {
+            VARR_PUSH (MIR_op_t, ret_ops, MIR_new_int_op (ctx, 0));
+          }
+        }
         emit_insn (c2m_ctx, MIR_new_insn_arr (ctx, MIR_RET, VARR_LENGTH (MIR_op_t, ret_ops),
                                               VARR_ADDR (MIR_op_t, ret_ops)));
       }
@@ -12859,6 +12933,11 @@ static void print_type (c2m_ctx_t c2m_ctx, FILE *f, struct type *type) {
     fprintf (f, "ptr (");
     print_type (c2m_ctx, f, type->u.ptr_type);
     fprintf (f, ")");
+    if (type->arr_type != NULL) {
+      fprintf (f, ", former ");
+      print_type (c2m_ctx, f, type->arr_type);
+    }
+    if (type->func_type_before_adjustment_p) fprintf (f, ", former func");
     break;
   case TM_STRUCT: fprintf (f, "struct node %u", type->u.tag_type->uid); break;
   case TM_UNION: fprintf (f, "union node %u", type->u.tag_type->uid); break;
