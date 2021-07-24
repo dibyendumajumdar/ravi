@@ -2399,7 +2399,7 @@ static const char *errortext[] = {"integer expected",
                                   NULL};
 
 void raviV_raise_error(lua_State *L, int errorcode) {
-  assert(errorcode >= 0 && errorcode < Error_type_mismatch);
+  assert(errorcode >= 0 && errorcode <= Error_type_mismatch);
   luaG_runerror(L, errortext[errorcode]);
 }
 
