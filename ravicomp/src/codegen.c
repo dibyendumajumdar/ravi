@@ -797,6 +797,20 @@ static void handle_error(Function *fn, const char *msg)
 	longjmp(fn->env, 1);
 }
 
+static void handle_error_bad_pseudo(Function *fn, const Pseudo *pseudo, const char *msg)
+{
+	// TODO source and line number
+	raviX_buffer_reset(&fn->tb);
+	raviX_buffer_add_string(&fn->tb, msg);
+	raviX_buffer_add_string(&fn->tb, ": ");
+	raviX_output_pseudo(pseudo, &fn->tb);
+	fn->api->error_message(fn->api->context, fn->tb.buf);
+	longjmp(fn->env, 1);
+}
+
+/**
+ * Starts generating a function.
+ */
 static void initfn(Function *fn, Proc *proc, struct Ravi_CompilerInterface *api)
 {
 	fn->proc = proc;
@@ -879,7 +893,7 @@ static unsigned compute_register_from_base(Function *fn, const Pseudo *pseudo)
 	case PSEUDO_TEMP_ANY:
 	case PSEUDO_RANGE: // Compute starting register
 	case PSEUDO_RANGE_SELECT:
-		// All temps start after the locals
+		// we put all temps on Lua stack after the locals
 		return pseudo->regnum + num_locals(fn->proc);
 	case PSEUDO_SYMBOL:
 		if (pseudo->symbol->symbol_type == SYM_LOCAL) {
@@ -887,7 +901,7 @@ static unsigned compute_register_from_base(Function *fn, const Pseudo *pseudo)
 		}
 		// fallthrough
 	default:
-		handle_error(fn, "Unexpected pseudo type");
+		handle_error_bad_pseudo(fn, pseudo, "compute_register_from_base: Unexpected pseudo type");
 		return (unsigned)-1;
 	}
 }
@@ -895,6 +909,7 @@ static unsigned compute_register_from_base(Function *fn, const Pseudo *pseudo)
 /*
 Outputs accessor for a pseudo so that the accessor is always of type
 TValue *. Thus for constants, we need to use a temp stack variable of type TValue.
+For this purpose we have a predefined set of temp TValue objects on the stack.
 The issue is what happens if we need two values at the same time and both are constants
 of the same type. This is where the discriminator comes in - to help differentiate.
 The discriminator must be 0,1 or 2 (see initfn()).
@@ -916,7 +931,6 @@ static int emit_reg_accessor(Function *fn, const Pseudo *pseudo, unsigned discri
 		raviX_buffer_add_fstring(&fn->body, "S(%d)", pseudo->stackidx);
 	} else if (pseudo->type == PSEUDO_TEMP_ANY || pseudo->type == PSEUDO_RANGE ||
 		   pseudo->type == PSEUDO_RANGE_SELECT) {
-		// we put all temps on Lua stack after the locals
 		raviX_buffer_add_fstring(&fn->body, "R(%d)", compute_register_from_base(fn, pseudo));
 	} else if (pseudo->type == PSEUDO_SYMBOL) {
 		if (pseudo->symbol->symbol_type == SYM_LOCAL) {
@@ -924,7 +938,7 @@ static int emit_reg_accessor(Function *fn, const Pseudo *pseudo, unsigned discri
 		} else if (pseudo->symbol->symbol_type == SYM_UPVALUE) {
 			raviX_buffer_add_fstring(&fn->body, "cl->upvals[%d]->v", pseudo->symbol->upvalue.upvalue_index);
 		} else {
-			handle_error(fn, "Unexpected pseudo symbol type");
+			handle_error_bad_pseudo(fn, pseudo,"emit_reg_accessor: Unexpected pseudo symbol type");
 			return -1;
 		}
 	} else if (pseudo->type == PSEUDO_CONSTANT) {
@@ -944,7 +958,7 @@ static int emit_reg_accessor(Function *fn, const Pseudo *pseudo, unsigned discri
 			raviX_buffer_add_fstring(&fn->body, "&bval%u; bval%u.value_.b = %d", discriminator,
 						 discriminator, (int)pseudo->constant->i);
 		} else {
-			handle_error(fn, "Unexpected pseudo constant type");
+			handle_error_bad_pseudo(fn, pseudo, "emit_reg_accessor: Unexpected pseudo constant type");
 			return -1;
 		}
 	} else if (pseudo->type == PSEUDO_TEMP_FLT) {
@@ -963,7 +977,7 @@ static int emit_reg_accessor(Function *fn, const Pseudo *pseudo, unsigned discri
 		raviX_buffer_add_fstring(&fn->body, "&bval%u; bval%u.value_.b = ", discriminator, discriminator);
 		emit_varname(fn, pseudo);
 	} else {
-		handle_error(fn, "Unexpected pseudo type");
+		handle_error_bad_pseudo(fn, pseudo, "emit_reg_accessor: Unexpected pseudo type");
 		return -1;
 	}
 	return 0;
@@ -981,7 +995,7 @@ static void emit_varname_or_constant(Function *fn, Pseudo *pseudo)
 		} else if (pseudo->constant->type == RAVI_TNUMFLT) {
 			raviX_buffer_add_double(&fn->body, pseudo->constant->n);
 		} else {
-			handle_error(fn, "Unexpected pseudo type");
+			handle_error_bad_pseudo(fn, pseudo, "emit_varname_or_constant: Unexpected pseudo type");
 		}
 	} else if (pseudo->type == PSEUDO_TEMP_INT || pseudo->type == PSEUDO_TEMP_BOOL ||
 		   pseudo->type == PSEUDO_TEMP_FLT) {
@@ -995,17 +1009,17 @@ static void emit_varname_or_constant(Function *fn, Pseudo *pseudo)
 		}
 		if (typecode == RAVI_TNUMFLT) {
 			raviX_buffer_add_string(&fn->body, "fltvalue(");
-			emit_reg_accessor(fn, pseudo, 0);
+			emit_reg_accessor(fn, pseudo, 0); // discriminator not used
 			raviX_buffer_add_string(&fn->body, ")");
 		} else if (typecode == RAVI_TNUMINT) {
 			raviX_buffer_add_string(&fn->body, "ivalue(");
-			emit_reg_accessor(fn, pseudo, 0);
+			emit_reg_accessor(fn, pseudo, 0); // discriminator not used
 			raviX_buffer_add_string(&fn->body, ")");
 		} else {
-			handle_error(fn, "Unexpected pseudo");
+			handle_error_bad_pseudo(fn, pseudo,"emit_varname_or_constant: Unexpected pseudo");
 		}
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, pseudo, "emit_varname_or_constant: Unexpected pseudo");
 	}
 }
 
@@ -1015,6 +1029,7 @@ static void emit_varname_or_constant(Function *fn, Pseudo *pseudo)
 static bool refers_to_same_register(Function *fn, Pseudo *src, Pseudo *dst)
 {
 	// C++ doesn't support the syntax using [] :-(
+	// What pseudo types map to registers?
 	static bool reg_pseudos[] = {
 	    /* [PSEUDO_SYMBOL] =*/true,	    /* An object of type lua_symbol representing local var or upvalue */
 	    /* [PSEUDO_TEMP_FLT] =*/false,  /* A floating point temp - may also be used for locals that don't escape */
@@ -1039,9 +1054,10 @@ static bool refers_to_same_register(Function *fn, Pseudo *src, Pseudo *dst)
 		return src->type == dst->type && src->stackidx == dst->stackidx;
 	}
 	if ((src->type == PSEUDO_SYMBOL || dst->type == PSEUDO_SYMBOL) &&
-	    src->type != dst->type)
+	    src->type != dst->type) {
 		// a temp reg can never equate local reg
 		return false;
+	}
 	if (src->type == PSEUDO_SYMBOL && dst->type == PSEUDO_SYMBOL) {
 		// up-values are not registers
 		if (src->symbol->symbol_type != SYM_LOCAL || dst->symbol->symbol_type != SYM_LOCAL) {
@@ -1051,18 +1067,20 @@ static bool refers_to_same_register(Function *fn, Pseudo *src, Pseudo *dst)
 	return compute_register_from_base(fn, src) == compute_register_from_base(fn, dst);
 }
 
-/*copy floating point value to a temporary float */
+/*copy floating point value to a temporary float, dst is always PSEUDO_TEMP_FLT */
 static int emit_move_flttemp(Function *fn, Pseudo *src, Pseudo *dst)
 {
 	if (src->type == PSEUDO_CONSTANT) {
 		if (src->constant->type == RAVI_TNUMFLT) {
 			emit_varname(fn, dst);
-			raviX_buffer_add_fstring(&fn->body, " = %.16g;\n", src->constant->n);
+			raviX_buffer_add_string(&fn->body, " = ");
+			raviX_buffer_add_double(&fn->body, src->constant->n);
+			raviX_buffer_add_string(&fn->body, ";\n");
 		} else if (src->constant->type == RAVI_TNUMINT) {
 			emit_varname(fn, dst);
 			raviX_buffer_add_fstring(&fn->body, " = (lua_Number)%lld;\n", src->constant->i);
 		} else {
-			handle_error(fn, "Unexpected pseudo");
+			handle_error_bad_pseudo(fn, src, "emit_move_flttemp: Unexpected src pseudo");
 			return -1;
 		}
 	} else if (src->type == PSEUDO_TEMP_FLT) {
@@ -1072,18 +1090,18 @@ static int emit_move_flttemp(Function *fn, Pseudo *src, Pseudo *dst)
 		raviX_buffer_add_string(&fn->body, ";\n");
 	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL || src->type == PSEUDO_RANGE_SELECT) {
 		raviX_buffer_add_string(&fn->body, "{\nTValue *reg = ");
-		emit_reg_accessor(fn, src, 0);
+		emit_reg_accessor(fn, src, 0); // TODO check discriminator
 		raviX_buffer_add_string(&fn->body, ";\n");
 		emit_varname(fn, dst);
 		raviX_buffer_add_string(&fn->body, " = fltvalue(reg);\n}\n");
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, src, "Unexpected src pseudo");
 		return -1;
 	}
 	return 0;
 }
 
-/*copy integer value to temporary int */
+/*copy integer value to temporary int, dst is always PSEUDO_TEMP_INT  */
 static int emit_move_inttemp(Function *fn, Pseudo *src, Pseudo *dst)
 {
 	if (src->type == PSEUDO_CONSTANT) {
@@ -1092,7 +1110,7 @@ static int emit_move_inttemp(Function *fn, Pseudo *src, Pseudo *dst)
 			raviX_buffer_add_fstring(&fn->body, " = %lld;\n", src->constant->i);
 		} else {
 			// FIXME can we have float value?
-			handle_error(fn, "Unexpected pseudo");
+			handle_error_bad_pseudo(fn, src,"emit_move_inttemp: Unexpected pseudo");
 			return -1;
 		}
 	} else if (src->type == PSEUDO_TEMP_INT || src->type == PSEUDO_TEMP_BOOL) {
@@ -1102,12 +1120,12 @@ static int emit_move_inttemp(Function *fn, Pseudo *src, Pseudo *dst)
 		raviX_buffer_add_string(&fn->body, ";\n");
 	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL || src->type == PSEUDO_RANGE_SELECT) {
 		raviX_buffer_add_string(&fn->body, "{\nTValue *reg = ");
-		emit_reg_accessor(fn, src, 0);
+		emit_reg_accessor(fn, src, 0); // TODO check discriminator
 		raviX_buffer_add_string(&fn->body, ";\n");
 		emit_varname(fn, dst);
 		raviX_buffer_add_string(&fn->body, " = ivalue(reg);\n}\n");
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, src,"emit_move_inttemp: Unexpected pseudo");
 		return -1;
 	}
 	return 0;
@@ -1168,7 +1186,9 @@ static int emit_move(Function *fn, Pseudo *src, Pseudo *dst)
 			if (src->constant->type == RAVI_TNUMINT) {
 				raviX_buffer_add_fstring(&fn->body, " setivalue(dst_reg, %lld);\n", src->constant->i);
 			} else if (src->constant->type == RAVI_TNUMFLT) {
-				raviX_buffer_add_fstring(&fn->body, " setfltvalue(dst_reg, %g);\n", src->constant->n);
+				raviX_buffer_add_string(&fn->body, " setfltvalue(dst_reg, ");
+				raviX_buffer_add_double(&fn->body, src->constant->n);
+				raviX_buffer_add_string(&fn->body, " );\n");
 			} else if (src->constant->type == RAVI_TBOOLEAN) {
 				raviX_buffer_add_fstring(&fn->body, " setbvalue(dst_reg, %i);\n", (int)src->constant->i);
 			} else if (src->constant->type == RAVI_TNIL) {
@@ -1181,17 +1201,17 @@ static int emit_move(Function *fn, Pseudo *src, Pseudo *dst)
 				    &fn->body,
 				    " dst_reg->tt_ = src_reg->tt_;\n dst_reg->value_.gc = src_reg->value_.gc;\n");
 			} else {
-				handle_error(fn, "Unexpected pseudo");
+				handle_error_bad_pseudo(fn, src, "emit_move: Unexpected src pseudo");
 				return -1;
 			}
 			raviX_buffer_add_string(&fn->body, "}\n");
 		} else {
 			/* range pseudos not supported yet */
-			handle_error(fn, "Unexpected pseudo");
+			handle_error_bad_pseudo(fn, src, "emit_move: Unexpected src pseudo");
 			return -1;
 		}
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, dst, "emit_move: Unexpected dst pseudo");
 		return -1;
 	}
 	return 0;
@@ -1227,7 +1247,7 @@ static int emit_op_cbr(Function *fn, Instruction *insn)
 		raviX_buffer_add_fstring(&fn->body, "else goto L%d;\n", get_target(insn, 1)->block->index);
 		raviX_buffer_add_string(&fn->body, "}\n");
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, cond_pseudo, "emit_op_cbr: Unexpected pseudo");
 		return -1;
 	}
 	return 0;

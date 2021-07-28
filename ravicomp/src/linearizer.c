@@ -2539,7 +2539,7 @@ static void linearize_function(LinearizerState *linearizer)
 	}
 }
 
-void raviX_output_pseudo(Pseudo *pseudo, TextBuffer *mb)
+void raviX_output_pseudo(const Pseudo *pseudo, TextBuffer *mb)
 {
 	switch (pseudo->type) {
 	case PSEUDO_CONSTANT: {

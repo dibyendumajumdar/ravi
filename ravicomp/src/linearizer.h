@@ -282,7 +282,7 @@ struct LinearizerState {
 // Get string name of an op code
 const char *raviX_opcode_name(unsigned int opcode);
 // Output a pseudo in textual form
-void raviX_output_pseudo(Pseudo *pseudo, TextBuffer *buffer);
+void raviX_output_pseudo(const Pseudo *pseudo, TextBuffer *buffer);
 // Output the entire IR in textual form.
 void raviX_show_linearizer(LinearizerState *linearizer, TextBuffer *buffer);
 // Output an instruction's textual representation to buffer
