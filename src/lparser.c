@@ -1484,7 +1484,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, ravi_type_map *var_types,
     int i;
     for (i = n; i < (n + nrets); i++)
       /* do we need to convert ? */
-      ravi_code_typecoersion(ls, a + (i - n), var_types[i], NULL);
+      ravi_code_typecoersion(ls, a + (i - n), var_types[i], usertypes[i]);
   }
   else if (vartype == RAVI_TM_STRING_OR_NIL ||
             vartype == RAVI_TM_FUNCTION_OR_NIL ||
