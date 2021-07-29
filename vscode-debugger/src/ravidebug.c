@@ -77,14 +77,10 @@ typedef struct {
   int64_t sourceReference;
 } SourceOnStack;
 
-enum {
-    MAX_PROG_ARGS = 5
-};
-
 typedef struct {
-    char progpath[256];
+    char progpath[PATH_LEN];
     int argc;
-    char argv[MAX_PROG_ARGS][256];
+    char argv[MAX_ARGS][PATH_LEN];
 } Program;
 
 /*
@@ -155,7 +151,7 @@ static void handle_thread_request(ProtocolMessage *req, ProtocolMessage *res,
                                   FILE *out) {
   vscode_make_success_response(req, res, VSCODE_THREAD_RESPONSE);
   res->u.Response.u.ThreadResponse.threads[0].id = 1;
-  strncpy(res->u.Response.u.ThreadResponse.threads[0].name, "RaviThread",
+  ravi_string_copy(res->u.Response.u.ThreadResponse.threads[0].name, "RaviThread",
           sizeof res->u.Response.u.ThreadResponse.threads[0].name);
   vscode_send(res, out, my_logger);
 }
@@ -841,31 +837,12 @@ static void set_package_var(lua_State *L, const char *key, const char *value) {
 }
 
 /* Parse the launch program into command and args */
-static void parse_launch_program(Program *prog, const char *cmd) {
+static void parse_launch_program(Program *prog, ProtocolMessage *req) {
   memset(prog, 0, sizeof *prog);
-  const char *cp = cmd;
-  int i = 0;
-  for (; i < sizeof prog->progpath - 1; i++) {
-    if (cmd[i] && cmd[i] != ' ') {
-      prog->progpath[i] = cmd[i];
-    }
-    else
-      break;
-  }
+  ravi_string_copy(prog->progpath, req->u.Request.u.LaunchRequest.program, sizeof prog->progpath);
   fprintf(my_logger, "Program to be debugged = %s\n", prog->progpath);
-  for (int j = 0; j < MAX_PROG_ARGS; j++) {
-    while (cmd[i] && cmd[i] == ' ')
-      i++;
-    if (!cmd[i])
-      break;
-    int k = 0;
-    for (; k < sizeof prog->argv[0] - 1; k++) {
-      if (!cmd[i] || cmd[i] == ' ')
-        break;
-      prog->argv[j][k] = cmd[i];
-      i++;
-    }
-    prog->argv[j][k] = 0;
+  for (int j = 0; j < MAX_ARGS && j < req->u.Request.u.LaunchRequest.n_args; j++) {
+    ravi_string_copy(&prog->argv[j][0], &req->u.Request.u.LaunchRequest.args[j][0], PATH_LEN);
     prog->argc++;
   }
   for (int j = 0; j < prog->argc; j++) {
@@ -910,9 +887,8 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
                          sizeof workingdir);
     }
   }
-  const char *progname = req->u.Request.u.LaunchRequest.program;
   Program prog;
-  parse_launch_program(&prog, progname);
+  parse_launch_program(&prog, req);
   int status = luaL_loadfile(L, prog.progpath);
   if (status != LUA_OK) {
     char temp[1024];
@@ -938,7 +914,7 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
     lua_createtable(L, 2, 1);
     lua_pushstring(L, prog.progpath);
     lua_rawseti(L, -2, 0); /* arg[0] will have program */
-    for (int i = 0; i < MAX_PROG_ARGS && i < prog.argc; i++) {
+    for (int i = 0; i < prog.argc; i++) {
       lua_pushstring(L, prog.argv[i]);
       lua_rawseti(L, -2, i+1);
     }

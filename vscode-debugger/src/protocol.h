@@ -94,7 +94,8 @@ enum {
   MAX_VARIABLES = 251,
   MAX_THREADS = 1,
   SOURCE_LEN = 8196,
-  MAX_TOTAL_BREAKPOINTS = 20
+  MAX_TOTAL_BREAKPOINTS = 20,
+  MAX_ARGS = 10,
 };
 
 /*
@@ -234,6 +235,8 @@ typedef struct {
           char lua_path[PATH_LEN];
           char lua_cpath[PATH_LEN];
           char cwd[PATH_LEN];
+          int n_args;
+          char args[MAX_ARGS][PATH_LEN];
         } LaunchRequest;
 
         struct {

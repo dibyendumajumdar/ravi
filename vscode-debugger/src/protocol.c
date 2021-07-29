@@ -319,6 +319,19 @@ static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
     ravi_string_copy(msg->u.Request.u.LaunchRequest.cwd, cwd,
                      sizeof msg->u.Request.u.LaunchRequest.cwd);
   fix_path(msg->u.Request.u.LaunchRequest.cwd);
+  json_value *script_args = get_array_value(args, "args", log);
+  msg->u.Request.u.LaunchRequest.n_args = 0;
+  if (script_args != NULL && script_args->type == json_array) {
+    for (int i = 0; i < script_args->u.array.length && i < MAX_ARGS; i++) {
+      json_value *element = script_args->u.array.values[i];
+      if (element->type != json_string)
+        break;
+      const char *argptr = element->u.string.ptr;
+      ravi_string_copy(&msg->u.Request.u.LaunchRequest.args[i][0], argptr,
+        PATH_LEN);
+      msg->u.Request.u.LaunchRequest.n_args++;
+    }
+  }
   msg->u.Request.request_type = msgtype;
   return msgtype;
 }
