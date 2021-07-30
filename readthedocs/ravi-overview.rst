@@ -5,7 +5,7 @@ Ravi Programming Language
     :target: https://travis-ci.org/dibyendumajumdar/ravi
 
 Ravi is a dialect of `Lua <http://www.lua.org/>`_ with limited optional static typing and 
-features `MIR <https://github.com/vnmakarov/mir>`_ powered JIT compilers.
+features a JIT compiler powered by `MIR <https://github.com/vnmakarov/mir>`_ as well as experimental support for AOT compilation to native code.
 The name Ravi comes from the Sanskrit word for the Sun. 
 Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for 
 static types; Sol means the Sun in Portugese.
@@ -38,6 +38,8 @@ Features
 * Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_.
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * A `Visual Studio Code debugger extension <https://marketplace.visualstudio.com/items?itemName=ravilang.ravi-debug>`_ - interpreted mode debugger.
+* A new compiler framework for `JIT and AOT compilation <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-compiler.html>`_.
+* `AOT Compilation to shared library <https://github.com/dibyendumajumdar/ravi/tree/master/aot-examples>`_.
 
 Documentation
 =============
@@ -51,7 +53,8 @@ Lua Goodies
 * `An Introduction to Lua <http://the-ravi-programming-language.readthedocs.io/en/latest/lua-introduction.html>`_ attempts to provide a quick overview of Lua for folks coming from other languages.
 * `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_.
 * A `patch for Lua 5.3 <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_for_Lua_5_3.patch>`_ implements the 'defer' statement.
-* A `patch for Lua 5.4 <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_for_Lua_5_4.patch>`_ implements the 'defer' statement.
+* A `patch for Lua 5.4.[0-2] <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_for_Lua_5_4.patch>`_ implements the 'defer' statement.
+* Updated `patch for Lua 5.4.3 <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_patch_for_Lua_5_4_3.patch>`_ implements the 'defer' statement.
 
 Lua 5.4 Position Statement
 ==========================
