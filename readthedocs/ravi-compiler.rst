@@ -12,6 +12,8 @@ The new compiler differs from the standard Lua/Ravi compiler in following ways:
 * A new linear Intermediate Representation (IR) is produced from the AST.
 * Finally the IR is translated to C code, which can be JITed using the MIR backend or compiled ahead-of-time using a standard C compiler such as gcc, clang or MSVC.
 
+Additional details regarding the new implementation can be found at the `compiler project site <https://github.com/dibyendumajumdar/ravi-compiler>`_.
+
 The new compiler can be invoked in the following ways.
 
 JIT Compilation
