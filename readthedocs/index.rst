@@ -14,6 +14,7 @@ Contents:
    ravi-overview
    ravi-reference
    ravi-mir-instructions
+   ravi-compiler
    lua-introduction
    lua_bytecode_reference
    lua-parser
