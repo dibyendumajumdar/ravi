@@ -11,6 +11,8 @@ ravi sieve_aot.lua
 
 Have a look at [aot.lua](https://github.com/dibyendumajumdar/ravi/blob/master/aot-examples/aot.lua) to see how the AOT C code is generated.
 
+See [New Compiler Framework documentation](https://github.com/dibyendumajumdar/ravi/blob/master/readthedocs/ravi-compiler.rst).
+
 ## Notes
 
 Note that these examples can also be JIT compiled - for an example of how that works,
