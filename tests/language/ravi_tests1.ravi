@@ -2284,6 +2284,24 @@ do
 end
 print 'Test 105 OK'
 
+do
+  local function x()
+    return 1,2.5, nil, 'hi', {}, table.intarray(2), table.numarray(2),nil
+  end
+  local function y()
+    local a:integer,b:number,c:string,d:string,e:table,f:integer[],g:number[],h:UserType = x()
+  end
+  check(y, 'GETUPVAL', 'CALL', 'TOINT', 'TOFLT', 'TOSTRING',
+    'TOSTRING', 'TOTAB', 'TOIARRAY', 'TOFARRAY', 'TOTYPE', 'RETURN')
+  ravi.dumplua(y)
+  y()
+  compile(x)
+  compile(y)
+  y()
+end
+print 'Test 106 OK'
+
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)

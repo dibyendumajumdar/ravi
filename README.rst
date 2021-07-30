@@ -5,7 +5,7 @@ Ravi Programming Language
     :target: https://travis-ci.org/dibyendumajumdar/ravi
 
 Ravi is a dialect of `Lua <http://www.lua.org/>`_ with limited optional static typing and 
-features `MIR <https://github.com/vnmakarov/mir>`_ powered JIT compilers.
+features a JIT compiler powered by `MIR <https://github.com/vnmakarov/mir>`_ as well as experimental support for AOT compilation to native code.
 The name Ravi comes from the Sanskrit word for the Sun. 
 Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for 
 static types; Sol means the Sun in Portugese.
@@ -38,6 +38,7 @@ Features
 * Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_.
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * A `Visual Studio Code debugger extension <https://marketplace.visualstudio.com/items?itemName=ravilang.ravi-debug>`_ - interpreted mode debugger.
+* A new compiler framework for `JIT and AOT compilation <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-compiler.html>`_.
 * `AOT Compilation to shared library <https://github.com/dibyendumajumdar/ravi/tree/master/aot-examples>`_.
 
 Documentation
