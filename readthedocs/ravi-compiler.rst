@@ -42,6 +42,7 @@ There are some limitations in this approach that you need to be aware of.
 * There is no support for Lua hooks in the generated code, as there are no Lua bytecodes.
 * Coroutines are not supported; the generated code can only be executed on the main thread, and moreover cannot yield either.
 * Var args are not yet supported. 
+* The 'defer' statement is not yet implemented.
 * The Lua debug interface cannot be used to manipulate objects inside the compiled code.
 * The compiler is still in early stages of development, hence bugs can be expected.
 
