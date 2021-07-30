@@ -38,7 +38,7 @@ Limitations
 There are some limitations in this approach that you need to be aware of.
 
 * The generated code does not have Lua bytecode. Hence Lua interpreter / debugger cannot do anything with these functions.
-* The generated code knows about the internals of the Ravi VM - in particular it relies upon the VM stack, GC, etc. Hence the current version of the output is not compatible with Lua 5.4 as the Lua authors changed the stack layout in this version. It is possible to amend the generated code to support Lua 5.3 or Lua 5.4 but without additional support functions there will be no way to execute these in standard Lua. For these reasons, only Ravi can execute the AOT compiled code.
+* The generated code is dependent upon the VM specifics - in particular it relies upon the VM stack setup, the call stack setup, etc. There are additional support functions needed by the compiled code, including data types supported by Ravi. For these reasons, only Ravi can execute the AOT compiled code.
 * There is no support for Lua hooks in the generated code, as there are no Lua bytecodes.
 * Coroutines are not supported; the generated code can only be executed on the main thread, and moreover cannot yield either.
 * Var args are not yet supported. 
