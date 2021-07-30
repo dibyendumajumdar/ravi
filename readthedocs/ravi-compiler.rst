@@ -40,7 +40,6 @@ There are some limitations in this approach that you need to be aware of.
 * There is no support for Lua hooks in the generated code, as there are no Lua bytecodes.
 * Coroutines are not supported; the generated code can only be executed on the main thread, and moreover cannot yield either.
 * Var args are not yet supported. 
-* The Lua debugger cannot be used to debug the compiled code.
 * The Lua debug interface cannot be used to manipulate objects inside the compiled code.
 * The compiler is still in early stages of development, hence bugs can be expected.
 
@@ -53,6 +52,19 @@ Here is an example of a simple JIT compile session::
   f = compiler.load("print 'hello'")
   assert(f and type(f) == 'function')
   f()
+  
+We can inspect the function ``f``::
+
+  > ravi.dumplua(f)
+
+  main <?:0,0> (0 instructions at 000001300E6C9180)
+  0 params, 2 slots, 1 upvalue, 0 locals, 2 constants, 0 functions
+  constants (2) for 000001300E6C9180:
+        1       "print"
+        2       "hello"
+  locals (0) for 000001300E6C9180:
+  upvalues (1) for 000001300E6C9180:
+        0       -       1       0
   
 For more JIT examples, please have a look at `compiler test cases <https://github.com/dibyendumajumdar/ravi/tree/master/tests/comptests/inputs>`_.
 
