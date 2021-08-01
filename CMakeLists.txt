@@ -114,10 +114,12 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${JIT_SRCS}
         ${ADDON_SRCS})
 target_link_libraries(${LIBRAVI_NAME} LINK_PUBLIC ${EXTRA_LIBRARIES} ${MIRJIT_LIBRARIES} ${RAVICOMP_LIBRARIES})
+set_property(TARGET ${LIBRAVI_NAME} PROPERTY C_STANDARD 99)
 
 # Main Ravi executable
 add_executable(ravi ${LUA_CMD_SRCS})
 target_link_libraries(ravi ${LIBRAVI_NAME})
+set_property(TARGET ravi PROPERTY C_STANDARD 99)
 
 # Sources that are needed for a static NOJIT basic library
 set(NOJIT_RAVI_SRCS
@@ -133,6 +135,7 @@ add_library(libravinojit_static
         ${NOJIT_RAVI_SRCS})
 set_target_properties(libravinojit_static PROPERTIES PREFIX "") # As we already prefix with lib
 target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
+set_property(TARGET libravinojit_static PROPERTY C_STANDARD 99)
 
 # Create a simple NoJIT version of statically linked ravi
 # This is sometimes useful in other projects that just need a Lua commandline
@@ -140,6 +143,7 @@ target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
 add_executable(${RAVI_STATICEXEC_TARGET}
         ${LUA_CMD_SRCS})
 target_link_libraries(ravi_s libravinojit_static)
+set_property(TARGET ravi_s PROPERTY C_STANDARD 99)
 
 if (NOT LTESTS)
     # Note that enabling ltests.h messes with global_State
@@ -202,6 +206,7 @@ add_executable(${RAVI_DEBUGGER_TARGET}
         vscode-debugger/src/json.c
         vscode-debugger/src/protocol.c)
 target_link_libraries(${RAVI_DEBUGGER_TARGET} libravinojit_static)
+set_property(TARGET ravidebug PROPERTY C_STANDARD 99)
 
 # Tests for VSCode Debug Adapter
 add_executable(testravidebug
@@ -209,6 +214,7 @@ add_executable(testravidebug
         vscode-debugger/src/json.c
         vscode-debugger/src/protocol.c)
 target_link_libraries(testravidebug libravinojit_static)
+set_property(TARGET testravidebug PROPERTY C_STANDARD 99)
 
 configure_file(lua-config.cmake.in lua-config.cmake @ONLY)
 
