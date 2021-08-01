@@ -78,8 +78,12 @@ static int load_and_compile_internal(lua_State* L, const char* s, const char* op
                                                       .context = &ccontext,
                                                       .debug_message = debug_message,
                                                       .error_message = error_message};
+#ifdef USE_MIRJIT
   snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "__luachunk_%lld",
            ccontext.jit->id++);
+#else
+  snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "mymain");
+#endif
   ravicomp_interface.compiler_options = options;
   int rc = raviX_compile(&ravicomp_interface);
   if (ravicomp_interface.generated_code && strstr(options, "--verbose") != NULL) {
@@ -203,8 +207,12 @@ static int generate(lua_State* L) {
     snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "%s", mainfunc);
   }
   else {
+#ifdef USE_MIRJIT
     snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "__luachunk_%lld",
              ccontext.jit->id++);
+#else
+    snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "mymain");
+#endif
   }
   int rc = raviX_compile(&ravicomp_interface);
   if (rc == 0) {
