@@ -90,6 +90,7 @@ target_include_directories(ravicomp
         PUBLIC "${RaviCompiler_SOURCE_DIR}/include"
         PRIVATE "${RaviCompiler_SOURCE_DIR}/src")
 target_link_libraries(ravicomp ${EXTRA_LIBRARIES})
+set_property(TARGET ravicomp PROPERTY C_STANDARD 99)
 include(GenerateExportHeader)
 generate_export_header(ravicomp)
 
