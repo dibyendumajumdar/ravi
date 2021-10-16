@@ -865,6 +865,7 @@ static AstNode *parse_primary_expression(ParserState *parser)
 	return primary_expr;
 }
 
+/* Parse C__new '(' string ',' expr ')' */
 static AstNode *parse_builtin_expression(ParserState *parser)
 {
 	LexerState *ls = parser->ls;
@@ -1216,9 +1217,11 @@ static AstNode *parse_goto_statment(ParserState *parser)
 	return goto_stmt;
 }
 
+/* Parse C__unsafe and C__decl */
 static AstNode *parse_embedded_C(ParserState *parser, bool is_decl) {
 	LexerState *ls = parser->ls;
-	/* stat -> C (NAME {',' NAME}) string */
+	/* stat -> C__unsafe (NAME {',' NAME}) string */
+	/* stat -> C__decl string */
 	AstNode *node = raviX_allocate_ast_node(parser, STMT_EMBEDDED_C);
 	node->embedded_C_stmt.C_src_snippet = NULL;
 	node->embedded_C_stmt.symbols = NULL;
@@ -1237,7 +1240,7 @@ static AstNode *parse_embedded_C(ParserState *parser, bool is_decl) {
 			if (symbol && is_local)
 				raviX_add_symbol(parser->container, &node->embedded_C_stmt.symbols, symbol);
 			else {
-				raviX_syntaxerror(ls, "Argument must be local variable");
+				raviX_syntaxerror(ls, "Argument to C__unsafe() must be a local variable");
 			}
 			raviX_next(ls);
 			while (testnext(ls, ',')) {
@@ -1246,14 +1249,14 @@ static AstNode *parse_embedded_C(ParserState *parser, bool is_decl) {
 				if (symbol && is_local)
 					raviX_add_symbol(parser->container, &node->embedded_C_stmt.symbols, symbol);
 				else {
-					raviX_syntaxerror(ls, "Argument must be local variable");
+					raviX_syntaxerror(ls, "Argument to C__unsafe() must be a local variable");
 				}
 			}
 			checknext(ls, ')');
 			break;
 		}
 		default: {
-			raviX_syntaxerror(ls, "Expected set of arguments");
+			raviX_syntaxerror(ls, "Expected set of arguments for C__unsafe()");
 		}
 		}
 	}

@@ -2734,7 +2734,7 @@ static void walk_node(C_Code_Analysis *analysis, C_Node *node)
 	}
 }
 
-static int analyze_C_code(Function *fn, TextBuffer *C_code)
+static int analyze_C_code(Function *fn, TextBuffer *user_code)
 {
 	static const char* addition_decls =     "\n"
 	    					"TValue ival0;\n"
@@ -2747,20 +2747,21 @@ static int analyze_C_code(Function *fn, TextBuffer *C_code)
 						"TValue fval2;\n"
 						"TValue bval2;\n"
 	;
-	TextBuffer code;
-	raviX_buffer_init(&code, 1024);
-	raviX_buffer_add_string(&code, Embedded_C_header);
-	raviX_buffer_add_string(&code, addition_decls);
+	TextBuffer canned_code;
+	raviX_buffer_init(&canned_code, 1024);
+	// setup types and symbols that are needed to check the canned_code
+	raviX_buffer_add_string(&canned_code, Embedded_C_header); // Dummy types and functions
+	raviX_buffer_add_string(&canned_code, addition_decls); // Dummy variables
 	if (fn->proc->linearizer->C_declarations.buf)
-		raviX_buffer_add_string(&code, fn->proc->linearizer->C_declarations.buf);
+		raviX_buffer_add_string(&canned_code, fn->proc->linearizer->C_declarations.buf);
 	if (fn->C_local_declarations.buf) /* declarations of temp integer and float vars */
-		raviX_buffer_add_string(&code, fn->C_local_declarations.buf);
+		raviX_buffer_add_string(&canned_code, fn->C_local_declarations.buf);
 
 	C_Code_Analysis analysis = {0};
 	C_Parser parser;
 	C_parser_init(&parser);
 	C_Scope *global_scope = C_global_scope(&parser);
-	C_Token *tok = C_tokenize_buffer(&parser, code.buf);
+	C_Token *tok = C_tokenize_buffer(&parser, canned_code.buf);
 	if (tok == NULL) {
 		analysis.status = -1;
 		goto Lexit;
@@ -2771,12 +2772,15 @@ static int analyze_C_code(Function *fn, TextBuffer *C_code)
 		goto Lexit;
 	}
 
-	tok = C_tokenize_buffer(&parser, C_code->buf);
+	/* Now parse the user supplied code */
+	tok = C_tokenize_buffer(&parser, user_code->buf);
 	if (tok == NULL){
 		analysis.status = -1;
 		goto Lexit;
 	}
 	C_convert_pp_tokens(&parser, tok);
+	/* Note user supplied code is parsed as compound statement in global scope - i.e.
+	 * not inside a function! */
 	parser.embedded_mode = true;
 	C_Node *node = C_parse_compound_statement(global_scope, &parser, tok);
 	if (node == NULL){
@@ -2790,7 +2794,7 @@ Lexit:
 		fn->api->error_message(fn->api->context, parser.error_message);
 	}
 	C_parser_destroy(&parser);
-	raviX_buffer_free(&code);
+	raviX_buffer_free(&canned_code);
 
 	return analysis.status;
 }
@@ -2880,7 +2884,10 @@ static void emit_userdata_C_variable_store(Function *fn, Instruction *insn, Pseu
 	raviX_buffer_add_string(&fn->body, " }\n");
 }
 
-
+/* Outputs the C__unsafe statements. Note that C__decl statements are
+ * output at top level so that declarations are shared amongst all
+ * functions in a chunk of Ravi code.
+ */
 static int emit_op_embed_C(Function *fn, Instruction *insn)
 {
 	// Save the buffer and switch to new one temporarily
@@ -2899,16 +2906,14 @@ static int emit_op_embed_C(Function *fn, Instruction *insn)
 	// output C code
 	Pseudo *C_code = get_first_target(insn);
 	assert(C_code->type == PSEUDO_CONSTANT && C_code->constant->type == RAVI_TSTRING);
+	raviX_buffer_add_string(&fn->body, " {\n");
 	raviX_buffer_add_string(&fn->body, C_code->constant->s->str);
+	raviX_buffer_add_string(&fn->body, " }\n");
 
 	// Store values back to Ravi/Lua variables
 	for (int i = 0; i < get_num_operands(insn); i++) {
 		Pseudo *pseudo = get_operand(insn, i);
-		LuaSymbol *symbol = pseudo->type == PSEUDO_SYMBOL ? pseudo->symbol : pseudo->temp_for_local;
-		if (symbol->variable.value_type.type_code == RAVI_TNUMINT ||
-		    symbol->variable.value_type.type_code == RAVI_TNUMFLT) {
-			emit_userdata_C_variable_store(fn, insn, pseudo);
-		}
+		emit_userdata_C_variable_store(fn, insn, pseudo);
 	}
 
 	raviX_buffer_add_string(&fn->body, "\n}\n");
