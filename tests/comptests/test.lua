@@ -53,9 +53,16 @@ dofile("inputs/50_bug.lua")
 dofile("inputs/51_concat.lua")
 dofile("inputs/52_local_s.lua")
 
-local f = compiler.loadfile("inputs/53_ravi_tests.lua")
-assert(f and type(f) == 'function')
-f()
+function runfile(file)
+    local f = compiler.loadfile(file)
+    assert(f and type(f) == 'function')
+    f()
+end
+
+--runfile("inputs/53_ravi_tests.lua")
+runfile("inputs/54_embed_C.lua")
+runfile("inputs/55_embed_C.lua")
+
 
 print 'SUCCESS'
 

@@ -21,7 +21,8 @@ set(HEADERS
         src/common.h
         src/optimizer.h
         src/parser.h
-        src/codegen.h)
+        src/codegen.h
+        src/chibicc/chibicc.h)
 
 set(SRCS
         src/allocate.c
@@ -43,6 +44,13 @@ set(SRCS
         src/membuf.c
         src/codegen.c
         src/ravi_binding.c
+        src/chibicc/chibicc_tokenize.c
+        src/chibicc/chibicc_parse.c
+        src/chibicc/chibicc_type.c
+        src/chibicc/chibicc_strings.c
+        src/chibicc/chibicc_unicode.c
+        src/chibicc/chibicc_hashmap.c
+        ../src/ravi_alloc.c
         )
 
 message("SOURCE dir is ${RaviCompiler_SOURCE_DIR}")
@@ -88,7 +96,9 @@ add_library(ravicomp ${LIBTYPE}
 target_include_directories(ravicomp
         PUBLIC "${CMAKE_CURRENT_BINARY_DIR}"
         PUBLIC "${RaviCompiler_SOURCE_DIR}/include"
-        PRIVATE "${RaviCompiler_SOURCE_DIR}/src")
+        PRIVATE "${RaviCompiler_SOURCE_DIR}/src"
+        PRIVATE "${RaviCompiler_SOURCE_DIR}/../src"
+        )
 target_link_libraries(ravicomp ${EXTRA_LIBRARIES})
 set_property(TARGET ravicomp PROPERTY C_STANDARD 99)
 include(GenerateExportHeader)

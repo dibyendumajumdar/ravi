@@ -69,6 +69,9 @@ enum TokenType {
 	TOK_in,
 	TOK_local,
 	TOK_defer,
+	TOK_C__decl,
+	TOK_C__unsafe,
+	TOK_C__new,
 	TOK_nil,
 	TOK_not,
 	TOK_or,
@@ -299,6 +302,7 @@ enum AstNodeType {
 	STMT_FOR_NUM,
 	STMT_REPEAT,
 	STMT_EXPR, /* Also used for assignment statements */
+	STMT_EMBEDDED_C,
 	EXPR_LITERAL,
 	EXPR_SYMBOL,
 	EXPR_Y_INDEX,		   /* [] operator */
@@ -310,7 +314,8 @@ enum AstNodeType {
 	EXPR_FUNCTION,	    /* function literal */
 	EXPR_TABLE_LITERAL, /* table constructor */
 	EXPR_FUNCTION_CALL,
-	EXPR_CONCAT
+	EXPR_CONCAT,
+	EXPR_BUILTIN
 };
 
 typedef struct Statement Statement;
@@ -325,6 +330,7 @@ typedef struct TestThenStatement TestThenStatement;
 typedef struct IfStatement IfStatement;
 typedef struct WhileOrRepeatStatement WhileOrRepeatStatement;
 typedef struct ForStatement ForStatement;
+typedef struct EmbeddedCStatement EmbeddedCStatement;
 
 typedef struct Expression Expression;
 typedef struct LiteralExpression LiteralExpression;
@@ -338,6 +344,7 @@ typedef struct TableLiteralExpression TableLiteralExpression;
 typedef struct SuffixedExpression SuffixedExpression;
 typedef struct FunctionCallExpression FunctionCallExpression;
 typedef struct StringConcatenationExpression StringConcatenationExpression;
+typedef struct BuiltinExpression BuiltinExpression;
 
 typedef struct Scope Scope;
 
@@ -446,6 +453,11 @@ RAVICOMP_EXPORT void raviX_for_statement_body_foreach_statement(const ForStateme
 								void (*callback)(void *userdata,
 										 const Statement *statement));
 
+RAVICOMP_EXPORT void raviX_embedded_C_statement_foreach_symbol(const EmbeddedCStatement *statement, void *userdata,
+							void (*callback)(void *,
+									 const LuaVariableSymbol *expr));
+RAVICOMP_EXPORT const StringObject *raviX_embedded_C_statement_C_source(const EmbeddedCStatement *statement);
+
 /* literal expression */
 /* Note: '...' value has type RAVI_TVARARGS and no associated SemInfo. */
 RAVICOMP_EXPORT const VariableType *raviX_literal_expression_type(const LiteralExpression *expression);
@@ -541,6 +553,7 @@ RAVICOMP_EXPORT const TestThenStatement *raviX_test_then_statement(const Stateme
 RAVICOMP_EXPORT const IfStatement *raviX_if_statement(const Statement *stmt);
 RAVICOMP_EXPORT const WhileOrRepeatStatement *raviX_while_or_repeat_statement(const Statement *stmt);
 RAVICOMP_EXPORT const ForStatement *raviX_for_statement(const Statement *stmt);
+RAVICOMP_EXPORT const EmbeddedCStatement *raviX_embedded_C_statment(const Statement *stmt);
 
 /* Convert an expression to the correct type */
 RAVICOMP_EXPORT enum AstNodeType raviX_expression_type(const Expression *expression);

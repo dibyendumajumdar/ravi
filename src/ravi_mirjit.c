@@ -44,6 +44,8 @@ typedef struct LuaFunc {
 } LuaFunc;
 
 static LuaFunc Lua_functions[] = {
+    { "memset", memset },
+    { "luaS_newudata", luaS_newudata },
     { "luaF_close", luaF_close },
     { "raviV_raise_error", raviV_raise_error },
     { "raviV_raise_error_with_info", raviV_raise_error_with_info },

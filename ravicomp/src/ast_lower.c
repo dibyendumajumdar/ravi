@@ -80,6 +80,8 @@ static void process_expression(CompilerState *container, AstNode *node)
 	case EXPR_TABLE_LITERAL:
 		process_expression_list(container, node->table_expr.expr_list);
 		break;
+	case EXPR_BUILTIN:
+		break;
 	default:
 		assert(0);
 		break;
@@ -368,6 +370,8 @@ static void process_statement(CompilerState *container, AstNode *node)
 		break;
 	case STMT_FOR_IN:
 		lower_for_in_statement(container, node);
+		break;
+	case STMT_EMBEDDED_C:
 		break;
 	default:
 		fprintf(stderr, "AST = %d\n", node->type);

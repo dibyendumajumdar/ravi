@@ -88,7 +88,7 @@ static AstNode *raviX_allocate_ast_node(ParserState *parser, enum AstNodeType ty
 
 static AstNode *allocate_expr_ast_node(ParserState *parser, enum AstNodeType type)
 {
-	assert(type >= EXPR_LITERAL && type <= EXPR_CONCAT);
+	assert(type >= EXPR_LITERAL && type <= EXPR_BUILTIN);
 	AstNode *node = raviX_allocate_ast_node(parser, type);
 	node->common_expr.truncate_results = 0;
 	set_typecode(&node->common_expr.type, RAVI_TANY);
@@ -865,6 +865,31 @@ static AstNode *parse_primary_expression(ParserState *parser)
 	return primary_expr;
 }
 
+static AstNode *parse_builtin_expression(ParserState *parser)
+{
+	LexerState *ls = parser->ls;
+
+	AstNode *builtin_expr = allocate_expr_ast_node(parser, EXPR_BUILTIN);
+	builtin_expr->builtin_expr.type.type_code = RAVI_TUSERDATA;
+	builtin_expr->builtin_expr.type.type_name = NULL;
+	builtin_expr->builtin_expr.type_name = NULL;
+	builtin_expr->builtin_expr.size_expr = NULL;
+
+	raviX_next(ls);
+	checknext(ls, '(');
+	check(ls, TOK_STRING);
+	builtin_expr->builtin_expr.type_name = ls->t.seminfo.ts;
+	raviX_next(ls);
+	checknext(ls, ',');
+	builtin_expr->builtin_expr.size_expr = parse_expression(parser);
+	if (builtin_expr->builtin_expr.size_expr == NULL) {
+		raviX_syntaxerror(ls, "Expected a size expression as second argument to C__new");
+	}
+	checknext(ls, ')');
+
+	return builtin_expr;
+}
+
 /* variable or field access or function call */
 static AstNode *parse_suffixed_expression(ParserState *parser)
 {
@@ -872,6 +897,9 @@ static AstNode *parse_suffixed_expression(ParserState *parser)
 	/* suffixedexp ->
 	primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
 	int line = ls->linenumber;
+	if (ls->t.token == TOK_C__new) {
+		return parse_builtin_expression(parser);
+	}
 	AstNode *suffixed_expr = allocate_expr_ast_node(parser, EXPR_SUFFIXED);
 	suffixed_expr->suffixed_expr.primary_expr = parse_primary_expression(parser);
 	suffixed_expr->suffixed_expr.type = suffixed_expr->suffixed_expr.primary_expr->common_expr.type;
@@ -1186,6 +1214,53 @@ static AstNode *parse_goto_statment(ParserState *parser)
 	goto_stmt->goto_stmt.is_break = is_break;
 	goto_stmt->goto_stmt.goto_scope = parser->current_scope;
 	return goto_stmt;
+}
+
+static AstNode *parse_embedded_C(ParserState *parser, bool is_decl) {
+	LexerState *ls = parser->ls;
+	/* stat -> C (NAME {',' NAME}) string */
+	AstNode *node = raviX_allocate_ast_node(parser, STMT_EMBEDDED_C);
+	node->embedded_C_stmt.C_src_snippet = NULL;
+	node->embedded_C_stmt.symbols = NULL;
+	node->embedded_C_stmt.is_decl = is_decl;
+	raviX_next(ls);
+	if (!is_decl && testnext(ls, '(')) {
+		switch (ls->t.token) {
+		case ')': {
+			raviX_next(ls);
+			break;
+		}
+		case TOK_NAME: {
+			const StringObject *varname = ls->t.seminfo.ts;
+			bool is_local = 0;
+			LuaSymbol *symbol = search_for_variable(parser, varname, &is_local);
+			if (symbol && is_local)
+				raviX_add_symbol(parser->container, &node->embedded_C_stmt.symbols, symbol);
+			else {
+				raviX_syntaxerror(ls, "Argument must be local variable");
+			}
+			raviX_next(ls);
+			while (testnext(ls, ',')) {
+				varname = check_name_and_next(ls);
+				symbol = search_for_variable(parser, varname, &is_local);
+				if (symbol && is_local)
+					raviX_add_symbol(parser->container, &node->embedded_C_stmt.symbols, symbol);
+				else {
+					raviX_syntaxerror(ls, "Argument must be local variable");
+				}
+			}
+			checknext(ls, ')');
+			break;
+		}
+		default: {
+			raviX_syntaxerror(ls, "Expected set of arguments");
+		}
+		}
+	}
+	check(ls, TOK_STRING);
+	node->embedded_C_stmt.C_src_snippet = ls->t.seminfo.ts;
+	raviX_next(ls);
+	return node;
 }
 
 /* skip no-op statements */
@@ -1622,6 +1697,11 @@ static AstNode *parse_statement(ParserState *parser)
 	case TOK_break:	 /* stat -> breakstat */
 	case TOK_goto: { /* stat -> 'goto' NAME */
 		stmt = parse_goto_statment(parser);
+		break;
+	}
+	case TOK_C__unsafe:
+	case TOK_C__decl: {
+		stmt = parse_embedded_C(parser, ls->t.token == TOK_C__decl);
 		break;
 	}
 	default: { /* stat -> func | assignment */

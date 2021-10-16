@@ -30,6 +30,7 @@
 
 #include "codegen.h"
 #include "ravi_api.h"
+#include "chibicc/chibicc.h"
 
 #include <assert.h>
 #include <setjmp.h>
@@ -37,6 +38,7 @@
 /*
  * Only 64-bits supported right now
  * Following must be kept in sync with changes in the actual header files
+ * FIXME we need a way to customise this for 32-bit vs 64-bit
  */
 
 static const char Lua_header[] =
@@ -190,7 +192,6 @@ static const char Lua_header[] =
     "#define fcfvalue(o) check_exp(ttisfcf(o), val_(o).p)\n"
     "#define hvalue(o)	check_exp(ttistable(o), gco2t(val_(o).gc))\n"
     "#define arrvalue(o) check_exp(ttisarray(o), gco2array(val_(o).gc))\n"
-    "#define arrvalue(o) check_exp(ttisarray(o), gco2array(val_(o).gc))\n"
     "#define bvalue(o)	check_exp(ttisboolean(o), val_(o).b)\n"
     "#define thvalue(o)	check_exp(ttisthread(o), gco2th(val_(o).gc))\n"
     "#define deadvalue(o)	check_exp(ttisdeadkey(o), cast(void *, val_(o).gc))\n"
@@ -314,6 +315,8 @@ static const char Lua_header[] =
     "	{ TValue *io=(o); const Udata *iu = (u); \\\n"
     "	  io->value_ = iu->user_; settt_(io, iu->ttuv_); \\\n"
     "	  checkliveness(L,io); }\n"
+    "#define sizeludata(l)  (sizeof(union UUdata) + (l))\n"
+    "#define sizeudata(u)   sizeludata((u)->len)\n"
     "typedef enum {\n"
     "RAVI_TI_NIL,\n"
     "RAVI_TI_FALSE,\n"
@@ -670,6 +673,7 @@ static const char Lua_header[] =
     "extern LClosure *luaF_newLclosure (lua_State *L, int n);\n"
     "extern TString *luaS_newlstr (lua_State *L, const char *str, size_t l);\n"
     "extern Proto *luaF_newproto (lua_State *L);\n"
+    "extern Udata *luaS_newudata (lua_State *L, size_t s);\n"
     "extern void luaD_inctop (lua_State *L);\n"
     "#define luaM_reallocv(L,b,on,n,e) luaM_realloc_(L, (b), (on)*(e), (n)*(e))\n"
     "#define luaM_newvector(L,n,t) cast(t *, luaM_reallocv(L, NULL, 0, n, sizeof(t)))\n"
@@ -685,13 +689,78 @@ static const char Lua_header[] =
     "#define intop(op,v1,v2) l_castU2S(l_castS2U(v1) op l_castS2U(v2))\n"
     "#define nan (0./0.)\n"
     "#define inf (1./0.)\n"
-    "#define luai_numunm(L,a)        (-(a))\n";
+    "#define luai_numunm(L,a)        (-(a))\n"
+    "typedef struct {\n"
+    "   char *ptr;\n"
+    "   unsigned int len;\n"
+    "} Ravi_StringOrUserData;\n"
+    "typedef struct {\n"
+    "  lua_Integer *ptr;\n"
+    "  unsigned int len;\n"
+    "} Ravi_IntegerArray;\n"
+    "typedef struct {\n"
+    "  lua_Number *ptr;\n"
+    "  unsigned int len;\n"
+    "} Ravi_NumberArray;\n"
+    ;
+
+static const char Embedded_C_header[] =
+
+    "typedef long long int64_t;\n"
+    "typedef double lua_Number;\n"
+    "typedef int64_t lua_Integer;\n"
+    "typedef struct {\n"
+    "   union { lua_Integer i; lua_Number n; } value_;\n"
+    "} TValue;\n"
+    "static lua_Integer ivalue(const TValue *v) { return 0; }\n"
+    "static lua_Number  fvalue(const TValue *v) { return 0.0; }\n"
+    "typedef struct {\n"
+    "   char *data;\n"
+    "   unsigned int len;\n"
+    "} Ravi_Arr;\n"
+    "static Ravi_Arr *arrvalue(const TValue *v) { return (Ravi_Arr *)v; }\n"
+    "static int ttisfulluserdata(const TValue *v) { return 0; }\n"
+    "static int ttislightuserdata(const TValue *v) { return 0; }\n"
+    "static int ttisstring(const TValue *v) { return 0; }\n"
+    "static void *uvalue(const TValue *v) { return (void*)0; }\n"
+    "static void *pvalue(const TValue *v) { return (void*)0; }\n"
+    "static void *svalue(const TValue *v) { return (void*)0; }\n"
+    "static void *getudatamem(const TValue *v) { return (void*)0; }\n"
+    "static void *gco2u(const TValue *v) { return (void*)0; }\n"
+    "static unsigned int sizeudata(const void *p) { return 0; }\n"
+    "static unsigned int vslen(const TValue *v) { return 0; }\n"
+    "static void settt_(TValue *v, int tt) {}\n"
+    "TValue *R(int reg) { return (void*)0; }\n"
+    "static const int LUA_TNIL = 0;\n"
+    "static const int LUA_TBOOLEAN = 1;\n"
+    "static const int LUA_TLIGHTUSERDATA = 2;\n"
+    "static const int LUA_TNUMBER = 3;\n"
+    "static const int LUA_TSTRING = 4;\n"
+    "static const int LUA_TTABLE = 5;\n"
+    "static const int LUA_TFUNCTION = 6;\n"
+    "static const int LUA_TUSERDATA = 7;\n"
+    "static const int LUA_TTHREAD = 8;\n"
+    "typedef struct {\n"
+    "   char *ptr;\n"
+    "   unsigned int len;\n"
+    "} Ravi_StringOrUserData;\n"
+    "typedef struct {\n"
+    "  lua_Integer *ptr;\n"
+    "  unsigned int len;\n"
+    "} Ravi_IntegerArray;\n"
+    "typedef struct {\n"
+    "  lua_Number *ptr;\n"
+    "  unsigned int len;\n"
+    "} Ravi_NumberArray;\n"
+    "int error_code;\n"
+    ;
 
 typedef struct {
 	Proc *proc;
 	TextBuffer prologue;
 	TextBuffer body;
 	TextBuffer tb; // Temp buf
+	TextBuffer C_local_declarations; // Declarations of temp int/float vars required when analysing embedded C code
 	struct Ravi_CompilerInterface *api;
 	jmp_buf env;
 } Function;
@@ -738,6 +807,8 @@ enum {
 	LUA_OPUNM = 12,
 	LUA_OPBNOT = 13
 };
+
+static void output_string_literal(TextBuffer *mb, const char *s, unsigned int len);
 
 static inline Pseudo *get_operand(Instruction *insn, unsigned idx)
 {
@@ -820,6 +891,7 @@ static void initfn(Function *fn, Proc *proc, struct Ravi_CompilerInterface *api)
 	raviX_buffer_init(&fn->prologue, 4096);
 	raviX_buffer_init(&fn->body, 4096);
 	raviX_buffer_init(&fn->tb, 256);
+	raviX_buffer_init(&fn->C_local_declarations, 256);
 	raviX_buffer_add_fstring(&fn->prologue, "static int %s(lua_State *L) {\n", proc->funcname);
 	raviX_buffer_add_string(&fn->prologue, "int error_code = 0;\n");
 	raviX_buffer_add_string(&fn->prologue, "int result = 0;\n");
@@ -829,6 +901,8 @@ static void initfn(Function *fn, Proc *proc, struct Ravi_CompilerInterface *api)
 	raviX_buffer_add_string(&fn->prologue, "StkId base = ci->u.l.base;\n");
 	emit_vars("lua_Integer", int_var_prefix, &proc->temp_int_pseudos, &fn->prologue);
 	emit_vars("lua_Number", flt_var_prefix, &proc->temp_flt_pseudos, &fn->prologue);
+	emit_vars("lua_Integer", int_var_prefix, &proc->temp_int_pseudos, &fn->C_local_declarations);
+	emit_vars("lua_Number", flt_var_prefix, &proc->temp_flt_pseudos, &fn->C_local_declarations);
 	// Following are temp dummy regs
 	// In ops like luaV_settable we may use up to two variables, hence we create
 	// two of each
@@ -849,6 +923,7 @@ static void cleanup(Function *fn)
 	raviX_buffer_free(&fn->prologue);
 	raviX_buffer_free(&fn->body);
 	raviX_buffer_free(&fn->tb);
+	raviX_buffer_free(&fn->C_local_declarations);
 }
 
 /* Outputs an l-value/r-value variable name for a primitive C int / float type */
@@ -2406,6 +2481,521 @@ static int emit_op_init(Function *fn, Instruction *insn)
 	return 0;
 }
 
+
+typedef struct C_Decl_Analysis {
+	C_Parser *parser;
+	C_Scope *global_scope;
+	int status;
+	int is_tags;
+} C_Decl_Analysis;
+
+/* Checks type declarations do not contain pointers and unions */
+static void analyze_C_types(C_Decl_Analysis *analysis, C_Type *ty)
+{
+	if (ty->kind == TY_STRUCT) {
+		for (C_Member *mem = ty->members; mem; mem = mem->next) {
+			analyze_C_types(analysis, mem->ty);
+		}
+	}
+	else if (ty->kind == TY_PTR) {
+		fprintf(stderr, "Declaring pointer type is not allowed\n");
+		analysis->status--;
+	}
+	else if (ty->kind == TY_UNION) {
+		fprintf(stderr, "Declaring union type is not allowed\n");
+		analysis->status--;
+	}
+}
+
+/* Checks that there are no entities being created in the global scope */
+static void analyze_C_vars(C_Decl_Analysis *analysis, C_VarScope *vc)
+{
+	if (vc->var) {
+		fprintf(stderr, "Declaring objects is not allowed: %s\n", vc->var->name);
+		analysis->status--;
+	}
+	else if (vc->type_def) {
+		analyze_C_types(analysis, vc->type_def);
+	}
+}
+
+/* Built-ins are excluded from analysis */
+static int is_builtin(char *key, int keylen)
+{
+	static char* builtins[] = {
+	    "alloca",
+	    "int64_t",
+	    "lua_Number",
+	    "lua_Integer",
+	    "TValue",
+	    "ivalue",
+	    "fvalue",
+	    "Ravi_Arr",
+	    "arrvalue",
+	    "ttisfulluserdata",
+	    "ttislightuserdata",
+	    "ttisstring",
+	    "uvalue",
+	    "pvalue",
+	    "svalue",
+	    "getudatamem",
+	    "gco2u",
+	    "sizeudata",
+	    "vslen",
+	    "R",
+	    "Ravi_StringOrUserData",
+	    "Ravi_IntegerArray",
+	    "Ravi_NumberArray",
+	    "error_code",
+	    "LUA_TBOOLEAN",
+	    "LUA_TNIL",
+	    "LUA_TNUMBER",
+	    "LUA_TUSERDATA",
+	    "LUA_TLIGHTUSERDATA",
+	    "LUA_TTHREAD",
+	    "LUA_TTABLE",
+	    "LUA_TFUNCTION",
+	    "LUA_TSTRING",
+	    "LUA_TTABLE",
+	    "settt_",
+	    NULL
+	};
+	for (int i = 0; builtins[i]; i++) {
+		if (strncmp(key, builtins[i], keylen) == 0) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/* Perform code analysis. status will be set < 0 if issues found */
+static void analyze_C_declarations(void *userdata, char *key, int keylen, void *val)
+{
+	C_Decl_Analysis *analysis = (C_Decl_Analysis *)userdata;
+	if (is_builtin(key, keylen))
+		return;
+	if (analysis->is_tags) {
+		C_Type *ty = val;
+		analyze_C_types(analysis, ty);
+	}
+	else {
+		C_VarScope *vc = val;
+		analyze_C_vars(analysis, vc);
+	}
+}
+
+typedef struct C_Code_Analysis {
+	int status;
+} C_Code_Analysis;
+
+static void walk_node(C_Code_Analysis *analysis, C_Node *node)
+{
+	switch (node->kind) {
+	case ND_BLOCK: {
+		for (C_Node *n = node->body; n; n = n->next)
+			walk_node(analysis, n);
+		break;
+	}
+	case ND_IF: {
+		walk_node(analysis, node->cond);
+		walk_node(analysis, node->then);
+		if (node->els)
+			walk_node(analysis, node->els);
+		break;
+	}
+	case ND_FOR: {
+		if (node->init)
+			walk_node(analysis, node->init);
+		if (node->cond)
+			walk_node(analysis, node->cond);
+		if (node->inc)
+			walk_node(analysis, node->inc);
+		break;
+	}
+	case ND_DO: {
+		walk_node(analysis, node->then);
+		walk_node(analysis, node->cond);
+		break;
+	}
+	case ND_SWITCH: {
+		walk_node(analysis, node->cond);
+		for (C_Node *n = node->case_next; n; n = n->case_next) {
+			walk_node(analysis, n);
+		}
+		if (node->default_case)
+			walk_node(analysis, node->default_case);
+		break;
+	}
+	case ND_CASE:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_GOTO_EXPR:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_LABEL:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_RETURN:
+		fprintf(stderr, "Trying to return from embedded C code is not allowed\n");
+		analysis->status--;
+		if (node->lhs)
+			walk_node(analysis, node->lhs);
+		break;
+	case ND_EXPR_STMT:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_ASM:
+		break;
+	case ND_NULL_EXPR:
+		break;
+	case ND_NUM:
+		break;
+	case ND_NEG:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_VAR:
+		break;
+	case ND_MEMBER:
+		break;
+	case ND_DEREF:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_ADDR:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_ASSIGN:
+		walk_node(analysis, node->lhs);
+		walk_node(analysis, node->rhs);
+		break;
+	case ND_STMT_EXPR: {
+		for (C_Node *n = node->body; n; n = n->next)
+			walk_node(analysis, n);
+		break;
+	}
+	case ND_COMMA:
+		walk_node(analysis, node->lhs);
+		walk_node(analysis, node->rhs);
+		break;
+	case ND_CAST:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_MEMZERO:
+		break;
+	case ND_COND:
+		walk_node(analysis, node->cond);
+		walk_node(analysis, node->then);
+		walk_node(analysis, node->els);
+		break;
+	case ND_NOT:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_BITNOT:
+		walk_node(analysis, node->lhs);
+		break;
+	case ND_LOGAND:
+	case ND_LOGOR:
+		walk_node(analysis, node->lhs);
+		walk_node(analysis, node->rhs);
+		break;
+	case ND_FUNCALL:
+		//fprintf(stderr, "Calling function %.*s\n", node->func_ty->name->len, node->func_ty->name->loc);
+		if (!is_builtin(node->func_ty->name->loc, node->func_ty->name->len)) {
+			fprintf(stderr, "Calling functions from embedded C code is not allowed\n");
+			analysis->status--;
+		}
+		walk_node(analysis, node->lhs);
+		for (C_Node *arg = node->args; arg; arg = arg->next) {
+			walk_node(analysis, arg);
+		}
+		break;
+	case ND_LABEL_VAL:
+		break;
+	case ND_CAS:
+		break;
+	case ND_EXCH:
+		break;
+	case ND_ADD:
+	case ND_SUB:
+	case ND_MUL:
+	case ND_DIV:
+	case ND_EQ:
+	case ND_NE:
+	case ND_LT:
+	case ND_LE:
+	case ND_MOD:
+	case ND_BITAND:
+	case ND_BITOR:
+	case ND_BITXOR:
+	case ND_SHL:
+	case ND_SHR:
+		walk_node(analysis, node->lhs);
+		walk_node(analysis, node->rhs);
+		break;
+	}
+}
+
+static int analyze_C_code(Function *fn, TextBuffer *C_code)
+{
+	static const char* addition_decls =     "\n"
+	    					"TValue ival0;\n"
+						"TValue fval0;\n"
+						"TValue bval0;\n"
+						"TValue ival1;\n"
+						"TValue fval1;\n"
+						"TValue bval1;\n"
+						"TValue ival2;\n"
+						"TValue fval2;\n"
+						"TValue bval2;\n"
+	;
+	TextBuffer code;
+	raviX_buffer_init(&code, 1024);
+	raviX_buffer_add_string(&code, Embedded_C_header);
+	raviX_buffer_add_string(&code, addition_decls);
+	if (fn->proc->linearizer->C_declarations.buf)
+		raviX_buffer_add_string(&code, fn->proc->linearizer->C_declarations.buf);
+	if (fn->C_local_declarations.buf) /* declarations of temp integer and float vars */
+		raviX_buffer_add_string(&code, fn->C_local_declarations.buf);
+
+	C_Code_Analysis analysis = {0};
+	C_Parser parser;
+	C_parser_init(&parser);
+	C_Scope *global_scope = C_global_scope(&parser);
+	C_Token *tok = C_tokenize_buffer(&parser, code.buf);
+	if (tok == NULL) {
+		analysis.status = -1;
+		goto Lexit;
+	}
+	C_convert_pp_tokens(&parser, tok);
+	if (C_parse(global_scope, &parser, tok) == NULL){
+		analysis.status = -1;
+		goto Lexit;
+	}
+
+	tok = C_tokenize_buffer(&parser, C_code->buf);
+	if (tok == NULL){
+		analysis.status = -1;
+		goto Lexit;
+	}
+	C_convert_pp_tokens(&parser, tok);
+	parser.embedded_mode = true;
+	C_Node *node = C_parse_compound_statement(global_scope, &parser, tok);
+	if (node == NULL){
+		analysis.status = -1;
+		goto Lexit;
+	}
+	walk_node(&analysis, node);
+
+Lexit:
+	if (analysis.status < 0 && parser.error_message) {
+		fn->api->error_message(fn->api->context, parser.error_message);
+	}
+	C_parser_destroy(&parser);
+	raviX_buffer_free(&code);
+
+	return analysis.status;
+}
+
+/* Load variables from Ravi/Lua to C */
+static void emit_userdata_C_variable_load(Function *fn, Instruction *insn, Pseudo *pseudo)
+{
+	if (pseudo->type != PSEUDO_SYMBOL &&
+	    !((pseudo->type == PSEUDO_TEMP_FLT || pseudo->type == PSEUDO_TEMP_INT) && pseudo->temp_for_local != NULL)) {
+		handle_error_bad_pseudo(fn, pseudo, "Unsupported pseudo type in C bind variables");
+		return;
+	}
+	LuaSymbol *symbol = pseudo->type == PSEUDO_SYMBOL ? pseudo->symbol : pseudo->temp_for_local;
+	ravitype_t type = symbol->variable.value_type.type_code;
+	if (type == RAVI_TNUMINT) {
+		raviX_buffer_add_fstring(&fn->body, " lua_Integer %s = ", symbol->variable.var_name->str);
+		emit_varname_or_constant(fn, pseudo);
+		raviX_buffer_add_string(&fn->body, ";\n");
+		return;
+	}
+	else if (type == RAVI_TNUMFLT) {
+		raviX_buffer_add_fstring(&fn->body, " lua_Number %s = ", symbol->variable.var_name->str);
+		emit_varname_or_constant(fn, pseudo);
+		raviX_buffer_add_string(&fn->body, ";\n");
+		return;
+	}
+	else if (type == RAVI_TARRAYINT) {
+		raviX_buffer_add_fstring(&fn->body, " Ravi_IntegerArray %s = {0};\n", symbol->variable.var_name->str);
+	}
+	else if (type == RAVI_TARRAYFLT) {
+		raviX_buffer_add_fstring(&fn->body, " Ravi_NumberArray %s = {0};\n", symbol->variable.var_name->str);
+	}
+	else if (type == RAVI_TSTRING || type == RAVI_TUSERDATA || type == RAVI_TANY) {
+		// We assume ANY is userdata - runtime check generated below.
+		raviX_buffer_add_fstring(&fn->body, " Ravi_StringOrUserData %s = {0};\n", symbol->variable.var_name->str);
+	}
+	else {
+		handle_error_bad_pseudo(fn, pseudo, "Unsupported symbol type in C bind variable");
+		return;
+	}
+	raviX_buffer_add_string(&fn->body, " {\n");
+	raviX_buffer_add_fstring(&fn->body, "  TValue *raviX__%s = ", symbol->variable.var_name->str);
+	emit_reg_accessor(fn, symbol->variable.pseudo, 0);
+	raviX_buffer_add_string(&fn->body, ";\n");
+	if (type == RAVI_TARRAYINT) {
+		raviX_buffer_add_fstring(&fn->body, "  %s.ptr = (lua_Integer*) arrvalue(raviX__%s)->data;\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "  %s.len = (unsigned int) arrvalue(raviX__%s)->len;\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+	}
+	else if (type == RAVI_TARRAYFLT) {
+		raviX_buffer_add_fstring(&fn->body, "  %s.ptr = (lua_Number *) arrvalue(raviX__%s)->data;\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "  %s.len = (unsigned int) arrvalue(raviX__%s)->len;\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+	}
+	else {
+		raviX_buffer_add_fstring(&fn->body, "  if (ttisfulluserdata(raviX__%s)) {\n", symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.ptr = getudatamem(uvalue(raviX__%s));\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.len = (unsigned int) sizeudata(gco2u(raviX__%s));\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_string(&fn->body, "  }\n");
+		raviX_buffer_add_fstring(&fn->body, "  else if (ttislightuserdata(raviX__%s)) {\n", symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.ptr = pvalue(raviX__%s);\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.len = 0;\n", symbol->variable.var_name->str);
+		raviX_buffer_add_string(&fn->body, "  }\n");
+		raviX_buffer_add_fstring(&fn->body, "  else if (ttisstring(raviX__%s)) {\n", symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.ptr = svalue(raviX__%s);\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.len = vslen(raviX__%s);\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_string(&fn->body, "  }\n");
+		raviX_buffer_add_string(&fn->body, "  else {\n");
+		raviX_buffer_add_fstring(&fn->body, "   error_code = %d;\n", Error_type_mismatch);
+		raviX_buffer_add_string(&fn->body, "   goto Lraise_error;\n");
+		raviX_buffer_add_string(&fn->body, "  }\n");
+	}
+	raviX_buffer_add_string(&fn->body, " }\n");
+}
+
+/* Store variables from C back to Ravi/Lua */
+static void emit_userdata_C_variable_store(Function *fn, Instruction *insn, Pseudo *pseudo)
+{
+	LuaSymbol *symbol = pseudo->type == PSEUDO_SYMBOL ? pseudo->symbol : pseudo->temp_for_local;
+	ravitype_t type = symbol->variable.value_type.type_code;
+	if (type != RAVI_TNUMINT && type != RAVI_TNUMFLT) {
+		return;
+	}
+	raviX_buffer_add_string(&fn->body, " {\n");
+	raviX_buffer_add_string(&fn->body, "  ");
+	emit_varname(fn, symbol->variable.pseudo);
+	raviX_buffer_add_string(&fn->body, " = ");
+	raviX_buffer_add_fstring(&fn->body, "%s;\n", symbol->variable.var_name->str);
+	raviX_buffer_add_string(&fn->body, " }\n");
+}
+
+
+static int emit_op_embed_C(Function *fn, Instruction *insn)
+{
+	// Save the buffer and switch to new one temporarily
+	TextBuffer saved = fn->body;
+	fn->body.buf = NULL; fn->body.pos = 0; fn->body.capacity = 0;
+
+	// FIXME error handling - as we will leak memory if longjmp occurs
+	raviX_buffer_add_string(&fn->body, "{\n");
+
+	// Load the Ravi/Lua symbols into C code
+	for (int i = 0; i < get_num_operands(insn); i++) {
+		Pseudo *pseudo = get_operand(insn, i);
+		emit_userdata_C_variable_load(fn, insn, pseudo);
+	}
+
+	// output C code
+	Pseudo *C_code = get_first_target(insn);
+	assert(C_code->type == PSEUDO_CONSTANT && C_code->constant->type == RAVI_TSTRING);
+	raviX_buffer_add_string(&fn->body, C_code->constant->s->str);
+
+	// Store values back to Ravi/Lua variables
+	for (int i = 0; i < get_num_operands(insn); i++) {
+		Pseudo *pseudo = get_operand(insn, i);
+		LuaSymbol *symbol = pseudo->type == PSEUDO_SYMBOL ? pseudo->symbol : pseudo->temp_for_local;
+		if (symbol->variable.value_type.type_code == RAVI_TNUMINT ||
+		    symbol->variable.value_type.type_code == RAVI_TNUMFLT) {
+			emit_userdata_C_variable_store(fn, insn, pseudo);
+		}
+	}
+
+	raviX_buffer_add_string(&fn->body, "\n}\n");
+
+	TextBuffer code = fn->body;
+	fn->body = saved; // Restore original output buffer
+
+	if (analyze_C_code(fn, &code) != 0) {
+		return -1;
+	}
+	raviX_buffer_add_string(&fn->body, code.buf);
+	raviX_buffer_free(&code);
+	return 0;
+}
+
+static int emit_op_embed_C__new(Function *fn, Instruction *insn) {
+	LinearizerState *linearizer = fn->proc->linearizer;
+
+	TextBuffer code;
+	raviX_buffer_init(&code, 1024);
+	raviX_buffer_add_string(&code, Embedded_C_header);
+	raviX_buffer_add_string(&code, linearizer->C_declarations.buf);
+
+	int status = -1;
+	C_Parser parser;
+	C_parser_init(&parser);
+	C_Scope *global_scope = C_global_scope(&parser);
+	C_Token *tok = C_tokenize_buffer(&parser, code.buf);
+	if (tok == NULL) {
+		goto Lexit;
+	}
+	C_convert_pp_tokens(&parser, tok);
+	if (C_parse(global_scope, &parser, tok) == NULL) {
+		goto Lexit;
+	}
+	Pseudo *tagname = get_operand(insn, 0);
+	Pseudo *size = get_operand(insn, 1);
+	Pseudo *target = get_target(insn, 0);
+	// Add utility in chibicc to find a type
+	C_Type *ty = hashmap_get(&global_scope->tags, tagname->constant->s->str);
+	size_t tagsz = 0;
+	if (ty != NULL) {
+		tagsz = ty->size;
+	}
+	else {
+		C_VarScope *vc = hashmap_get(&global_scope->vars, tagname->constant->s->str);
+		if (vc && vc->type_def) {
+			tagsz = vc->type_def->size;
+		}
+		else {
+			TextBuffer message;
+			raviX_buffer_init(&message, 128);
+			raviX_buffer_add_fstring(&message, "Unknown type '%s'", tagname->constant->s->str);
+			fn->api->error_message(fn->api->context, message.buf);
+			raviX_buffer_free(&message);
+			goto Lexit;
+		}
+	}
+
+	raviX_buffer_add_string(&fn->body, "{\n");
+	raviX_buffer_add_string(&fn->body, "  TValue *raviX__elements = ");
+	emit_reg_accessor(fn, size, 0);
+	raviX_buffer_add_string(&fn->body, ";\n");
+	raviX_buffer_add_string(&fn->body, "  TValue *raviX__target = ");
+	emit_reg_accessor(fn, target, 0);
+	raviX_buffer_add_string(&fn->body, ";\n");
+
+	raviX_buffer_add_string(&fn->body, "  if (ttisinteger(raviX__elements)) {\n");
+	raviX_buffer_add_string(&fn->body, "   lua_Integer n = ivalue(raviX__elements);\n");
+	raviX_buffer_add_fstring(&fn->body, "   Udata *u = luaS_newudata(L, %d * n);\n", (int)tagsz);
+	raviX_buffer_add_string(&fn->body, "   setuvalue(L, raviX__target, u);\n");
+	raviX_buffer_add_string(&fn->body, "  }\n");
+	raviX_buffer_add_string(&fn->body, "  else {\n");
+	// FIXME need specific error code
+	raviX_buffer_add_fstring(&fn->body, "   error_code = %d;\n", Error_type_mismatch);
+	raviX_buffer_add_string(&fn->body, "   goto Lraise_error;\n");
+	raviX_buffer_add_string(&fn->body, "  }\n");
+	raviX_buffer_add_string(&fn->body, "}\n");
+	status = 0;
+
+Lexit:
+	C_parser_destroy(&parser);
+	raviX_buffer_free(&code);
+
+	return status;
+}
+
 static int output_instruction(Function *fn, Instruction *insn)
 {
 	int rc = 0;
@@ -2603,6 +3193,14 @@ static int output_instruction(Function *fn, Instruction *insn)
 
 	case op_init:
 		rc = emit_op_init(fn, insn);
+		break;
+
+	case op_embed_C:
+		rc = emit_op_embed_C(fn, insn);
+		break;
+
+	case op_embed_C__new:
+		rc = emit_op_embed_C__new(fn, insn);
 		break;
 
 	default:
@@ -2883,11 +3481,57 @@ static void preprocess_upvalues(Proc *proc)
 	END_FOR_EACH_PTR(childproc)
 }
 
+/* Emits top level C__decl contents */
+static int emit_embedded_C_declarations(LinearizerState *linearizer, struct Ravi_CompilerInterface *api, TextBuffer *mb)
+{
+	if (linearizer->C_declarations.buf == NULL || linearizer->C_declarations.buf[0] == 0)
+		return 0;
+
+	TextBuffer code;
+	raviX_buffer_init(&code, 1024);
+	raviX_buffer_add_string(&code, Embedded_C_header);
+	raviX_buffer_add_string(&code, linearizer->C_declarations.buf);
+
+	C_Parser parser;
+	C_parser_init(&parser);
+	C_Scope *global_scope = C_global_scope(&parser);
+	C_Decl_Analysis analysis = {&parser, global_scope, 0};
+
+	C_Token *tok = C_tokenize_buffer(&parser, code.buf);
+	if (tok == NULL) {
+		analysis.status = -1;
+		goto Lexit;
+	}
+	C_convert_pp_tokens(&parser, tok);
+	if (C_parse(global_scope, &parser, tok) == NULL) {
+		analysis.status = -1;
+		goto Lexit;
+	}
+
+	analysis.is_tags = 1;
+	hashmap_foreach(&global_scope->tags, analyze_C_declarations, &analysis);
+	analysis.is_tags = 0;
+	hashmap_foreach(&global_scope->vars, analyze_C_declarations, &analysis);
+
+	if (analysis.status == 0) {
+		raviX_buffer_add_string(mb, linearizer->C_declarations.buf);
+	}
+
+Lexit:
+	if (analysis.status < 0 && parser.error_message) {
+		api->error_message(api->context, parser.error_message);
+	}
+	C_parser_destroy(&parser);
+	raviX_buffer_free(&code);
+
+	return analysis.status;
+}
+
 static void debug_message(void *context, const char *filename, long long line, const char *message)
 {
 	fprintf(stdout, "%s:%lld: %s\n", filename, line, message);
 }
-static void error_message(void *context, const char *message) { fprintf(stdout, "ERROR: %s\n", message); }
+static void error_message(void *context, const char *message) { fprintf(stderr, "%s\n", message); }
 
 static struct Ravi_CompilerInterface stub_compilerInterface = {
     .context = NULL,
@@ -2913,6 +3557,11 @@ int raviX_generate_C(LinearizerState *linearizer, TextBuffer *mb, struct Ravi_Co
 	/* Add the common header portion */
 	// FIXME we need a way to customise this for 32-bit vs 64-bit
 	raviX_buffer_add_string(mb, Lua_header);
+
+	/* emit C__decl statements in ravi code */
+	if (emit_embedded_C_declarations(linearizer, ravi_interface, mb) != 0) {
+		return -1;
+	}
 
 	/* Preprocess upvalue attributes */
 	preprocess_upvalues(linearizer->main_proc);

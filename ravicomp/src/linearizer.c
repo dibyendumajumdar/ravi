@@ -138,6 +138,7 @@ void raviX_destroy_linearizer(LinearizerState *linearizer)
 			raviX_destroy_graph(proc->cfg);
 	}
 	END_FOR_EACH_PTR(proc)
+	raviX_buffer_free(&linearizer->C_declarations);
 	raviX_allocator_destroy(&linearizer->instruction_allocator);
 	raviX_allocator_destroy(&linearizer->ptrlist_allocator);
 	raviX_allocator_destroy(&linearizer->pseudo_allocator);
@@ -146,6 +147,11 @@ void raviX_destroy_linearizer(LinearizerState *linearizer)
 	raviX_allocator_destroy(&linearizer->unsized_allocator);
 	raviX_allocator_destroy(&linearizer->constant_allocator);
 	raviX_free(linearizer);
+}
+
+static void add_C_declaration(LinearizerState *linearizer, const StringObject *str)
+{
+	raviX_buffer_add_string(&linearizer->C_declarations, str->str);
 }
 
 /**
@@ -1537,6 +1543,19 @@ static void linearize_local_statement(Proc *proc, AstNode *stmt)
 	linearize_assignment(proc, stmt->local_stmt.expr_list, varinfo, nv);
 }
 
+static Pseudo *linearize_builtin_expression(Proc *proc, AstNode *expr)
+{
+	Instruction *insn = allocate_instruction(proc, op_embed_C__new, expr->line_number);
+	add_instruction_operand(proc, insn, allocate_constant_pseudo(proc, allocate_string_constant(proc, expr->builtin_expr.type_name)));
+	Pseudo *size_expr = linearize_expression(proc, expr->builtin_expr.size_expr);
+	add_instruction_operand(proc, insn, size_expr);
+	Pseudo *target = allocate_temp_pseudo(proc, RAVI_TUSERDATA);
+	add_instruction_target(proc, insn, target);
+	add_instruction(proc, insn);
+	free_temp_pseudo(proc, size_expr, false);
+	return target;
+}
+
 static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 {
 	Pseudo *result = NULL;
@@ -1568,6 +1587,9 @@ static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 	} break;
 	case EXPR_CONCAT: {
 		result = linearize_concat_expression(proc, expr);
+	} break;
+	case EXPR_BUILTIN: {
+		result = linearize_builtin_expression(proc, expr);
 	} break;
 	default:
 		handle_error(proc->linearizer->ast_container, "feature not yet implemented");
@@ -2293,6 +2315,39 @@ static void linearize_while_statment(Proc *proc, AstNode *node)
 	proc->current_break_scope = previous_break_scope;
 }
 
+static void linearize_embedded_C_decl(Proc *proc, AstNode *node)
+{
+	if (proc != proc->linearizer->main_proc) {
+		handle_error(proc->linearizer->ast_container,
+			     "Embedded C declarations can only be present in the main chunk");
+	}
+	add_C_declaration(proc->linearizer, node->embedded_C_stmt.C_src_snippet);
+}
+
+static void linearize_embedded_C(Proc *proc, AstNode *node)
+{
+	if (node->embedded_C_stmt.is_decl) {
+		linearize_embedded_C_decl(proc, node);
+		return;
+	}
+
+	Instruction *insn = allocate_instruction(proc, op_embed_C, node->line_number);
+	LuaSymbol *sym;
+	FOR_EACH_PTR(node->embedded_C_stmt.symbols, LuaSymbol, sym)
+	{
+		if (sym->symbol_type == SYM_LOCAL) {
+			Pseudo *pseudo = sym->variable.pseudo;
+			add_instruction_operand(proc, insn, pseudo);
+		} else {
+			handle_error(proc->linearizer->ast_container,
+				     "Variables referenced by embed C instruction must be locals");
+		}
+	}
+	END_FOR_EACH_PTR(sym)
+	add_instruction_target(proc, insn, allocate_constant_pseudo(proc, allocate_string_constant(proc, node->embedded_C_stmt.C_src_snippet)));
+	add_instruction(proc, insn);
+}
+
 static void linearize_function_statement(Proc *proc, AstNode *node)
 {
 	/* function funcname funcbody */
@@ -2320,7 +2375,7 @@ static void linearize_function_statement(Proc *proc, AstNode *node)
 		prev_node = this_node;
 		prev_pseudo = next;
 	}
-	END_FOR_EACH_PTR(node)
+	END_FOR_EACH_PTR(this_node)
 	// FIXME maybe better to add the method name to the selector list above in the parser
 	// then we could have just handled it above rather than as a special case
 	if (node->function_stmt.method_name) {
@@ -2392,6 +2447,10 @@ static void linearize_statement(Proc *proc, AstNode *node)
 	}
 	case STMT_FOR_NUM: {
 		linearize_for_num_statement(proc, node);
+		break;
+	}
+	case STMT_EMBEDDED_C: {
+		linearize_embedded_C(proc, node);
 		break;
 	}
 	default:
@@ -2634,7 +2693,7 @@ static const char *op_codenames[] = {
     "PUTik",	  "PUTsk",  "TPUT", "TPUTik", "TPUTsk",	    "IAPUT",	 "IAPUTiv",   "FAPUT",	   "FAPUTfv",
     "CBR",	  "BR",	    "MOV",  "MOVi",   "MOVif",	    "MOVf",	 "MOVfi",     "CALL",	   "GET",
     "GETik",	  "GETsk",  "TGET", "TGETik", "TGETsk",	    "IAGET",	 "IAGETik",   "FAGET",	   "FAGETik",
-    "STOREGLOBAL", "CLOSE", "CONCAT", "INIT"};
+    "STOREGLOBAL", "CLOSE", "CONCAT", "INIT", "EMBED_C",    "EMBED_C__NEW"};
 
 static void output_pseudo_list(PseudoList *list, TextBuffer *mb)
 {
@@ -2667,7 +2726,11 @@ static void output_instruction(Instruction *insn, TextBuffer *mb, const char *pr
 	if (insn->operands) {
 		output_pseudo_list(insn->operands, mb);
 	}
-	if (insn->targets) {
+	if (insn->opcode == op_embed_C) {
+		// special handling as we don't want to output all the C code
+		raviX_buffer_add_string(mb, " { C code }");
+	}
+	else if (insn->targets) {
 		output_pseudo_list(insn->targets, mb);
 	}
 	raviX_buffer_add_string(mb, suffix);

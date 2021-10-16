@@ -16,3 +16,9 @@ buildnojit
 nojit
 nojita
 *.so
+*.dll
+*.exp
+*.lib
+*.obj
+*.s
+time-debug.txt

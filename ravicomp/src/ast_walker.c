@@ -164,6 +164,27 @@ const ForStatement *raviX_for_statement(const Statement *stmt)
 	assert(stmt->type == STMT_FOR_IN || stmt->type == STMT_FOR_NUM);
 	return &n(stmt)->for_stmt;
 }
+const EmbeddedCStatement *raviX_embedded_C_statment(const Statement *stmt)
+{
+	assert(stmt->type == STMT_EMBEDDED_C);
+	return &n(stmt)->embedded_C_stmt;
+}
+void raviX_embedded_C_statement_foreach_symbol(const EmbeddedCStatement *statement, void *userdata,
+					       void (*callback)(void *, const LuaVariableSymbol *expr))
+{
+	LuaSymbol *symbol;
+	FOR_EACH_PTR(statement->symbols, LuaSymbol, symbol)
+	{
+		assert(symbol->symbol_type == SYM_LOCAL);
+		callback(userdata, &symbol->variable);
+	}
+	END_FOR_EACH_PTR(symbol)
+}
+const StringObject *raviX_embedded_C_statement_C_source(const EmbeddedCStatement *statement)
+{
+	return statement->C_src_snippet;
+}
+
 enum AstNodeType raviX_expression_type(const Expression *expression) { return expression->type; }
 const LiteralExpression *raviX_literal_expression(const Expression *expr)
 {

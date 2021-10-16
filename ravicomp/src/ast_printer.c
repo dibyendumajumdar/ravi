@@ -74,7 +74,10 @@ static void printf_buf(TextBuffer *buf, const char *format, ...)
 			type = va_arg(ap, const VariableType *);
 			if (type->type_code == RAVI_TUSERDATA) {
 				const StringObject *s = type->type_name;
-				raviX_buffer_add_string(buf, s->str);
+				if (s != NULL)
+					raviX_buffer_add_string(buf, s->str);
+				else
+					raviX_buffer_add_string(buf, "userdata");
 			} else {
 				raviX_buffer_add_string(buf, raviX_get_type_name(type->type_code));
 			}
@@ -463,6 +466,12 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 		printf_buf(buf, "%pend\n", level);
 		break;
 	}
+	case STMT_EMBEDDED_C: {
+		printf_buf(buf, "%pC (\n", level);
+		print_symbol_list(buf, node->embedded_C_stmt.symbols, level + 1, ",");
+		printf_buf(buf, "%p  ) '%t'\n", level, node->embedded_C_stmt.C_src_snippet);
+		break;
+	}
 	case EXPR_SUFFIXED: {
 		printf_buf(buf, "%p%c %T\n", level, "[suffixed expr start]", &node->suffixed_expr.type);
 		printf_buf(buf, "%p%c %T\n", level + 1, "[primary start]",
@@ -573,6 +582,12 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 		printf_buf(buf, "%p%c %T\n", level, "[concat start]", &node->string_concatenation_expr.type);
 		print_ast_node_list(buf, node->string_concatenation_expr.expr_list, level + 1, ",");
 		printf_buf(buf, "%p%c\n", level, "[concat end]");
+		break;
+	}
+	case EXPR_BUILTIN: {
+		printf_buf(buf, "%p%s %c%T\n", level, "C__new(", "", &node->builtin_expr.type);
+		// TODO print contents
+		printf_buf(buf, "%p)\n", level);
 		break;
 	}
 	default:
