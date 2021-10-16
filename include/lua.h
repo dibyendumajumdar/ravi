@@ -642,9 +642,6 @@ LUA_API int ravi_list_code(lua_State *L);
 /* Returns a table with various system limits */
 LUA_API int ravi_get_limits(lua_State *L);
 
-LUA_API int ravi_newuserdata (lua_State *L, size_t size);
-
-
 /* Options */
 LUA_API const char *raviV_options(struct lua_State *L);
 

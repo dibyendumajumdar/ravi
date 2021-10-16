@@ -1733,9 +1733,3 @@ LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p)
     raviE_default_writestringerror(fmt, p);
   }
 }
-
-LUA_API int ravi_newuserdata (lua_State *L, size_t size) {
-  char *p = cast(char *, lua_newuserdata(L, size));
-  while (size--) *p++ = '\0';
-  return 1;
-}

@@ -250,13 +250,6 @@ static int ravi_get_options(lua_State *L) {
   return 1;
 }
 
-static int ravi_createnewuserdata(lua_State *L) {
-  luaL_argcheck(L, lua_isstring(L, 1), 1, "Type name (string) expected as first argument");
-  luaL_argcheck(L, lua_isinteger(L, 2), 2, "Size (integer) expected as second argument");
-  raviL_newuserdata(L, (size_t)lua_tointeger(L, 2) , lua_tostring(L, 1));
-  return 1;
-}
-
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"compile", ravi_compile_n},
                                    {"dumplua", ravi_dump_luacode},
@@ -275,7 +268,6 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"limits", ravi_get_limits},
                                    {"jitname", ravi_get_jit_id},
                                    {"options", ravi_get_options},
-                                   {"userdata", ravi_createnewuserdata},
                                    {NULL, NULL}};
 
 #include <math.h> 
