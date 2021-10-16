@@ -145,8 +145,8 @@ enum opcode {
 	op_close,
 	op_concat,
 	op_init,
-	op_embed_C,
-	op_embed_C__new
+	op_C__unsafe,
+	op_C__new
 };
 
 /*

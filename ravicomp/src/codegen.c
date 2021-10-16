@@ -2888,7 +2888,7 @@ static void emit_userdata_C_variable_store(Function *fn, Instruction *insn, Pseu
  * output at top level so that declarations are shared amongst all
  * functions in a chunk of Ravi code.
  */
-static int emit_op_embed_C(Function *fn, Instruction *insn)
+static int emit_op_C__unsafe(Function *fn, Instruction *insn)
 {
 	// Save the buffer and switch to new one temporarily
 	TextBuffer saved = fn->body;
@@ -2929,7 +2929,7 @@ static int emit_op_embed_C(Function *fn, Instruction *insn)
 	return 0;
 }
 
-static int emit_op_embed_C__new(Function *fn, Instruction *insn) {
+static int emit_op_C__new(Function *fn, Instruction *insn) {
 	LinearizerState *linearizer = fn->proc->linearizer;
 
 	TextBuffer code;
@@ -3200,12 +3200,12 @@ static int output_instruction(Function *fn, Instruction *insn)
 		rc = emit_op_init(fn, insn);
 		break;
 
-	case op_embed_C:
-		rc = emit_op_embed_C(fn, insn);
+	case op_C__unsafe:
+		rc = emit_op_C__unsafe(fn, insn);
 		break;
 
-	case op_embed_C__new:
-		rc = emit_op_embed_C__new(fn, insn);
+	case op_C__new:
+		rc = emit_op_C__new(fn, insn);
 		break;
 
 	default:
@@ -3487,7 +3487,7 @@ static void preprocess_upvalues(Proc *proc)
 }
 
 /* Emits top level C__decl contents */
-static int emit_embedded_C_declarations(LinearizerState *linearizer, struct Ravi_CompilerInterface *api, TextBuffer *mb)
+static int emit_C__decl(LinearizerState *linearizer, struct Ravi_CompilerInterface *api, TextBuffer *mb)
 {
 	if (linearizer->C_declarations.buf == NULL || linearizer->C_declarations.buf[0] == 0)
 		return 0;
@@ -3564,7 +3564,7 @@ int raviX_generate_C(LinearizerState *linearizer, TextBuffer *mb, struct Ravi_Co
 	raviX_buffer_add_string(mb, Lua_header);
 
 	/* emit C__decl statements in ravi code */
-	if (emit_embedded_C_declarations(linearizer, ravi_interface, mb) != 0) {
+	if (emit_C__decl(linearizer, ravi_interface, mb) != 0) {
 		return -1;
 	}
 

@@ -1545,7 +1545,7 @@ static void linearize_local_statement(Proc *proc, AstNode *stmt)
 
 static Pseudo *linearize_builtin_expression(Proc *proc, AstNode *expr)
 {
-	Instruction *insn = allocate_instruction(proc, op_embed_C__new, expr->line_number);
+	Instruction *insn = allocate_instruction(proc, op_C__new, expr->line_number);
 	add_instruction_operand(proc, insn, allocate_constant_pseudo(proc, allocate_string_constant(proc, expr->builtin_expr.type_name)));
 	Pseudo *size_expr = linearize_expression(proc, expr->builtin_expr.size_expr);
 	add_instruction_operand(proc, insn, size_expr);
@@ -2331,7 +2331,7 @@ static void linearize_embedded_C(Proc *proc, AstNode *node)
 		return;
 	}
 
-	Instruction *insn = allocate_instruction(proc, op_embed_C, node->line_number);
+	Instruction *insn = allocate_instruction(proc, op_C__unsafe, node->line_number);
 	LuaSymbol *sym;
 	FOR_EACH_PTR(node->embedded_C_stmt.symbols, LuaSymbol, sym)
 	{
@@ -2693,7 +2693,7 @@ static const char *op_codenames[] = {
     "PUTik",	  "PUTsk",  "TPUT", "TPUTik", "TPUTsk",	    "IAPUT",	 "IAPUTiv",   "FAPUT",	   "FAPUTfv",
     "CBR",	  "BR",	    "MOV",  "MOVi",   "MOVif",	    "MOVf",	 "MOVfi",     "CALL",	   "GET",
     "GETik",	  "GETsk",  "TGET", "TGETik", "TGETsk",	    "IAGET",	 "IAGETik",   "FAGET",	   "FAGETik",
-    "STOREGLOBAL", "CLOSE", "CONCAT", "INIT", "EMBED_C",    "EMBED_C__NEW"};
+    "STOREGLOBAL", "CLOSE", "CONCAT", "INIT", "C__UNSAFE",  "C__NEW"};
 
 static void output_pseudo_list(PseudoList *list, TextBuffer *mb)
 {
@@ -2726,7 +2726,7 @@ static void output_instruction(Instruction *insn, TextBuffer *mb, const char *pr
 	if (insn->operands) {
 		output_pseudo_list(insn->operands, mb);
 	}
-	if (insn->opcode == op_embed_C) {
+	if (insn->opcode == op_C__unsafe) {
 		// special handling as we don't want to output all the C code
 		raviX_buffer_add_string(mb, " { C code }");
 	}
