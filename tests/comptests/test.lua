@@ -62,7 +62,7 @@ end
 runfile("inputs/53_ravi_tests.lua")
 runfile("inputs/54_embed_C.lua")
 runfile("inputs/55_embed_C.lua")
-
+runfile("inputs/56_embed_C.lua")
 
 print 'SUCCESS'
 

@@ -29,8 +29,8 @@
  */
 
 #include "codegen.h"
-#include "ravi_api.h"
 #include "chibicc/chibicc.h"
+#include "ravi_api.h"
 
 #include <assert.h>
 #include <setjmp.h>
@@ -701,8 +701,7 @@ static const char Lua_header[] =
     "typedef struct {\n"
     "  lua_Number *ptr;\n"
     "  unsigned int len;\n"
-    "} Ravi_NumberArray;\n"
-    ;
+    "} Ravi_NumberArray;\n";
 
 static const char Embedded_C_header[] =
 
@@ -713,7 +712,9 @@ static const char Embedded_C_header[] =
     "   union { lua_Integer i; lua_Number n; } value_;\n"
     "} TValue;\n"
     "static lua_Integer ivalue(const TValue *v) { return 0; }\n"
+    "static void setivalue(TValue *v, lua_Integer i) {}\n"
     "static lua_Number  fvalue(const TValue *v) { return 0.0; }\n"
+    "static void setfltvalue(TValue *v, lua_Number f) {}\n"
     "typedef struct {\n"
     "   char *data;\n"
     "   unsigned int len;\n"
@@ -752,14 +753,13 @@ static const char Embedded_C_header[] =
     "  lua_Number *ptr;\n"
     "  unsigned int len;\n"
     "} Ravi_NumberArray;\n"
-    "int error_code;\n"
-    ;
+    "int error_code;\n";
 
 typedef struct {
 	Proc *proc;
 	TextBuffer prologue;
 	TextBuffer body;
-	TextBuffer tb; // Temp buf
+	TextBuffer tb;			 // Temp buf
 	TextBuffer C_local_declarations; // Declarations of temp int/float vars required when analysing embedded C code
 	struct Ravi_CompilerInterface *api;
 	jmp_buf env;
@@ -935,7 +935,7 @@ static void emit_varname(Function *fn, const Pseudo *pseudo)
 	} else if (pseudo->type == PSEUDO_TEMP_FLT) {
 		raviX_buffer_add_fstring(mb, "%s%d", flt_var_prefix, pseudo->regnum);
 	} else {
-		handle_error(fn, "Unexpected pseudo type");
+		handle_error_bad_pseudo(fn, pseudo, "Unexpected pseudo type");
 	}
 }
 
@@ -1013,7 +1013,7 @@ static int emit_reg_accessor(Function *fn, const Pseudo *pseudo, unsigned discri
 		} else if (pseudo->symbol->symbol_type == SYM_UPVALUE) {
 			raviX_buffer_add_fstring(&fn->body, "cl->upvals[%d]->v", pseudo->symbol->upvalue.upvalue_index);
 		} else {
-			handle_error_bad_pseudo(fn, pseudo,"emit_reg_accessor: Unexpected pseudo symbol type");
+			handle_error_bad_pseudo(fn, pseudo, "emit_reg_accessor: Unexpected pseudo symbol type");
 			return -1;
 		}
 	} else if (pseudo->type == PSEUDO_CONSTANT) {
@@ -1091,7 +1091,7 @@ static void emit_varname_or_constant(Function *fn, Pseudo *pseudo)
 			emit_reg_accessor(fn, pseudo, 0); // discriminator not used
 			raviX_buffer_add_string(&fn->body, ")");
 		} else {
-			handle_error_bad_pseudo(fn, pseudo,"emit_varname_or_constant: Unexpected pseudo");
+			handle_error_bad_pseudo(fn, pseudo, "emit_varname_or_constant: Unexpected pseudo");
 		}
 	} else {
 		handle_error_bad_pseudo(fn, pseudo, "emit_varname_or_constant: Unexpected pseudo");
@@ -1128,8 +1128,7 @@ static bool refers_to_same_register(Function *fn, Pseudo *src, Pseudo *dst)
 	if (src->type == PSEUDO_LUASTACK || dst->type == PSEUDO_LUASTACK) {
 		return src->type == dst->type && src->stackidx == dst->stackidx;
 	}
-	if ((src->type == PSEUDO_SYMBOL || dst->type == PSEUDO_SYMBOL) &&
-	    src->type != dst->type) {
+	if ((src->type == PSEUDO_SYMBOL || dst->type == PSEUDO_SYMBOL) && src->type != dst->type) {
 		// a temp reg can never equate local reg
 		return false;
 	}
@@ -1163,7 +1162,8 @@ static int emit_move_flttemp(Function *fn, Pseudo *src, Pseudo *dst)
 		raviX_buffer_add_string(&fn->body, " = ");
 		emit_varname(fn, src);
 		raviX_buffer_add_string(&fn->body, ";\n");
-	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL || src->type == PSEUDO_RANGE_SELECT) {
+	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL ||
+		   src->type == PSEUDO_RANGE_SELECT) {
 		raviX_buffer_add_string(&fn->body, "{\nTValue *reg = ");
 		emit_reg_accessor(fn, src, 0); // TODO check discriminator
 		raviX_buffer_add_string(&fn->body, ";\n");
@@ -1185,7 +1185,7 @@ static int emit_move_inttemp(Function *fn, Pseudo *src, Pseudo *dst)
 			raviX_buffer_add_fstring(&fn->body, " = %lld;\n", src->constant->i);
 		} else {
 			// FIXME can we have float value?
-			handle_error_bad_pseudo(fn, src,"emit_move_inttemp: Unexpected pseudo");
+			handle_error_bad_pseudo(fn, src, "emit_move_inttemp: Unexpected pseudo");
 			return -1;
 		}
 	} else if (src->type == PSEUDO_TEMP_INT || src->type == PSEUDO_TEMP_BOOL) {
@@ -1193,14 +1193,15 @@ static int emit_move_inttemp(Function *fn, Pseudo *src, Pseudo *dst)
 		raviX_buffer_add_string(&fn->body, " = ");
 		emit_varname(fn, src);
 		raviX_buffer_add_string(&fn->body, ";\n");
-	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL || src->type == PSEUDO_RANGE_SELECT) {
+	} else if (src->type == PSEUDO_LUASTACK || src->type == PSEUDO_TEMP_ANY || src->type == PSEUDO_SYMBOL ||
+		   src->type == PSEUDO_RANGE_SELECT) {
 		raviX_buffer_add_string(&fn->body, "{\nTValue *reg = ");
 		emit_reg_accessor(fn, src, 0); // TODO check discriminator
 		raviX_buffer_add_string(&fn->body, ";\n");
 		emit_varname(fn, dst);
 		raviX_buffer_add_string(&fn->body, " = ivalue(reg);\n}\n");
 	} else {
-		handle_error_bad_pseudo(fn, src,"emit_move_inttemp: Unexpected pseudo");
+		handle_error_bad_pseudo(fn, src, "emit_move_inttemp: Unexpected pseudo");
 		return -1;
 	}
 	return 0;
@@ -1265,7 +1266,8 @@ static int emit_move(Function *fn, Pseudo *src, Pseudo *dst)
 				raviX_buffer_add_double(&fn->body, src->constant->n);
 				raviX_buffer_add_string(&fn->body, " );\n");
 			} else if (src->constant->type == RAVI_TBOOLEAN) {
-				raviX_buffer_add_fstring(&fn->body, " setbvalue(dst_reg, %i);\n", (int)src->constant->i);
+				raviX_buffer_add_fstring(&fn->body, " setbvalue(dst_reg, %i);\n",
+							 (int)src->constant->i);
 			} else if (src->constant->type == RAVI_TNIL) {
 				raviX_buffer_add_string(&fn->body, " setnilvalue(dst_reg);\n");
 			} else if (src->constant->type == RAVI_TSTRING) {
@@ -1395,7 +1397,8 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 		} else {
 			/* copy values starting at the range to L->top */
 			// raviX_buffer_add_fstring(&fn->body, " j = %d;\n", i);
-			raviX_buffer_add_fstring(&fn->body, " {\n int reg = %d;\n", compute_register_from_base(fn, pseudo));
+			raviX_buffer_add_fstring(&fn->body, " {\n int reg = %d;\n",
+						 compute_register_from_base(fn, pseudo));
 			raviX_buffer_add_string(&fn->body, "  while (j < wanted) {\n");
 			raviX_buffer_add_string(&fn->body, "   TValue *dest_reg = S(j);\n");
 			raviX_buffer_add_string(&fn->body, "   TValue *src_reg = R(reg);\n");
@@ -1556,7 +1559,7 @@ static int emit_op_call(Function *fn, Instruction *insn)
 			}
 			n--; // discard the last arg
 			set_top = false;
-		}	
+		}
 	}
 	// Copy the rest of the args in reverse order
 	for (int j = n - 1; j >= 0; j--) {
@@ -1567,7 +1570,7 @@ static int emit_op_call(Function *fn, Instruction *insn)
 		// L->top must be just past the last arg
 		raviX_buffer_add_string(&fn->body, " L->top = ");
 		emit_reg_accessor(fn, get_target(insn, 0), 0);
-		raviX_buffer_add_fstring(&fn->body, " + %d;\n", n);	
+		raviX_buffer_add_fstring(&fn->body, " + %d;\n", n);
 	}
 	// Call the function
 	raviX_buffer_add_string(&fn->body, "{\n TValue *ra = ");
@@ -2160,7 +2163,7 @@ static int emit_generic_comp(Function *fn, Instruction *insn)
 		emit_varname(fn, target);
 		raviX_buffer_add_string(&fn->body, " = result != 0;\n");
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, target, "Unexpected pseudo");
 		return -1;
 	}
 	raviX_buffer_add_string(&fn->body, "}\n");
@@ -2365,7 +2368,7 @@ static int emit_op_unmi_unmf(Function *fn, Instruction *insn)
 		}
 		raviX_buffer_add_string(&fn->body, ");\n");
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, target, "Unexpected pseudo");
 		return -1;
 	}
 	raviX_buffer_add_string(&fn->body, "}\n");
@@ -2420,7 +2423,7 @@ static int emit_op_movfi(Function *fn, Instruction *insn)
 		emit_reg_accessor(fn, target, 0);
 		raviX_buffer_add_string(&fn->body, ";\n setivalue(ra, i);\n");
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, target, "Unexpected target pseudo");
 		return -1;
 	}
 	raviX_buffer_add_string(&fn->body, "}\n");
@@ -2450,7 +2453,7 @@ static int emit_op_movif(Function *fn, Instruction *insn)
 		emit_reg_accessor(fn, target, 0);
 		raviX_buffer_add_string(&fn->body, ";\n setfltvalue(ra, n);\n");
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, target,"Unexpected pseudo");
 		return -1;
 	}
 	raviX_buffer_add_string(&fn->body, "}\n");
@@ -2475,34 +2478,33 @@ static int emit_op_init(Function *fn, Instruction *insn)
 		// FIXME we need to check for initialization of integer[], number[] or table
 		emit_move(fn, &src, dst);
 	} else {
-		handle_error(fn, "Unexpected pseudo");
+		handle_error_bad_pseudo(fn, dst, "Unexpected pseudo");
 		return -1;
 	}
 	return 0;
 }
-
 
 typedef struct C_Decl_Analysis {
 	C_Parser *parser;
 	C_Scope *global_scope;
 	int status;
 	int is_tags;
+	struct Ravi_CompilerInterface *api;
 } C_Decl_Analysis;
 
 /* Checks type declarations do not contain pointers and unions */
 static void analyze_C_types(C_Decl_Analysis *analysis, C_Type *ty)
 {
+	struct Ravi_CompilerInterface *api = analysis->api;
 	if (ty->kind == TY_STRUCT) {
 		for (C_Member *mem = ty->members; mem; mem = mem->next) {
 			analyze_C_types(analysis, mem->ty);
 		}
-	}
-	else if (ty->kind == TY_PTR) {
-		fprintf(stderr, "Declaring pointer type is not allowed\n");
+	} else if (ty->kind == TY_PTR) {
+		api->error_message(api->context, "Declaring pointer type is not allowed\n");
 		analysis->status--;
-	}
-	else if (ty->kind == TY_UNION) {
-		fprintf(stderr, "Declaring union type is not allowed\n");
+	} else if (ty->kind == TY_UNION) {
+		api->error_message(api->context, "Declaring union type is not allowed\n");
 		analysis->status--;
 	}
 }
@@ -2510,11 +2512,12 @@ static void analyze_C_types(C_Decl_Analysis *analysis, C_Type *ty)
 /* Checks that there are no entities being created in the global scope */
 static void analyze_C_vars(C_Decl_Analysis *analysis, C_VarScope *vc)
 {
+	struct Ravi_CompilerInterface *api = analysis->api;
 	if (vc->var) {
-		fprintf(stderr, "Declaring objects is not allowed: %s\n", vc->var->name);
+		api->error_message(api->context, "Declaring objects is not allowed: ");
+		api->error_message(api->context, vc->var->name); // FIXME error formatting
 		analysis->status--;
-	}
-	else if (vc->type_def) {
+	} else if (vc->type_def) {
 		analyze_C_types(analysis, vc->type_def);
 	}
 }
@@ -2522,44 +2525,44 @@ static void analyze_C_vars(C_Decl_Analysis *analysis, C_VarScope *vc)
 /* Built-ins are excluded from analysis */
 static int is_builtin(char *key, int keylen)
 {
-	static char* builtins[] = {
-	    "alloca",
-	    "int64_t",
-	    "lua_Number",
-	    "lua_Integer",
-	    "TValue",
-	    "ivalue",
-	    "fvalue",
-	    "Ravi_Arr",
-	    "arrvalue",
-	    "ttisfulluserdata",
-	    "ttislightuserdata",
-	    "ttisstring",
-	    "uvalue",
-	    "pvalue",
-	    "svalue",
-	    "getudatamem",
-	    "gco2u",
-	    "sizeudata",
-	    "vslen",
-	    "R",
-	    "Ravi_StringOrUserData",
-	    "Ravi_IntegerArray",
-	    "Ravi_NumberArray",
-	    "error_code",
-	    "LUA_TBOOLEAN",
-	    "LUA_TNIL",
-	    "LUA_TNUMBER",
-	    "LUA_TUSERDATA",
-	    "LUA_TLIGHTUSERDATA",
-	    "LUA_TTHREAD",
-	    "LUA_TTABLE",
-	    "LUA_TFUNCTION",
-	    "LUA_TSTRING",
-	    "LUA_TTABLE",
-	    "settt_",
-	    NULL
-	};
+	static char *builtins[] = {"alloca",
+				   "int64_t",
+				   "lua_Number",
+				   "lua_Integer",
+				   "TValue",
+				   "ivalue",
+				   "setivalue",
+				   "fvalue",
+				   "setfltvalue",
+				   "Ravi_Arr",
+				   "arrvalue",
+				   "ttisfulluserdata",
+				   "ttislightuserdata",
+				   "ttisstring",
+				   "uvalue",
+				   "pvalue",
+				   "svalue",
+				   "getudatamem",
+				   "gco2u",
+				   "sizeudata",
+				   "vslen",
+				   "R",
+				   "Ravi_StringOrUserData",
+				   "Ravi_IntegerArray",
+				   "Ravi_NumberArray",
+				   "error_code",
+				   "LUA_TBOOLEAN",
+				   "LUA_TNIL",
+				   "LUA_TNUMBER",
+				   "LUA_TUSERDATA",
+				   "LUA_TLIGHTUSERDATA",
+				   "LUA_TTHREAD",
+				   "LUA_TTABLE",
+				   "LUA_TFUNCTION",
+				   "LUA_TSTRING",
+				   "LUA_TTABLE",
+				   "settt_",
+				   NULL};
 	for (int i = 0; builtins[i]; i++) {
 		if (strncmp(key, builtins[i], keylen) == 0) {
 			return 1;
@@ -2577,8 +2580,7 @@ static void analyze_C_declarations(void *userdata, char *key, int keylen, void *
 	if (analysis->is_tags) {
 		C_Type *ty = val;
 		analyze_C_types(analysis, ty);
-	}
-	else {
+	} else {
 		C_VarScope *vc = val;
 		analyze_C_vars(analysis, vc);
 	}
@@ -2588,61 +2590,67 @@ typedef struct C_Code_Analysis {
 	int status;
 } C_Code_Analysis;
 
-static void walk_node(C_Code_Analysis *analysis, C_Node *node)
+static void walk_node(struct Ravi_CompilerInterface *api, C_Code_Analysis *analysis, C_Node *node)
 {
 	switch (node->kind) {
 	case ND_BLOCK: {
 		for (C_Node *n = node->body; n; n = n->next)
-			walk_node(analysis, n);
+			walk_node(api, analysis, n);
 		break;
 	}
 	case ND_IF: {
-		walk_node(analysis, node->cond);
-		walk_node(analysis, node->then);
+		walk_node(api, analysis, node->cond);
+		walk_node(api, analysis, node->then);
 		if (node->els)
-			walk_node(analysis, node->els);
+			walk_node(api, analysis, node->els);
 		break;
 	}
 	case ND_FOR: {
 		if (node->init)
-			walk_node(analysis, node->init);
+			walk_node(api, analysis, node->init);
 		if (node->cond)
-			walk_node(analysis, node->cond);
+			walk_node(api, analysis, node->cond);
 		if (node->inc)
-			walk_node(analysis, node->inc);
+			walk_node(api, analysis, node->inc);
 		break;
 	}
 	case ND_DO: {
-		walk_node(analysis, node->then);
-		walk_node(analysis, node->cond);
+		walk_node(api, analysis, node->then);
+		walk_node(api, analysis, node->cond);
 		break;
 	}
 	case ND_SWITCH: {
-		walk_node(analysis, node->cond);
+		walk_node(api, analysis, node->cond);
 		for (C_Node *n = node->case_next; n; n = n->case_next) {
-			walk_node(analysis, n);
+			walk_node(api, analysis, n);
 		}
 		if (node->default_case)
-			walk_node(analysis, node->default_case);
+			walk_node(api, analysis, node->default_case);
 		break;
 	}
 	case ND_CASE:
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
+		break;
+	case ND_GOTO:
+		//api->error_message(api->context, "Goto statements not allowed in embedded C code\n");
+		//analysis->status--;
 		break;
 	case ND_GOTO_EXPR:
-		walk_node(analysis, node->lhs);
+		api->error_message(api->context, "Computed gotos not allowed in embedded C code\n");
+		analysis->status--;
+		walk_node(api, analysis, node->lhs);
 		break;
 	case ND_LABEL:
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
 		break;
 	case ND_RETURN:
-		fprintf(stderr, "Trying to return from embedded C code is not allowed\n");
+		api->error_message(api->context, "Trying to return from embedded C code is not allowed\n");
 		analysis->status--;
 		if (node->lhs)
-			walk_node(analysis, node->lhs);
+			walk_node(api, analysis, node->lhs);
 		break;
 	case ND_EXPR_STMT:
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
 		break;
 	case ND_ASM:
 		break;
@@ -2651,61 +2659,61 @@ static void walk_node(C_Code_Analysis *analysis, C_Node *node)
 	case ND_NUM:
 		break;
 	case ND_NEG:
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
 		break;
 	case ND_VAR:
 		break;
 	case ND_MEMBER:
 		break;
 	case ND_DEREF:
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
 		break;
 	case ND_ADDR:
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
 		break;
 	case ND_ASSIGN:
-		walk_node(analysis, node->lhs);
-		walk_node(analysis, node->rhs);
+		walk_node(api, analysis, node->lhs);
+		walk_node(api, analysis, node->rhs);
 		break;
 	case ND_STMT_EXPR: {
 		for (C_Node *n = node->body; n; n = n->next)
-			walk_node(analysis, n);
+			walk_node(api, analysis, n);
 		break;
 	}
 	case ND_COMMA:
-		walk_node(analysis, node->lhs);
-		walk_node(analysis, node->rhs);
+		walk_node(api, analysis, node->lhs);
+		walk_node(api, analysis, node->rhs);
 		break;
 	case ND_CAST:
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
 		break;
 	case ND_MEMZERO:
 		break;
 	case ND_COND:
-		walk_node(analysis, node->cond);
-		walk_node(analysis, node->then);
-		walk_node(analysis, node->els);
+		walk_node(api, analysis, node->cond);
+		walk_node(api, analysis, node->then);
+		walk_node(api, analysis, node->els);
 		break;
 	case ND_NOT:
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
 		break;
 	case ND_BITNOT:
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
 		break;
 	case ND_LOGAND:
 	case ND_LOGOR:
-		walk_node(analysis, node->lhs);
-		walk_node(analysis, node->rhs);
+		walk_node(api, analysis, node->lhs);
+		walk_node(api, analysis, node->rhs);
 		break;
 	case ND_FUNCALL:
-		//fprintf(stderr, "Calling function %.*s\n", node->func_ty->name->len, node->func_ty->name->loc);
+		// fprintf(stderr, "Calling function %.*s\n", node->func_ty->name->len, node->func_ty->name->loc);
 		if (!is_builtin(node->func_ty->name->loc, node->func_ty->name->len)) {
-			fprintf(stderr, "Calling functions from embedded C code is not allowed\n");
+			api->error_message(api->context, "Calling functions from embedded C code is not allowed\n");
 			analysis->status--;
 		}
-		walk_node(analysis, node->lhs);
+		walk_node(api, analysis, node->lhs);
 		for (C_Node *arg = node->args; arg; arg = arg->next) {
-			walk_node(analysis, arg);
+			walk_node(api, analysis, arg);
 		}
 		break;
 	case ND_LABEL_VAL:
@@ -2728,30 +2736,29 @@ static void walk_node(C_Code_Analysis *analysis, C_Node *node)
 	case ND_BITXOR:
 	case ND_SHL:
 	case ND_SHR:
-		walk_node(analysis, node->lhs);
-		walk_node(analysis, node->rhs);
+		walk_node(api, analysis, node->lhs);
+		walk_node(api, analysis, node->rhs);
 		break;
 	}
 }
 
 static int analyze_C_code(Function *fn, TextBuffer *user_code)
 {
-	static const char* addition_decls =     "\n"
-	    					"TValue ival0;\n"
-						"TValue fval0;\n"
-						"TValue bval0;\n"
-						"TValue ival1;\n"
-						"TValue fval1;\n"
-						"TValue bval1;\n"
-						"TValue ival2;\n"
-						"TValue fval2;\n"
-						"TValue bval2;\n"
-	;
+	static const char *addition_decls = "\n"
+					    "TValue ival0;\n"
+					    "TValue fval0;\n"
+					    "TValue bval0;\n"
+					    "TValue ival1;\n"
+					    "TValue fval1;\n"
+					    "TValue bval1;\n"
+					    "TValue ival2;\n"
+					    "TValue fval2;\n"
+					    "TValue bval2;\n";
 	TextBuffer canned_code;
 	raviX_buffer_init(&canned_code, 1024);
 	// setup types and symbols that are needed to check the canned_code
 	raviX_buffer_add_string(&canned_code, Embedded_C_header); // Dummy types and functions
-	raviX_buffer_add_string(&canned_code, addition_decls); // Dummy variables
+	raviX_buffer_add_string(&canned_code, addition_decls);	  // Dummy variables
 	if (fn->proc->linearizer->C_declarations.buf)
 		raviX_buffer_add_string(&canned_code, fn->proc->linearizer->C_declarations.buf);
 	if (fn->C_local_declarations.buf) /* declarations of temp integer and float vars */
@@ -2767,14 +2774,14 @@ static int analyze_C_code(Function *fn, TextBuffer *user_code)
 		goto Lexit;
 	}
 	C_convert_pp_tokens(&parser, tok);
-	if (C_parse(global_scope, &parser, tok) == NULL){
+	if (C_parse(global_scope, &parser, tok) == NULL) {
 		analysis.status = -1;
 		goto Lexit;
 	}
 
 	/* Now parse the user supplied code */
 	tok = C_tokenize_buffer(&parser, user_code->buf);
-	if (tok == NULL){
+	if (tok == NULL) {
 		analysis.status = -1;
 		goto Lexit;
 	}
@@ -2783,11 +2790,11 @@ static int analyze_C_code(Function *fn, TextBuffer *user_code)
 	 * not inside a function! */
 	parser.embedded_mode = true;
 	C_Node *node = C_parse_compound_statement(global_scope, &parser, tok);
-	if (node == NULL){
+	if (node == NULL) {
 		analysis.status = -1;
 		goto Lexit;
 	}
-	walk_node(&analysis, node);
+	walk_node(fn->api, &analysis, node);
 
 Lexit:
 	if (analysis.status < 0 && parser.error_message) {
@@ -2814,24 +2821,20 @@ static void emit_userdata_C_variable_load(Function *fn, Instruction *insn, Pseud
 		emit_varname_or_constant(fn, pseudo);
 		raviX_buffer_add_string(&fn->body, ";\n");
 		return;
-	}
-	else if (type == RAVI_TNUMFLT) {
+	} else if (type == RAVI_TNUMFLT) {
 		raviX_buffer_add_fstring(&fn->body, " lua_Number %s = ", symbol->variable.var_name->str);
 		emit_varname_or_constant(fn, pseudo);
 		raviX_buffer_add_string(&fn->body, ";\n");
 		return;
-	}
-	else if (type == RAVI_TARRAYINT) {
+	} else if (type == RAVI_TARRAYINT) {
 		raviX_buffer_add_fstring(&fn->body, " Ravi_IntegerArray %s = {0};\n", symbol->variable.var_name->str);
-	}
-	else if (type == RAVI_TARRAYFLT) {
+	} else if (type == RAVI_TARRAYFLT) {
 		raviX_buffer_add_fstring(&fn->body, " Ravi_NumberArray %s = {0};\n", symbol->variable.var_name->str);
-	}
-	else if (type == RAVI_TSTRING || type == RAVI_TUSERDATA || type == RAVI_TANY) {
+	} else if (type == RAVI_TSTRING || type == RAVI_TUSERDATA || type == RAVI_TANY) {
 		// We assume ANY is userdata - runtime check generated below.
-		raviX_buffer_add_fstring(&fn->body, " Ravi_StringOrUserData %s = {0};\n", symbol->variable.var_name->str);
-	}
-	else {
+		raviX_buffer_add_fstring(&fn->body, " Ravi_StringOrUserData %s = {0};\n",
+					 symbol->variable.var_name->str);
+	} else {
 		handle_error_bad_pseudo(fn, pseudo, "Unsupported symbol type in C bind variable");
 		return;
 	}
@@ -2840,25 +2843,35 @@ static void emit_userdata_C_variable_load(Function *fn, Instruction *insn, Pseud
 	emit_reg_accessor(fn, symbol->variable.pseudo, 0);
 	raviX_buffer_add_string(&fn->body, ";\n");
 	if (type == RAVI_TARRAYINT) {
-		raviX_buffer_add_fstring(&fn->body, "  %s.ptr = (lua_Integer*) arrvalue(raviX__%s)->data;\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
-		raviX_buffer_add_fstring(&fn->body, "  %s.len = (unsigned int) arrvalue(raviX__%s)->len;\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
-	}
-	else if (type == RAVI_TARRAYFLT) {
-		raviX_buffer_add_fstring(&fn->body, "  %s.ptr = (lua_Number *) arrvalue(raviX__%s)->data;\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
-		raviX_buffer_add_fstring(&fn->body, "  %s.len = (unsigned int) arrvalue(raviX__%s)->len;\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
-	}
-	else {
-		raviX_buffer_add_fstring(&fn->body, "  if (ttisfulluserdata(raviX__%s)) {\n", symbol->variable.var_name->str);
-		raviX_buffer_add_fstring(&fn->body, "   %s.ptr = getudatamem(uvalue(raviX__%s));\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
-		raviX_buffer_add_fstring(&fn->body, "   %s.len = (unsigned int) sizeudata(gco2u(raviX__%s));\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "  %s.ptr = (lua_Integer*) arrvalue(raviX__%s)->data;\n",
+					 symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "  %s.len = (unsigned int) arrvalue(raviX__%s)->len;\n",
+					 symbol->variable.var_name->str, symbol->variable.var_name->str);
+	} else if (type == RAVI_TARRAYFLT) {
+		raviX_buffer_add_fstring(&fn->body, "  %s.ptr = (lua_Number *) arrvalue(raviX__%s)->data;\n",
+					 symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "  %s.len = (unsigned int) arrvalue(raviX__%s)->len;\n",
+					 symbol->variable.var_name->str, symbol->variable.var_name->str);
+	} else {
+		raviX_buffer_add_fstring(&fn->body, "  if (ttisfulluserdata(raviX__%s)) {\n",
+					 symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.ptr = getudatamem(uvalue(raviX__%s));\n",
+					 symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.len = (unsigned int) sizeudata(gco2u(raviX__%s));\n",
+					 symbol->variable.var_name->str, symbol->variable.var_name->str);
 		raviX_buffer_add_string(&fn->body, "  }\n");
-		raviX_buffer_add_fstring(&fn->body, "  else if (ttislightuserdata(raviX__%s)) {\n", symbol->variable.var_name->str);
-		raviX_buffer_add_fstring(&fn->body, "   %s.ptr = pvalue(raviX__%s);\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "  else if (ttislightuserdata(raviX__%s)) {\n",
+					 symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.ptr = pvalue(raviX__%s);\n", symbol->variable.var_name->str,
+					 symbol->variable.var_name->str);
 		raviX_buffer_add_fstring(&fn->body, "   %s.len = 0;\n", symbol->variable.var_name->str);
 		raviX_buffer_add_string(&fn->body, "  }\n");
-		raviX_buffer_add_fstring(&fn->body, "  else if (ttisstring(raviX__%s)) {\n", symbol->variable.var_name->str);
-		raviX_buffer_add_fstring(&fn->body, "   %s.ptr = svalue(raviX__%s);\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
-		raviX_buffer_add_fstring(&fn->body, "   %s.len = vslen(raviX__%s);\n", symbol->variable.var_name->str, symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "  else if (ttisstring(raviX__%s)) {\n",
+					 symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.ptr = svalue(raviX__%s);\n", symbol->variable.var_name->str,
+					 symbol->variable.var_name->str);
+		raviX_buffer_add_fstring(&fn->body, "   %s.len = vslen(raviX__%s);\n", symbol->variable.var_name->str,
+					 symbol->variable.var_name->str);
 		raviX_buffer_add_string(&fn->body, "  }\n");
 		raviX_buffer_add_string(&fn->body, "  else {\n");
 		raviX_buffer_add_fstring(&fn->body, "   error_code = %d;\n", Error_type_mismatch);
@@ -2878,9 +2891,24 @@ static void emit_userdata_C_variable_store(Function *fn, Instruction *insn, Pseu
 	}
 	raviX_buffer_add_string(&fn->body, " {\n");
 	raviX_buffer_add_string(&fn->body, "  ");
-	emit_varname(fn, symbol->variable.pseudo);
-	raviX_buffer_add_string(&fn->body, " = ");
-	raviX_buffer_add_fstring(&fn->body, "%s;\n", symbol->variable.var_name->str);
+	if (symbol->variable.pseudo->type == PSEUDO_TEMP_INT || symbol->variable.pseudo->type == PSEUDO_TEMP_BOOL ||
+	    symbol->variable.pseudo->type == PSEUDO_TEMP_FLT) {
+		emit_varname(fn, symbol->variable.pseudo);
+		raviX_buffer_add_string(&fn->body, " = ");
+		raviX_buffer_add_fstring(&fn->body, "%s;\n", symbol->variable.var_name->str);
+	}
+	else if (symbol->variable.pseudo->type == PSEUDO_SYMBOL) {
+		raviX_buffer_add_string(&fn->body, " TValue *raviX__var = ");
+		emit_reg_accessor(fn, symbol->variable.pseudo, 0);
+		raviX_buffer_add_string(&fn->body, ";\n");
+		if (type == RAVI_TNUMINT) {
+			raviX_buffer_add_fstring(&fn->body, "setivalue(raviX__var, %s);\n", symbol->variable.var_name->str);
+		}
+		else {
+			assert(type == RAVI_TNUMFLT);
+			raviX_buffer_add_fstring(&fn->body, "setfltvalue(raviX__var, %s);\n", symbol->variable.var_name->str);
+		}
+	}
 	raviX_buffer_add_string(&fn->body, " }\n");
 }
 
@@ -2892,7 +2920,9 @@ static int emit_op_C__unsafe(Function *fn, Instruction *insn)
 {
 	// Save the buffer and switch to new one temporarily
 	TextBuffer saved = fn->body;
-	fn->body.buf = NULL; fn->body.pos = 0; fn->body.capacity = 0;
+	fn->body.buf = NULL;
+	fn->body.pos = 0;
+	fn->body.capacity = 0;
 
 	// FIXME error handling - as we will leak memory if longjmp occurs
 	raviX_buffer_add_string(&fn->body, "{\n");
@@ -2929,7 +2959,8 @@ static int emit_op_C__unsafe(Function *fn, Instruction *insn)
 	return 0;
 }
 
-static int emit_op_C__new(Function *fn, Instruction *insn) {
+static int emit_op_C__new(Function *fn, Instruction *insn)
+{
 	LinearizerState *linearizer = fn->proc->linearizer;
 
 	TextBuffer code;
@@ -2957,13 +2988,11 @@ static int emit_op_C__new(Function *fn, Instruction *insn) {
 	size_t tagsz = 0;
 	if (ty != NULL) {
 		tagsz = ty->size;
-	}
-	else {
+	} else {
 		C_VarScope *vc = hashmap_get(&global_scope->vars, tagname->constant->s->str);
 		if (vc && vc->type_def) {
 			tagsz = vc->type_def->size;
-		}
-		else {
+		} else {
 			TextBuffer message;
 			raviX_buffer_init(&message, 128);
 			raviX_buffer_add_fstring(&message, "Unknown type '%s'", tagname->constant->s->str);
@@ -3271,9 +3300,9 @@ static void output_string_literal(TextBuffer *mb, const char *s, unsigned int le
 	// simplistic escaping of chars
 	// FIXME
 	static const char *scapes[] = {
-	    "\\0",  "\\1",  "\\2",  "\\3",  "\\4",  "\\5",  "\\6",  "\\7",  "\\8",  "\\9",  "\\n",
-	    "\\11", "\\12", "\\r",  "\\14", "\\15", "\\16", "\\17", "\\18", "\\19", "\\20", "\\21",
-	    "\\22", "\\23", "\\24", "\\25", "\\26", "\\27", "\\28", "\\29", "\\30", "\\31",
+	    "\\00",  "\\01",  "\\02",  "\\03",  "\\04",  "\\05",  "\\06",  "\\07",  "\\010",  "\\t",  "\\n",
+	    "\\013", "\\f", "\\r",  "\\016", "\\017", "\\020", "\\021", "\\022", "\\023", "\\024", "\\025",
+	    "\\026", "\\027", "\\030", "\\031", "\\032", "\\033", "\\034", "\\035", "\\036", "\\037",
 	};
 
 	for (unsigned i = 0; i < len; i++) {
@@ -3500,7 +3529,7 @@ static int emit_C__decl(LinearizerState *linearizer, struct Ravi_CompilerInterfa
 	C_Parser parser;
 	C_parser_init(&parser);
 	C_Scope *global_scope = C_global_scope(&parser);
-	C_Decl_Analysis analysis = {&parser, global_scope, 0};
+	C_Decl_Analysis analysis = {&parser, global_scope, 0, 0, api};
 
 	C_Token *tok = C_tokenize_buffer(&parser, code.buf);
 	if (tok == NULL) {
@@ -3513,6 +3542,8 @@ static int emit_C__decl(LinearizerState *linearizer, struct Ravi_CompilerInterfa
 		goto Lexit;
 	}
 
+	// analyze declarations - do not allow pointers or unions in structs
+	// or global object declarations
 	analysis.is_tags = 1;
 	hashmap_foreach(&global_scope->tags, analyze_C_declarations, &analysis);
 	analysis.is_tags = 0;
