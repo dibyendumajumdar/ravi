@@ -5,7 +5,7 @@ typedef struct {
     unsigned char d;
     unsigned char m;
     short y;
-    int date;
+    int serial;
 } Date;
 ]]
 
@@ -23,7 +23,7 @@ function DateFunctions.make_date(d: integer, m: integer, y: integer)
         unsigned yoe = (unsigned)(y - era * 400);	   // [0, 399]
         unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1; // [0, 365]
         unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;	  // [0, 146096]
-        dateptr->date = era * 146097 + (int)doe - 719468 + 25569; // +25569 adjusts the serial number to match Excel
+        dateptr->serial = era * 146097 + (int)doe - 719468 + 25569; // +25569 adjusts the serial number to match Excel
     ]]
 
     return date
@@ -40,10 +40,61 @@ function DateFunctions.print_date(date: any)
             d = dateptr->d;
             m = dateptr->m;
             y = dateptr->y;
-            j = dateptr->date;
+            j = dateptr->serial;
     ]]
 
     print(d,m,y,j)
 end
 
-DateFunctions.print_date(DateFunctions.make_date(1,1,1900))
+function DateFunctions.get_day(date: any)
+
+    local v: integer
+    C__unsafe(date, v) [[
+            Date *dateptr = (Date *) date.ptr;
+            v = dateptr->d;
+    ]]
+
+    return v
+end
+
+function DateFunctions.get_month(date: any)
+
+    local v: integer
+    C__unsafe(date, v) [[
+            Date *dateptr = (Date *) date.ptr;
+            v = dateptr->m;
+    ]]
+
+    return v
+end
+
+function DateFunctions.get_year(date: any)
+
+    local v: integer
+    C__unsafe(date, v) [[
+            Date *dateptr = (Date *) date.ptr;
+            v = dateptr->y;
+    ]]
+
+    return v
+end
+
+function DateFunctions.get_serial(date: any)
+
+    local v: integer
+    C__unsafe(date, v) [[
+            Date *dateptr = (Date *) date.ptr;
+            v = dateptr->serial;
+    ]]
+
+    return v
+end
+
+local d = DateFunctions.make_date(1,1,1900)
+DateFunctions.print_date(d)
+assert(1900 == DateFunctions.get_year(d))
+assert(1 == DateFunctions.get_month(d))
+assert(1 == DateFunctions.get_day(d))
+assert(2 == DateFunctions.get_serial(d))
+
+print 'Ok'
