@@ -27,14 +27,14 @@ SOFTWARE.
 
 #include "chibicc.h"
 
-void strarray_push(mspace arena, StringArray *arr, char *s) {
+void strarray_push(C_MemoryAllocator *allocator, StringArray *arr, char *s) {
   if (!arr->data) {
-    arr->data = mspace_calloc(arena, 8, sizeof(char *));
+    arr->data = allocator->calloc(allocator->arena, 8, sizeof(char *));
     arr->capacity = 8;
   }
 
   if (arr->capacity == arr->len) {
-    arr->data = mspace_realloc(arena, arr->data, sizeof(char *) * arr->capacity * 2);
+    arr->data = allocator->realloc(allocator->arena, arr->data, sizeof(char *) * arr->capacity * 2);
     arr->capacity *= 2;
     for (int i = arr->len; i < arr->capacity; i++)
       arr->data[i] = NULL;

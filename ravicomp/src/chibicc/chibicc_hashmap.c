@@ -65,8 +65,8 @@ static void rehash(HashMap *map) {
 
   // Create a new hashmap and copy all key-values.
   HashMap map2 = {0};
-  map2.arena = map->arena;
-  map2.buckets = mspace_calloc(map->arena, cap, sizeof(HashEntry));
+  map2.allocator = map->allocator;
+  map2.buckets = map->allocator->calloc(map->allocator->arena, cap, sizeof(HashEntry));
   map2.capacity = cap;
 
   for (int i = 0; i < map->capacity; i++) {
@@ -76,7 +76,7 @@ static void rehash(HashMap *map) {
   }
 
   assert(map2.used == nkeys);
-  mspace_free(map->arena, map->buckets);
+  map->allocator->free(map->allocator->arena, map->buckets);
   *map = map2;
 }
 
@@ -105,8 +105,8 @@ static HashEntry *get_entry(HashMap *map, char *key, int keylen) {
 
 static HashEntry *get_or_insert_entry(HashMap *map, char *key, int keylen) {
   if (!map->buckets) {
-    assert(map->arena != NULL);
-    map->buckets = mspace_calloc(map->arena, INIT_SIZE, sizeof(HashEntry));
+    assert(map->allocator != NULL);
+    map->buckets = map->allocator->calloc(map->allocator->arena, INIT_SIZE, sizeof(HashEntry));
     map->capacity = INIT_SIZE;
   } else if ((map->used * 100) / map->capacity >= HIGH_WATERMARK) {
     rehash(map);

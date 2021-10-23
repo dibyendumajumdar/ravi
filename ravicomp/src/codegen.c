@@ -2764,9 +2764,16 @@ static int analyze_C_code(Function *fn, TextBuffer *user_code)
 	if (fn->C_local_declarations.buf) /* declarations of temp integer and float vars */
 		raviX_buffer_add_string(&canned_code, fn->C_local_declarations.buf);
 
+	C_MemoryAllocator allocator;
+	allocator.arena = create_mspace(0, 0);
+	allocator.realloc = mspace_realloc;
+	allocator.calloc = mspace_calloc;
+	allocator.free = mspace_free;
+
 	C_Code_Analysis analysis = {0};
 	C_Parser parser;
-	C_parser_init(&parser);
+
+	C_parser_init(&parser, &allocator);
 	C_Scope *global_scope = C_global_scope(&parser);
 	C_Token *tok = C_tokenize_buffer(&parser, canned_code.buf);
 	if (tok == NULL) {
@@ -2801,6 +2808,7 @@ Lexit:
 		fn->api->error_message(fn->api->context, parser.error_message);
 	}
 	C_parser_destroy(&parser);
+	destroy_mspace(allocator.arena);
 	raviX_buffer_free(&canned_code);
 
 	return analysis.status;
@@ -2969,8 +2977,15 @@ static int emit_op_C__new(Function *fn, Instruction *insn)
 	raviX_buffer_add_string(&code, linearizer->C_declarations.buf);
 
 	int status = -1;
+
+	C_MemoryAllocator allocator;
+	allocator.arena = create_mspace(0, 0);
+	allocator.realloc = mspace_realloc;
+	allocator.calloc = mspace_calloc;
+	allocator.free = mspace_free;
+
 	C_Parser parser;
-	C_parser_init(&parser);
+	C_parser_init(&parser, &allocator);
 	C_Scope *global_scope = C_global_scope(&parser);
 	C_Token *tok = C_tokenize_buffer(&parser, code.buf);
 	if (tok == NULL) {
@@ -3025,6 +3040,7 @@ static int emit_op_C__new(Function *fn, Instruction *insn)
 
 Lexit:
 	C_parser_destroy(&parser);
+	destroy_mspace(allocator.arena);
 	raviX_buffer_free(&code);
 
 	return status;
@@ -3534,8 +3550,14 @@ static int emit_C__decl(LinearizerState *linearizer, struct Ravi_CompilerInterfa
 	raviX_buffer_add_string(&code, Embedded_C_header);
 	raviX_buffer_add_string(&code, linearizer->C_declarations.buf);
 
+	C_MemoryAllocator allocator;
+	allocator.arena = create_mspace(0, 0);
+	allocator.realloc = mspace_realloc;
+	allocator.calloc = mspace_calloc;
+	allocator.free = mspace_free;
+
 	C_Parser parser;
-	C_parser_init(&parser);
+	C_parser_init(&parser, &allocator);
 	C_Scope *global_scope = C_global_scope(&parser);
 	C_Decl_Analysis analysis = {&parser, global_scope, 0, 0, api};
 
@@ -3566,6 +3588,7 @@ Lexit:
 		api->error_message(api->context, parser.error_message);
 	}
 	C_parser_destroy(&parser);
+	destroy_mspace(allocator.arena);
 	raviX_buffer_free(&code);
 
 	return analysis.status;

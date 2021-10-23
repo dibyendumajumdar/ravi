@@ -142,24 +142,24 @@ static int align_down(int n, int align) {
   return C_align_to(n - align + 1, align);
 }
 
-static char *str_dup(mspace arena, const char *temp, size_t len) {
-  char *p = (char *) mspace_calloc(arena, 1, len+1);
+static char *str_dup(struct C_MemoryAllocator *allocator, const char *temp, size_t len) {
+  char *p = (char *) allocator->calloc(allocator->arena, 1, len+1);
   memcpy(p, temp, len);
   p[len] = 0;
   return p;
 }
 
 C_Scope *C_global_scope(C_Parser *parser) {
-  C_Scope *sc = mspace_calloc(parser->arena, 1, sizeof(C_Scope));
-  sc->vars.arena = parser->arena;
-  sc->tags.arena = parser->arena;
+  C_Scope *sc = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(C_Scope));
+  sc->vars.allocator = parser->memory_allocator;
+  sc->tags.allocator = parser->memory_allocator;
   return sc;
 }
 
 static void enter_scope(C_Parser *parser) {
-  C_Scope *sc = mspace_calloc(parser->arena, 1, sizeof(C_Scope));
-  sc->vars.arena = parser->arena;
-  sc->tags.arena = parser->arena;
+  C_Scope *sc = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(C_Scope));
+  sc->vars.allocator = parser->memory_allocator;
+  sc->tags.allocator = parser->memory_allocator;
   sc->next = parser->scope;
   parser->scope = sc;
 }
@@ -188,7 +188,7 @@ static C_Type *find_tag(C_Parser *parser, C_Token *tok) {
 }
 
 static C_Node *new_node(C_Parser *parser, C_NodeKind kind, C_Token *tok) {
-  C_Node *node = mspace_calloc(parser->arena,1, sizeof(C_Node));
+  C_Node *node = parser->memory_allocator->calloc(parser->memory_allocator->arena,1, sizeof(C_Node));
   node->kind = kind;
   node->tok = tok;
   return node;
@@ -242,7 +242,7 @@ static C_Node *new_vla_ptr(C_Parser *parser, C_Obj *var, C_Token *tok) {
 C_Node *C_new_cast(C_Parser *parser, C_Node *expr, C_Type *ty) {
   C_add_type(parser, expr);
 
-  C_Node *node = mspace_calloc( parser->arena,1, sizeof(C_Node));
+  C_Node *node = parser->memory_allocator->calloc(parser->memory_allocator->arena,1, sizeof(C_Node));
   node->kind = ND_CAST;
   node->tok = expr->tok;
   node->lhs = expr;
@@ -251,13 +251,13 @@ C_Node *C_new_cast(C_Parser *parser, C_Node *expr, C_Type *ty) {
 }
 
 static C_VarScope *push_scope(C_Parser *parser, char *name) {
-  C_VarScope *sc = mspace_calloc(parser->arena,1, sizeof(C_VarScope));
+  C_VarScope *sc = parser->memory_allocator->calloc(parser->memory_allocator->arena,1, sizeof(C_VarScope));
   hashmap_put(&parser->scope->vars, name, sc);
   return sc;
 }
 
 static Initializer *new_initializer(C_Parser *parser, C_Type *ty, bool is_flexible) {
-  Initializer *init = mspace_calloc(parser->arena,1, sizeof(Initializer));
+  Initializer *init = parser->memory_allocator->calloc(parser->memory_allocator->arena,1, sizeof(Initializer));
   init->ty = ty;
 
   if (ty->kind == TY_ARRAY) {
@@ -266,7 +266,7 @@ static Initializer *new_initializer(C_Parser *parser, C_Type *ty, bool is_flexib
       return init;
     }
 
-    init->children = mspace_calloc(parser->arena, ty->array_len, sizeof(Initializer *));
+    init->children = parser->memory_allocator->calloc(parser->memory_allocator->arena, ty->array_len, sizeof(Initializer *));
     for (int i = 0; i < ty->array_len; i++)
       init->children[i] = new_initializer(parser, ty->base, false);
     return init;
@@ -278,11 +278,11 @@ static Initializer *new_initializer(C_Parser *parser, C_Type *ty, bool is_flexib
     for (C_Member *mem = ty->members; mem; mem = mem->next)
       len++;
 
-    init->children = mspace_calloc(parser->arena, len, sizeof(Initializer *));
+    init->children = parser->memory_allocator->calloc(parser->memory_allocator->arena, len, sizeof(Initializer *));
 
     for (C_Member *mem = ty->members; mem; mem = mem->next) {
       if (is_flexible && ty->is_flexible && !mem->next) {
-        Initializer *child = mspace_calloc(parser->arena, 1, sizeof(Initializer));
+        Initializer *child = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(Initializer));
         child->ty = mem->ty;
         child->is_flexible = true;
         init->children[mem->idx] = child;
@@ -297,7 +297,7 @@ static Initializer *new_initializer(C_Parser *parser, C_Type *ty, bool is_flexib
 }
 
 static C_Obj *new_var(C_Parser *parser, char *name, C_Type *ty) {
-  C_Obj *var = mspace_calloc(parser->arena, 1, sizeof(C_Obj));
+  C_Obj *var = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(C_Obj));
   var->name = name;
   var->ty = ty;
   var->align = ty->align;
@@ -331,7 +331,7 @@ static char *new_unique_name(mspace arena) {
 }
 
 static C_Obj *new_anon_gvar(C_Parser *parser, C_Type *ty) {
-  return new_gvar(parser, new_unique_name(parser->arena), ty);
+  return new_gvar(parser, new_unique_name(parser->memory_allocator), ty);
 }
 
 static C_Obj *new_string_literal(C_Parser *parser, char *p, C_Type *ty) {
@@ -343,7 +343,7 @@ static C_Obj *new_string_literal(C_Parser *parser, char *p, C_Type *ty) {
 static char *get_ident(C_Parser *parser, C_Token *tok) {
   if (tok->kind != TK_IDENT)
     C_error_tok(parser, tok, "expected an identifier");
-  return str_dup(parser->arena, tok->loc, tok->len);
+  return str_dup(parser->memory_allocator, tok->loc, tok->len);
 }
 
 static C_Type *find_typedef(C_Parser *parser, C_Token *tok) {
@@ -1283,7 +1283,7 @@ static C_Type *copy_struct_type(C_Parser *parser, C_Type *ty) {
   C_Member head = {0};
   C_Member *cur = &head;
   for (C_Member *mem = ty->members; mem; mem = mem->next) {
-    C_Member *m = mspace_calloc(parser->arena, 1, sizeof(C_Member));
+    C_Member *m = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(C_Member));
     *m = *mem;
     cur = cur->next = m;
   }
@@ -1471,7 +1471,7 @@ write_gvar_data(C_Parser *parser, C_Relocation *cur, Initializer *init, C_Type *
     return cur;
   }
 
-  C_Relocation *rel = mspace_calloc(parser->arena, 1, sizeof(C_Relocation));
+  C_Relocation *rel = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(C_Relocation));
   rel->offset = offset;
   rel->label = label;
   rel->addend = val;
@@ -1487,7 +1487,7 @@ static void gvar_initializer(C_Parser *parser, C_Token **rest, C_Token *tok, C_O
   Initializer *init = initializer(parser, rest, tok, var->ty, &var->ty);
 
   C_Relocation head = {0};
-  char *buf = mspace_calloc(parser->arena, 1, var->ty->size);
+  char *buf = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, var->ty->size);
   write_gvar_data(parser, &head, init, var->ty, buf, 0);
   var->init_data = buf;
   var->rel = head.next;
@@ -1581,7 +1581,7 @@ static C_Node *stmt(C_Parser *parser, C_Token **rest, C_Token *tok) {
     parser->current_switch = node;
 
     char *brk = parser->brk_label;
-    parser->brk_label = node->brk_label = new_unique_name(parser->arena);
+    parser->brk_label = node->brk_label = new_unique_name(parser->memory_allocator);
 
     node->then = stmt(parser, rest, tok);
 
@@ -1608,7 +1608,7 @@ static C_Node *stmt(C_Parser *parser, C_Token **rest, C_Token *tok) {
     }
 
     tok = C_skip(parser, tok, ":");
-    node->label = new_unique_name(parser->arena);
+    node->label = new_unique_name(parser->memory_allocator);
     node->lhs = stmt(parser, rest, tok);
     node->begin = begin;
     node->end = end;
@@ -1623,7 +1623,7 @@ static C_Node *stmt(C_Parser *parser, C_Token **rest, C_Token *tok) {
 
     C_Node *node = new_node(parser, ND_CASE, tok);
     tok = C_skip(parser, tok->next, ":");
-    node->label = new_unique_name(parser->arena);
+    node->label = new_unique_name(parser->memory_allocator);
     node->lhs = stmt(parser, rest, tok);
     parser->current_switch->default_case = node;
     return node;
@@ -1637,8 +1637,8 @@ static C_Node *stmt(C_Parser *parser, C_Token **rest, C_Token *tok) {
 
     char *brk = parser->brk_label;
     char *cont = parser->cont_label;
-    parser->brk_label = node->brk_label = new_unique_name(parser->arena);
-    parser->cont_label = node->cont_label = new_unique_name(parser->arena);
+    parser->brk_label = node->brk_label = new_unique_name(parser->memory_allocator);
+    parser->cont_label = node->cont_label = new_unique_name(parser->memory_allocator);
 
     if (is_typename(parser, tok)) {
       C_Type *basety = declspec(parser, &tok, tok, NULL);
@@ -1671,8 +1671,8 @@ static C_Node *stmt(C_Parser *parser, C_Token **rest, C_Token *tok) {
 
     char *brk = parser->brk_label;
     char *cont = parser->cont_label;
-    parser->brk_label = node->brk_label = new_unique_name(parser->arena);
-    parser->cont_label = node->cont_label = new_unique_name(parser->arena);
+    parser->brk_label = node->brk_label = new_unique_name(parser->memory_allocator);
+    parser->cont_label = node->cont_label = new_unique_name(parser->memory_allocator);
 
     node->then = stmt(parser, rest, tok);
 
@@ -1686,8 +1686,8 @@ static C_Node *stmt(C_Parser *parser, C_Token **rest, C_Token *tok) {
 
     char *brk = parser->brk_label;
     char *cont = parser->cont_label;
-    parser->brk_label = node->brk_label = new_unique_name(parser->arena);
-    parser->cont_label = node->cont_label = new_unique_name(parser->arena);
+    parser->brk_label = node->brk_label = new_unique_name(parser->memory_allocator);
+    parser->cont_label = node->cont_label = new_unique_name(parser->memory_allocator);
 
     node->then = stmt(parser, &tok, tok->next);
 
@@ -1742,8 +1742,8 @@ static C_Node *stmt(C_Parser *parser, C_Token **rest, C_Token *tok) {
 
   if (tok->kind == TK_IDENT && C_equal(tok->next, ":")) {
     C_Node *node = new_node(parser, ND_LABEL, tok);
-    node->label = str_dup(parser->arena, tok->loc, tok->len);
-    node->unique_label = new_unique_name(parser->arena);
+    node->label = str_dup(parser->memory_allocator, tok->loc, tok->len);
+    node->unique_label = new_unique_name(parser->memory_allocator);
     node->lhs = stmt(parser, rest, tok->next->next);
     node->goto_next = parser->labels;
     parser->labels = node;
@@ -2092,8 +2092,8 @@ static C_Node *to_assign(C_Parser *parser, C_Node *binary) {
                 tok);
 
     C_Node *loop = new_node(parser, ND_DO, tok);
-    loop->brk_label = new_unique_name(parser->arena);
-    loop->cont_label = new_unique_name(parser->arena);
+    loop->brk_label = new_unique_name(parser->memory_allocator);
+    loop->cont_label = new_unique_name(parser->memory_allocator);
 
     C_Node *body = new_binary(parser, ND_ASSIGN,
                             new_var_node(parser, new, tok),
@@ -2552,7 +2552,7 @@ static void struct_members(C_Parser *parser, C_Token **rest, C_Token *tok, C_Typ
 
     // Anonymous struct member
     if ((basety->kind == TY_STRUCT || basety->kind == TY_UNION) && C_consume(&tok, tok, ";")) {
-      C_Member *mem = mspace_calloc(parser->arena, 1, sizeof(C_Member));
+      C_Member *mem = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(C_Member));
       mem->ty = basety;
       mem->idx = idx++;
       mem->align = attr.align ? attr.align : mem->ty->align;
@@ -2566,7 +2566,7 @@ static void struct_members(C_Parser *parser, C_Token **rest, C_Token *tok, C_Typ
         tok = C_skip(parser, tok, ",");
       first = false;
 
-      C_Member *mem = mspace_calloc(parser->arena, 1, sizeof(C_Member));
+      C_Member *mem = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(C_Member));
       mem->ty = declarator(parser, &tok, tok, basety);
       mem->name = mem->ty->name;
       mem->idx = idx++;
@@ -3087,7 +3087,7 @@ static C_Node *primary(C_Parser *parser, C_Token **rest, C_Token *tok) {
     // For "static inline" function
     if (sc && sc->var && sc->var->is_function) {
       if (parser->current_fn)
-        strarray_push(parser->arena, &parser->current_fn->refs, sc->var->name);
+        strarray_push(parser->memory_allocator, &parser->current_fn->refs, sc->var->name);
       else
         sc->var->is_root = true;
     }
@@ -3399,15 +3399,13 @@ C_Obj *C_parse(C_Scope *globalScope, C_Parser *parser, C_Token *tok) {
   return parser->globals;
 }
 
-void C_parser_init(C_Parser *parser) {
+void C_parser_init(C_Parser *parser, C_MemoryAllocator *allocator) {
   memset(parser, 0, sizeof *parser);
-  parser->arena = create_mspace(0, 0);
-  parser->keywords.arena = parser->arena;
-  parser->typewords.arena = parser->arena;
+  parser->memory_allocator = allocator;
+  parser->keywords.allocator = allocator;
+  parser->typewords.allocator = allocator;
 }
 
 void C_parser_destroy(C_Parser *parser) {
-  //mspace_malloc_stats(parser->arena);
-  destroy_mspace(parser->arena);
-  parser->arena = NULL;
+  parser->memory_allocator = NULL;
 }

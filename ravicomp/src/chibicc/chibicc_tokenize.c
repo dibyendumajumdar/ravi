@@ -33,7 +33,7 @@ static int error_sprintf(C_Parser *parser, const char *fmt, ...) {
   int estimated_size = 128;
   int n = 0;
   for (int i = 0; i < 2; i++) {
-    parser->error_message = mspace_realloc(parser->arena, parser->error_message, pos + estimated_size); // ensure we have at least estimated_size free space
+    parser->error_message = parser->memory_allocator->realloc(parser->memory_allocator->arena, parser->error_message, pos + estimated_size); // ensure we have at least estimated_size free space
     va_start(args, fmt);
     n = vsnprintf(parser->error_message + pos, estimated_size, fmt, args);
     va_end(args);
@@ -55,7 +55,7 @@ static int error_vsprintf(C_Parser *parser, const char *fmt, va_list args) {
   int pos = parser->error_message ? (int)strlen(parser->error_message) : 0;
   int n = 0;
   for (int i = 0; i < 2; i++) {
-    parser->error_message = mspace_realloc(parser->arena, parser->error_message, pos + estimated_size); // ensure we have at least estimated_size free space
+    parser->error_message = parser->memory_allocator->realloc(parser->memory_allocator->arena, parser->error_message, pos + estimated_size); // ensure we have at least estimated_size free space
     n = vsnprintf(parser->error_message + pos, estimated_size, fmt, args);
     if (n >= estimated_size) {
       estimated_size = n + 1; // allow for 0 byte
@@ -157,7 +157,7 @@ bool C_consume(C_Token **rest, C_Token *tok, char *str) {
 
 // Create a new token.
 static C_Token *new_token(C_Parser *tokenizer, C_TokenKind kind, char *start, char *end) {
-  C_Token *tok = mspace_calloc(tokenizer->arena, 1, sizeof(C_Token));
+  C_Token *tok = tokenizer->memory_allocator->calloc(tokenizer->memory_allocator->arena, 1, sizeof(C_Token));
   tok->kind = kind;
   tok->loc = start;
   tok->len = end - start;
@@ -301,7 +301,7 @@ static char *string_literal_end(C_Parser *tokenizer, char *p) {
 
 static C_Token *read_string_literal(C_Parser *tokenizer, char *start, char *quote) {
   char *end = string_literal_end(tokenizer,quote + 1);
-  char *buf = mspace_calloc(tokenizer->arena, 1, end - quote);
+  char *buf = tokenizer->memory_allocator->calloc(tokenizer->memory_allocator->arena, 1, end - quote);
   int len = 0;
 
   for (char *p = quote + 1; p < end;) {
@@ -326,7 +326,7 @@ static C_Token *read_string_literal(C_Parser *tokenizer, char *start, char *quot
 // is called a "surrogate pair".
 static C_Token *read_utf16_string_literal(C_Parser *tokenizer, char *start, char *quote) {
   char *end = string_literal_end(tokenizer, quote + 1);
-  uint16_t *buf = mspace_calloc(tokenizer->arena, 2, end - start);
+  uint16_t *buf = tokenizer->memory_allocator->calloc(tokenizer->memory_allocator->arena, 2, end - start);
   int len = 0;
 
   for (char *p = quote + 1; p < end;) {
@@ -359,7 +359,7 @@ static C_Token *read_utf16_string_literal(C_Parser *tokenizer, char *start, char
 // encoded in 4 bytes.
 static C_Token *read_utf32_string_literal(C_Parser *tokenizer, char *start, char *quote, C_Type *ty) {
   char *end = string_literal_end(tokenizer, quote + 1);
-  uint32_t *buf = mspace_calloc(tokenizer->arena, 4, end - quote);
+  uint32_t *buf = tokenizer->memory_allocator->calloc(tokenizer->memory_allocator->arena, 4, end - quote);
   int len = 0;
 
   for (char *p = quote + 1; p < end;) {
@@ -739,7 +739,7 @@ C_File **get_input_files(C_Parser *tokenizer) {
 
 
 C_File *C_new_file(C_Parser *tokenizer, char *name, int file_no, char *contents) {
-  C_File *file = mspace_calloc(tokenizer->arena, 1, sizeof(C_File));
+  C_File *file = tokenizer->memory_allocator->calloc(tokenizer->memory_allocator->arena, 1, sizeof(C_File));
   file->name = name;
   file->display_name = name;
   file->file_no = file_no;
@@ -868,7 +868,7 @@ C_Token *C_tokenize_buffer(C_Parser *tokenizer, char *p) {
   C_File *file = C_new_file(tokenizer, "", file_no + 1, p);
 
   // Save the filename for assembler .file directive.
-  tokenizer->input_files = mspace_realloc(tokenizer->arena, tokenizer->input_files, sizeof(char *) * (file_no + 2));
+  tokenizer->input_files = tokenizer->memory_allocator->realloc(tokenizer->memory_allocator->arena, tokenizer->input_files, sizeof(char *) * (file_no + 2));
   tokenizer->input_files[file_no] = file;
   tokenizer->input_files[file_no + 1] = NULL;
   file_no++;

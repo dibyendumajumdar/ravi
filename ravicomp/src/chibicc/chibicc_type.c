@@ -44,7 +44,7 @@ C_Type *C_ty_double = &(C_Type){TY_DOUBLE, 8, 8};
 C_Type *C_ty_ldouble = &(C_Type){TY_LDOUBLE, 16, 16};
 
 static C_Type *new_type(C_Parser *parser, TypeKind kind, int size, int align) {
-  C_Type *ty = mspace_calloc(parser->arena, 1, sizeof(C_Type));
+  C_Type *ty = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(C_Type));
   ty->kind = kind;
   ty->size = size;
   ty->align = align;
@@ -114,7 +114,7 @@ bool C_is_compatible(C_Type *t1, C_Type *t2) {
 }
 
 C_Type *C_copy_type(C_Parser *parser, C_Type *ty) {
-  C_Type *ret = mspace_calloc(parser->arena, 1, sizeof(C_Type));
+  C_Type *ret = parser->memory_allocator->calloc(parser->memory_allocator->arena, 1, sizeof(C_Type));
   *ret = *ty;
   ret->origin = ty;
   return ret;

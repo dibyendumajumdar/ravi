@@ -28,7 +28,14 @@
 
 #include <stdlib.h>
 
-struct Ravi_CompilerInterface {
+typedef struct C_MemoryAllocator {
+	void *arena;
+	void *(*realloc)(void *arena, void* mem, size_t newsize);
+	void *(*calloc)(void *arena,  size_t n_elements, size_t elem_size);
+	void (*free)(void *arena, void *p);
+} C_MemoryAllocator;
+
+typedef struct Ravi_CompilerInterface {
 	/* ------------------------ Inputs ------------------------------ */
 	void *context; /* Ravi supplied context */
 
@@ -39,13 +46,15 @@ struct Ravi_CompilerInterface {
 
 	char main_func_name[31]; /* Name of the generated function that when called will set up the Lua closure */
 
+	C_MemoryAllocator *memory_allocator;
+
 	/* ------------------------- Outputs ------------------------------ */
 	const char* generated_code;  /* Output of the compiler, must be freed by caller. */
 
 	/* ------------------------ Debugging and error handling ----------------------------------------- */
 	void (*debug_message)(void *context, const char *filename, long long line, const char *message);
 	void (*error_message)(void *context, const char *message);
-};
+} Ravi_CompilerInterface;
 
 /**
  * This is the API exposed by the Compiler itself. This function is invoked by
@@ -53,7 +62,7 @@ struct Ravi_CompilerInterface {
  * @param compiler_interface The interface expected by the compiler must be setup
  * @return 0 for success, non-zero for failure
  */
-RAVICOMP_EXPORT int raviX_compile(struct Ravi_CompilerInterface *compiler_interface);
-RAVICOMP_EXPORT void raviX_release(struct Ravi_CompilerInterface *compiler_interface);
+RAVICOMP_EXPORT int raviX_compile(Ravi_CompilerInterface *compiler_interface);
+RAVICOMP_EXPORT void raviX_release(Ravi_CompilerInterface *compiler_interface);
 
 #endif

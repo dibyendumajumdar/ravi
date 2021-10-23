@@ -64,6 +64,15 @@ typedef struct C_Member C_Member;
 typedef struct C_Relocation C_Relocation;
 typedef struct C_Hideset C_Hideset;
 typedef struct C_Parser C_Parser;
+typedef struct C_MemoryAllocator C_MemoryAllocator;
+
+struct C_MemoryAllocator {
+  void *arena;
+  void *(*realloc)(void *arena, void* mem, size_t newsize);
+  void *(*calloc)(void *arena,  size_t n_elements, size_t elem_size);
+  void (*free)(void *arena, void *p);
+};
+
 
 //
 // strings.c
@@ -75,7 +84,7 @@ typedef struct {
   int len;
 } StringArray;
 
-void strarray_push(mspace arena, StringArray *arr, char *s);
+void strarray_push(C_MemoryAllocator *allocator, StringArray *arr, char *s);
 char *format(char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 //
@@ -322,7 +331,7 @@ typedef struct {
   HashEntry *buckets;
   int capacity;
   int used;
-  mspace arena;
+  C_MemoryAllocator *allocator;
 } HashMap;
 
 // Represents a block scope.
@@ -387,7 +396,7 @@ struct C_Parser {
 
   HashMap keywords; // used by tokenizer
   HashMap typewords; // used by parser
-  mspace arena; // pointer to memory arena handle
+  C_MemoryAllocator *memory_allocator;
 
   jmp_buf env;		 /* For error handling */
 
@@ -399,7 +408,7 @@ struct C_Parser {
 
 };
 
-void C_parser_init(C_Parser *parser);
+void C_parser_init(C_Parser *parser, C_MemoryAllocator *memory_allocator);
 C_Scope *C_global_scope(C_Parser *parser);
 C_Node *C_new_cast(C_Parser *parser, C_Node *expr, C_Type *ty);
 int64_t C_const_expr(C_Parser *parser, C_Token **rest, C_Token *tok);
