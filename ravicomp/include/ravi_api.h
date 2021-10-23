@@ -28,12 +28,15 @@
 
 #include <stdlib.h>
 
+#ifndef C_MEMORYALLOCATOR_DEFINED
+#define C_MEMORYALLOCATOR_DEFINED
 typedef struct C_MemoryAllocator {
 	void *arena;
 	void *(*realloc)(void *arena, void* mem, size_t newsize);
 	void *(*calloc)(void *arena,  size_t n_elements, size_t elem_size);
 	void (*free)(void *arena, void *p);
 } C_MemoryAllocator;
+#endif
 
 typedef struct Ravi_CompilerInterface {
 	/* ------------------------ Inputs ------------------------------ */

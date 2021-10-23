@@ -64,15 +64,17 @@ typedef struct C_Member C_Member;
 typedef struct C_Relocation C_Relocation;
 typedef struct C_Hideset C_Hideset;
 typedef struct C_Parser C_Parser;
-typedef struct C_MemoryAllocator C_MemoryAllocator;
 
+#ifndef C_MEMORYALLOCATOR_DEFINED
+#define C_MEMORYALLOCATOR_DEFINED
+typedef struct C_MemoryAllocator C_MemoryAllocator;
 struct C_MemoryAllocator {
   void *arena;
   void *(*realloc)(void *arena, void* mem, size_t newsize);
   void *(*calloc)(void *arena,  size_t n_elements, size_t elem_size);
   void (*free)(void *arena, void *p);
 };
-
+#endif
 
 //
 // strings.c
