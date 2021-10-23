@@ -3297,18 +3297,26 @@ static inline unsigned get_num_upvalues(Proc *proc)
 
 static void output_string_literal(TextBuffer *mb, const char *s, unsigned int len)
 {
-	// simplistic escaping of chars
-	// FIXME
-	static const char *scapes[] = {
-	    "\\00",  "\\01",  "\\02",  "\\03",  "\\04",  "\\05",  "\\06",  "\\07",  "\\010",  "\\t",  "\\n",
-	    "\\013", "\\f", "\\r",  "\\016", "\\017", "\\020", "\\021", "\\022", "\\023", "\\024", "\\025",
-	    "\\026", "\\027", "\\030", "\\031", "\\032", "\\033", "\\034", "\\035", "\\036", "\\037",
-	};
-
 	for (unsigned i = 0; i < len; i++) {
 		int ch = s[i];
-		if (ch < 32) {
-			raviX_buffer_add_string(mb, scapes[ch]);
+		if (iscntrl(ch)) {
+			switch (ch) {
+			case '\n':
+				raviX_buffer_add_string(mb, "\\n");
+				break;
+			case '\r':
+				raviX_buffer_add_string(mb, "\\r");
+				break;
+			case '\t':
+				raviX_buffer_add_string(mb, "\\t");
+				break;
+			case '\f':
+				raviX_buffer_add_string(mb, "\\f");
+				break;
+			default:
+				raviX_buffer_add_fstring(mb, "\\%03o", ch);
+				break;
+			}
 		} else {
 			raviX_buffer_add_char(mb, ch);
 		}
