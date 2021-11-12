@@ -97,4 +97,4 @@ assert(1 == DateFunctions.get_month(d))
 assert(1 == DateFunctions.get_day(d))
 assert(2 == DateFunctions.get_serial(d))
 
-print 'Ok'
+print '56 Ok'
