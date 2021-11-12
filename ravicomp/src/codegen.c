@@ -2974,11 +2974,6 @@ static C_Type *get_typeof(Function *fn, C_Scope *global_scope, Pseudo *tagname) 
 		if (vc && vc->type_def) {
 			ty = vc->type_def;
 		} else {
-			TextBuffer message;
-			raviX_buffer_init(&message, 128);
-			raviX_buffer_add_fstring(&message, "Unknown type '%s'", tagname->constant->s->str);
-			fn->api->error_message(fn->api->context, message.buf);
-			raviX_buffer_free(&message);
 			return NULL;
 		}
 	}
@@ -3000,7 +2995,7 @@ static C_Member *get_flexible_member(C_Type *type) {
 static void emit_sizeof_expression(Function *fn, const char *main_type, C_Member *flexible_member) {
 	raviX_buffer_add_fstring(&fn->body, "sizeof(%s)", main_type);
 	if (flexible_member != NULL) {
-		raviX_buffer_add_fstring(&fn->body, " + (sizeof ((%s *)0)->%.*s[0])", main_type,
+		raviX_buffer_add_fstring(&fn->body, " + (sizeof ((%s){0}).%.*s[0])", main_type,
 					 flexible_member->name->len,
 					 flexible_member->name->loc);
 	}
@@ -3039,8 +3034,14 @@ static int emit_op_C__new(Function *fn, Instruction *insn)
 	Pseudo *target = get_target(insn, 0);
 	// Add utility in chibicc to find a type
 	C_Type *ty = get_typeof(fn, global_scope, tagname);
-	if (ty == NULL)
+	if (ty == NULL) {
+		TextBuffer message;
+		raviX_buffer_init(&message, 128);
+		raviX_buffer_add_fstring(&message, "Unknown type '%s'", tagname->constant->s->str);
+		fn->api->error_message(fn->api->context, message.buf);
+		raviX_buffer_free(&message);
 		goto Lexit;
+	}
 	C_Member *flexible_member = get_flexible_member(ty);
 
 	raviX_buffer_add_string(&fn->body, "{\n");
