@@ -40,6 +40,7 @@ Features
 * A `Visual Studio Code debugger extension <https://marketplace.visualstudio.com/items?itemName=ravilang.ravi-debug>`_ - interpreted mode debugger.
 * A new compiler framework for `JIT and AOT compilation <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-compiler.html>`_.
 * `AOT Compilation to shared library <https://github.com/dibyendumajumdar/ravi/tree/master/aot-examples>`_.
+* Preview feature: Ability to `embed C code snippets <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_.
 
 Documentation
 =============
@@ -122,9 +123,9 @@ History
        - `New parser / type checker / compiler <https://github.com/dibyendumajumdar/ravi-compiler>`_
        - Generational GC back-ported from Lua 5.4
        - Support for `LLVM backend <https://github.com/dibyendumajumdar/ravi/tree/llvm>`_ archived
-* 2021 (Plan)
-       - Integrated AOT and JIT compilation support
-       - Ravi 1.0 release
+* 2021
+       - Integrated AOT and JIT compilation support 
+       - `Embedded C syntax <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_   
 
 License
 =======
