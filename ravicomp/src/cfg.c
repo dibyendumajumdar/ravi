@@ -34,7 +34,7 @@
  */
 int raviX_construct_cfg(Proc *proc)
 {
-	Graph *g = raviX_init_graph(ENTRY_BLOCK, EXIT_BLOCK, proc);
+	Graph *g = raviX_init_graph(ENTRY_BLOCK, EXIT_BLOCK, proc, proc->linearizer->ast_container->allocator);
 	for (unsigned i = 0; i < proc->node_count; i++) {
 		BasicBlock *block = proc->nodes[i];
 		Instruction *insn = raviX_last_instruction(block);

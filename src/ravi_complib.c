@@ -25,6 +25,7 @@
 #define LUA_CORE
 
 #include "ravi_mirjit.h"
+#include "ravi_alloc.h"
 
 #include "lua.h"
 #include "lapi.h"
@@ -46,7 +47,7 @@ static void debug_message(void* context, const char* filename, long long line, c
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
   ravi_writestring(ccontext->L, filename, strlen(filename));
   char temp[80];
-  snprintf(temp, sizeof temp, "%lld: ", line);
+  snprintf(temp, sizeof temp, ":%lld: ", line);
   ravi_writestring(ccontext->L, temp, strlen(temp));
   ravi_writestring(ccontext->L, message, strlen(message));
   ravi_writeline(ccontext->L);
@@ -70,14 +71,20 @@ static void setup_lua_closure(lua_State* L, LClosure* (*load_in_lua)(lua_State*)
  */
 static int load_and_compile_internal(lua_State* L, const char* s, const char* options) {
   struct CompilerContext ccontext = {.L = L, .jit = G(L)->ravi_state};
-
-  struct Ravi_CompilerInterface ravicomp_interface = {.source = s,
-                                                      .source_len = strlen(s),
-                                                      .source_name = "input",
-                                                      .generated_code = NULL,
-                                                      .context = &ccontext,
-                                                      .debug_message = debug_message,
-                                                      .error_message = error_message};
+  C_MemoryAllocator allocator = {.arena = create_mspace(0, 0),
+                                 .create_arena = create_mspace,
+                                 .destroy_arena = destroy_mspace,
+                                 .calloc = mspace_calloc,
+                                 .realloc = mspace_realloc,
+                                 .free = mspace_free};
+  Ravi_CompilerInterface ravicomp_interface = {.source = s,
+                                               .source_len = strlen(s),
+                                               .source_name = "input",
+                                               .generated_code = NULL,
+                                               .context = &ccontext,
+                                               .memory_allocator = &allocator,
+                                               .debug_message = debug_message,
+                                               .error_message = error_message};
 #ifdef USE_MIRJIT
   snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "__luachunk_%lld",
            ccontext.jit->id++);
@@ -85,12 +92,14 @@ static int load_and_compile_internal(lua_State* L, const char* s, const char* op
   snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "mymain");
 #endif
   ravicomp_interface.compiler_options = options;
+  /* Generate C code */
   int rc = raviX_compile(&ravicomp_interface);
   if (ravicomp_interface.generated_code && strstr(options, "--verbose") != NULL) {
     ravi_writestring(L, ravicomp_interface.generated_code, strlen(ravicomp_interface.generated_code));
   }
   if (rc == 0) {
 #ifdef USE_MIRJIT
+    /* Compile C code */
     LClosure* (*load_in_lua)(lua_State * L) = NULL;
     mir_prepare(ccontext.jit->jit, 2);
     MIR_module_t M =
@@ -100,20 +109,24 @@ static int load_and_compile_internal(lua_State* L, const char* s, const char* op
     }
     mir_cleanup(ccontext.jit->jit);
     if (load_in_lua != NULL) {
+      /* Execute compiled code */
       setup_lua_closure(L, load_in_lua);
     }
     else {
       rc = -1;
     }
     raviX_release(&ravicomp_interface);
+    destroy_mspace(allocator.arena);
     // If successful the closure will be left on top of stack
     return rc == 0 ? 1 : 0;
 #else
     raviX_release(&ravicomp_interface);
+    destroy_mspace(allocator.arena);
     return 0;
 #endif
   }
   else {
+    destroy_mspace(allocator.arena);
     return 0;
   }
 }

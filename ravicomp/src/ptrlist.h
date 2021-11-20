@@ -51,7 +51,7 @@
 		int rm_ : 8;                                                                                           \
 		struct listname *prev_;                                                                                \
 		struct listname *next_;                                                                                \
-		Allocator *allocator_;                                                                                 \
+		C_MemoryAllocator *allocator_;                                                                                 \
 		type *list_[LIST_NODE_NR];                                                                             \
 	} listname
 
@@ -67,7 +67,7 @@ typedef struct PtrListIterator {
 
 /* The ptr list */
 extern int raviX_ptrlist_size(const PtrList *self);
-extern void **raviX_ptrlist_add(PtrList **self, void *ptr, Allocator *ptr_list_allocator);
+extern void **raviX_ptrlist_add(PtrList **self, void *ptr, C_MemoryAllocator *ptr_list_allocator);
 extern void *raviX_ptrlist_nth_entry(PtrList *list, unsigned int idx);
 extern void *raviX_ptrlist_first(PtrList *list);
 extern void *raviX_ptrlist_last(PtrList *list);

@@ -2764,16 +2764,15 @@ static int analyze_C_code(Function *fn, TextBuffer *user_code)
 	if (fn->C_local_declarations.buf) /* declarations of temp integer and float vars */
 		raviX_buffer_add_string(&canned_code, fn->C_local_declarations.buf);
 
-	C_MemoryAllocator allocator;
-	allocator.arena = create_mspace(0, 0);
-	allocator.realloc = mspace_realloc;
-	allocator.calloc = mspace_calloc;
-	allocator.free = mspace_free;
+	C_MemoryAllocator allocator = *fn->proc->linearizer->ast_container->allocator;
+	allocator.arena = allocator.create_arena(0, 0);
 
 	C_Code_Analysis analysis = {0};
 	C_Parser parser;
 
 	C_parser_init(&parser, &allocator);
+	parser.embedded_mode = true;
+
 	C_Scope *global_scope = C_global_scope(&parser);
 	C_Token *tok = C_tokenize_buffer(&parser, canned_code.buf);
 	if (tok == NULL) {
@@ -2795,7 +2794,6 @@ static int analyze_C_code(Function *fn, TextBuffer *user_code)
 	C_convert_pp_tokens(&parser, tok);
 	/* Note user supplied code is parsed as compound statement in global scope - i.e.
 	 * not inside a function! */
-	parser.embedded_mode = true;
 	C_Node *node = C_parse_compound_statement(global_scope, &parser, tok);
 	if (node == NULL) {
 		analysis.status = -1;
@@ -2808,7 +2806,7 @@ Lexit:
 		fn->api->error_message(fn->api->context, parser.error_message);
 	}
 	C_parser_destroy(&parser);
-	destroy_mspace(allocator.arena);
+	allocator.destroy_arena(allocator.arena);
 	raviX_buffer_free(&canned_code);
 
 	return analysis.status;
@@ -2936,7 +2934,7 @@ static int emit_op_C__unsafe(Function *fn, Instruction *insn)
 	raviX_buffer_add_string(&fn->body, "{\n");
 
 	// Load the Ravi/Lua symbols into C code
-	for (int i = 0; i < get_num_operands(insn); i++) {
+	for (unsigned int i = 0; i < get_num_operands(insn); i++) {
 		Pseudo *pseudo = get_operand(insn, i);
 		emit_userdata_C_variable_load(fn, insn, pseudo);
 	}
@@ -2949,7 +2947,7 @@ static int emit_op_C__unsafe(Function *fn, Instruction *insn)
 	raviX_buffer_add_string(&fn->body, " }\n");
 
 	// Store values back to Ravi/Lua variables
-	for (int i = 0; i < get_num_operands(insn); i++) {
+	for (unsigned int i = 0; i < get_num_operands(insn); i++) {
 		Pseudo *pseudo = get_operand(insn, i);
 		emit_userdata_C_variable_store(fn, insn, pseudo);
 	}
@@ -2968,9 +2966,9 @@ static int emit_op_C__unsafe(Function *fn, Instruction *insn)
 }
 
 static C_Type *get_typeof(Function *fn, C_Scope *global_scope, Pseudo *tagname) {
-	C_Type *ty = hashmap_get(&global_scope->tags, tagname->constant->s->str);
+	C_Type *ty = hashmap_get(&global_scope->tags, (char*)tagname->constant->s->str);
 	if (ty == NULL) {
-		C_VarScope *vc = hashmap_get(&global_scope->vars, tagname->constant->s->str);
+		C_VarScope *vc = hashmap_get(&global_scope->vars, (char*)tagname->constant->s->str);
 		if (vc && vc->type_def) {
 			ty = vc->type_def;
 		} else {
@@ -3012,11 +3010,8 @@ static int emit_op_C__new(Function *fn, Instruction *insn)
 
 	int status = -1;
 
-	C_MemoryAllocator allocator;
-	allocator.arena = create_mspace(0, 0);
-	allocator.realloc = mspace_realloc;
-	allocator.calloc = mspace_calloc;
-	allocator.free = mspace_free;
+	C_MemoryAllocator allocator = *fn->proc->linearizer->ast_container->allocator;
+	allocator.arena = allocator.create_arena(0, 0);
 
 	C_Parser parser;
 	C_parser_init(&parser, &allocator);
@@ -3070,7 +3065,7 @@ static int emit_op_C__new(Function *fn, Instruction *insn)
 
 Lexit:
 	C_parser_destroy(&parser);
-	destroy_mspace(allocator.arena);
+	allocator.destroy_arena(allocator.arena);
 	raviX_buffer_free(&code);
 
 	return status;
@@ -3580,11 +3575,8 @@ static int emit_C__decl(LinearizerState *linearizer, struct Ravi_CompilerInterfa
 	raviX_buffer_add_string(&code, Embedded_C_header);
 	raviX_buffer_add_string(&code, linearizer->C_declarations.buf);
 
-	C_MemoryAllocator allocator;
-	allocator.arena = create_mspace(0, 0);
-	allocator.realloc = mspace_realloc;
-	allocator.calloc = mspace_calloc;
-	allocator.free = mspace_free;
+	C_MemoryAllocator allocator = *linearizer->ast_container->allocator;
+	allocator.arena = allocator.create_arena(0, 0);
 
 	C_Parser parser;
 	C_parser_init(&parser, &allocator);
@@ -3618,7 +3610,7 @@ Lexit:
 		api->error_message(api->context, parser.error_message);
 	}
 	C_parser_destroy(&parser);
-	destroy_mspace(allocator.arena);
+	allocator.destroy_arena(allocator.arena);
 	raviX_buffer_free(&code);
 
 	return analysis.status;

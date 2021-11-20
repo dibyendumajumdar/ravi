@@ -53,45 +53,20 @@ extern void *raviX_calloc(size_t nmemb, size_t size);
 extern void *raviX_realloc(void *ptr, size_t size);
 extern void raviX_free(void *ptr);
 
-typedef struct AllocationBlob AllocationBlob;
-struct AllocationBlob {
-	AllocationBlob *next;
-	size_t left, offset;
-	unsigned char data[1];
-};
-
-/*
- * Our "blob" allocator works on chunks that are multiples
- * of this size (the underlying allocator may be a mmap that
- * cannot handle smaller chunks, for example, so trying to
- * allocate blobs that aren't aligned is not going to work).
+#ifndef C_MEMORYALLOCATOR_DEFINED
+#define C_MEMORYALLOCATOR_DEFINED
+/* Note that this struct below is also defined in ravi_compiler.h and both
+ * definitions must be kept in sync.
  */
-#define CHUNK 32768
-
-typedef struct Allocator {
-	const char *name;
-	AllocationBlob *blobs;
-	size_t size;
-	unsigned int alignment;
-	unsigned int chunking;
-	void *freelist;
-	size_t allocations, total_bytes, useful_bytes;
-} Allocator;
-
-extern void raviX_allocator_init(Allocator *A, const char *name, size_t size, unsigned int alignment,
-				 unsigned int chunking);
-
-extern void *raviX_allocator_allocate(Allocator *A, size_t extra);
-
-extern void raviX_allocator_free(Allocator *A, void *entry);
-
-extern void raviX_allocator_show_allocations(Allocator *A);
-
-extern void raviX_allocator_drop_all_allocations(Allocator *A);
-
-extern void raviX_allocator_destroy(Allocator *A);
-
-extern void raviX_allocator_transfer(Allocator *A, Allocator *transfer_to);
+typedef struct C_MemoryAllocator {
+	void *arena;
+	void *(*realloc)(void *arena, void* mem, size_t newsize);
+	void *(*calloc)(void *arena,  size_t n_elements, size_t elem_size);
+	void (*free)(void *arena, void *p);
+	void *(*create_arena)(size_t, int);
+	void (*destroy_arena)(void *arena);
+} C_MemoryAllocator;
+#endif
 
 /*
 Reallocate array from old_n to new_n. If new_n is 0 then array memory is freed.

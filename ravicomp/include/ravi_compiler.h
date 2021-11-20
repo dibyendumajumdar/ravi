@@ -44,9 +44,28 @@ typedef struct VariableType VariableType;
 typedef long long lua_Integer;
 typedef double lua_Number;
 
+#ifndef C_MEMORYALLOCATOR_DEFINED
+#define C_MEMORYALLOCATOR_DEFINED
+/* We put all the allocator functions in one struct so that we only need to pass around
+ * one pointer. Ideally the arena create/destroy functions should be separate.
+ * Also the api below is based on the dlmalloc api.
+ *
+ * Note that this struct below is also defined in allocate.h/chibicc.h and all
+ * definitions must be kept in sync.
+ */
+typedef struct C_MemoryAllocator {
+	void *arena;
+	void *(*realloc)(void *arena, void* mem, size_t newsize);
+	void *(*calloc)(void *arena,  size_t n_elements, size_t elem_size);
+	void (*free)(void *arena, void *p);
+	void *(*create_arena)(size_t, int);
+	void (*destroy_arena)(void *arena);
+} C_MemoryAllocator;
+#endif
+
 /* Initialize the compiler state */
 /* During compilation all data structures are stored in the compiler state */
-RAVICOMP_EXPORT CompilerState *raviX_init_compiler(void);
+RAVICOMP_EXPORT CompilerState *raviX_init_compiler(C_MemoryAllocator *allocator);
 /* Destroy the compiler state, and free up all resources */
 RAVICOMP_EXPORT void raviX_destroy_compiler(CompilerState *compiler);
 

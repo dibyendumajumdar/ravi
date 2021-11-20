@@ -374,12 +374,12 @@ static void walk_binary_expr(CompilerState *container, AstNode *node, AstNodeLis
 	if (left->type == EXPR_BINARY && left->binary_expr.binary_op == BINOPR_CONCAT) {
 		walk_binary_expr(container, left, expr_list);
 	} else {
-		raviX_ptrlist_add((PtrList **)expr_list, left, &container->ptrlist_allocator);
+		raviX_ptrlist_add((PtrList **)expr_list, left, container->allocator);
 	}
 	if (right->type == EXPR_BINARY && right->binary_expr.binary_op == BINOPR_CONCAT) {
 		walk_binary_expr(container, right, expr_list);
 	} else {
-		raviX_ptrlist_add((PtrList **)expr_list, right, &container->ptrlist_allocator);
+		raviX_ptrlist_add((PtrList **)expr_list, right, container->allocator);
 	}
 }
 

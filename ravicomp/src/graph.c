@@ -29,7 +29,7 @@
 struct Graph {
 	unsigned allocated;  /* tracks allocated size of nodes */
 	GraphNode **nodes; /* array[allocated] indexed by nodeId_t, note user must check if nodes[i] != NULL */
-	Allocator node_allocator;
+	C_MemoryAllocator *node_allocator;
 	nodeId_t entry, exit; /* entry and exit nodes */
 	void *userdata;
 };
@@ -137,13 +137,12 @@ nodeId_t raviX_node_list_at(GraphNodeList *list, uint32_t i)
 	return (nodeId_t)-1;
 }
 
-Graph *raviX_init_graph(nodeId_t entry, nodeId_t exit, void *userdata)
+Graph *raviX_init_graph(nodeId_t entry, nodeId_t exit, void *userdata, C_MemoryAllocator *node_allocator)
 {
 	Graph *g = (Graph *)raviX_calloc(1, sizeof(Graph));
 	g->allocated = 0;
 	g->nodes = NULL;
-	raviX_allocator_init(&g->node_allocator, "node_allocator", sizeof(GraphNode), sizeof(double),
-			     sizeof(GraphNode) * 32);
+	g->node_allocator = node_allocator;
 	raviX_add_node(g, entry);
 	raviX_add_node(g, exit);
 	g->entry = entry;
@@ -165,7 +164,7 @@ void raviX_destroy_graph(Graph *g)
 	for (unsigned i = 0; i < g->allocated; i++) {
 		raviX_destroy_node(g->nodes[i]);
 	}
-	raviX_allocator_destroy(&g->node_allocator);
+	// TODO loop through nodes and free them
 	raviX_free(g->nodes);
 	raviX_free(g);
 }
@@ -198,7 +197,7 @@ static GraphNode *raviX_add_node(Graph *g, nodeId_t index)
 		raviX_graph_grow(g, index);
 	}
 	assert(index < g->allocated);
-	GraphNode *n = (GraphNode *) raviX_allocator_allocate(&g->node_allocator, 0);
+	GraphNode *n = (GraphNode *) g->node_allocator->calloc(g->node_allocator->arena, 1, sizeof(GraphNode));
 	assert(n->pre == 0);
 	assert(n->rpost == 0);
 	node_list_init(&n->preds);

@@ -108,19 +108,6 @@ LinearizerState *raviX_init_linearizer(CompilerState *container)
 {
 	LinearizerState *linearizer = (LinearizerState *)raviX_calloc(1, sizeof(LinearizerState));
 	linearizer->ast_container = container;
-	raviX_allocator_init(&linearizer->instruction_allocator, "instruction_allocator", sizeof(Instruction),
-			     sizeof(double), sizeof(Instruction) * 128);
-	raviX_allocator_init(&linearizer->ptrlist_allocator, "ptrlist_allocator", sizeof(PtrList),
-			     sizeof(double), sizeof(PtrList) * 64);
-	raviX_allocator_init(&linearizer->pseudo_allocator, "pseudo_allocator", sizeof(Pseudo), sizeof(double),
-			     sizeof(Pseudo) * 128);
-	raviX_allocator_init(&linearizer->basic_block_allocator, "basic_block_allocator", sizeof(BasicBlock),
-			     sizeof(double), sizeof(BasicBlock) * 32);
-	raviX_allocator_init(&linearizer->proc_allocator, "proc_allocator", sizeof(Proc), sizeof(double),
-			     sizeof(Proc) * 32);
-	raviX_allocator_init(&linearizer->unsized_allocator, "unsized_allocator", 0, sizeof(double), CHUNK);
-	raviX_allocator_init(&linearizer->constant_allocator, "constant_allocator", sizeof(Constant),
-			     sizeof(double), sizeof(Constant) * 64);
 	linearizer->proc_id = 0;
 	return linearizer;
 }
@@ -139,13 +126,6 @@ void raviX_destroy_linearizer(LinearizerState *linearizer)
 	}
 	END_FOR_EACH_PTR(proc)
 	raviX_buffer_free(&linearizer->C_declarations);
-	raviX_allocator_destroy(&linearizer->instruction_allocator);
-	raviX_allocator_destroy(&linearizer->ptrlist_allocator);
-	raviX_allocator_destroy(&linearizer->pseudo_allocator);
-	raviX_allocator_destroy(&linearizer->basic_block_allocator);
-	raviX_allocator_destroy(&linearizer->proc_allocator);
-	raviX_allocator_destroy(&linearizer->unsized_allocator);
-	raviX_allocator_destroy(&linearizer->constant_allocator);
 	raviX_free(linearizer);
 }
 
@@ -212,7 +192,8 @@ static const Constant *add_constant(Proc *proc, const Constant *c)
 			reg = proc->num_strconstants++;
 			break;
 		}
-		Constant *c1 = (Constant *) raviX_allocator_allocate(&proc->linearizer->constant_allocator, 0);
+		C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+		Constant *c1 = (Constant *) allocator->calloc(allocator->arena, 1, sizeof(Constant));
 		memcpy(c1, c, sizeof(Constant));
 		c1->index = reg;
 		raviX_set_add(proc->constants, c1);
@@ -257,17 +238,18 @@ static const Constant *allocate_string_constant(Proc *proc, const StringObject *
 
 static inline void add_instruction_operand(Proc *proc, Instruction *insn, Pseudo *pseudo)
 {
-	raviX_ptrlist_add((PtrList **)&insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)&insn->operands, pseudo, proc->linearizer->ast_container->allocator);
 }
 
 static inline void add_instruction_target(Proc *proc, Instruction *insn, Pseudo *pseudo)
 {
-	raviX_ptrlist_add((PtrList **)&insn->targets, pseudo, &proc->linearizer->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)&insn->targets, pseudo, proc->linearizer->ast_container->allocator);
 }
 
 static Instruction *allocate_instruction(Proc *proc, enum opcode op, unsigned line_number)
 {
-	Instruction *insn = (Instruction *) raviX_allocator_allocate(&proc->linearizer->instruction_allocator, 0);
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	Instruction *insn = (Instruction *) allocator->calloc(allocator->arena, 1, sizeof(Instruction));
 	insn->opcode = op;
 	insn->line_number = line_number;
 	return insn;
@@ -283,7 +265,7 @@ static void free_instruction_operand_pseudos(Proc *proc, Instruction *insn)
 static inline void add_instruction(Proc *proc, Instruction *insn)
 {
 	assert(insn->block == NULL || insn->block == proc->current_bb);
-	raviX_ptrlist_add((PtrList **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)&proc->current_bb->insns, insn, proc->linearizer->ast_container->allocator);
 	insn->block = proc->current_bb;
 }
 
@@ -302,7 +284,8 @@ Instruction *raviX_last_instruction(BasicBlock *block)
 
 static Pseudo *allocate_symbol_pseudo(Proc *proc, LuaSymbol *sym, unsigned reg)
 {
-	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_SYMBOL;
 	pseudo->symbol = sym;
 	pseudo->regnum = reg;
@@ -315,7 +298,8 @@ static Pseudo *allocate_symbol_pseudo(Proc *proc, LuaSymbol *sym, unsigned reg)
 
 static Pseudo *allocate_constant_pseudo(Proc *proc, const Constant *constant)
 {
-	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_CONSTANT;
 	pseudo->constant = constant;
 	pseudo->regnum = constant->index;
@@ -324,7 +308,8 @@ static Pseudo *allocate_constant_pseudo(Proc *proc, const Constant *constant)
 
 static Pseudo *allocate_closure_pseudo(Proc *proc)
 {
-	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_PROC;
 	pseudo->proc = proc;
 	return pseudo;
@@ -332,7 +317,8 @@ static Pseudo *allocate_closure_pseudo(Proc *proc)
 
 static Pseudo *allocate_nil_pseudo(Proc *proc)
 {
-	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_NIL;
 	pseudo->proc = proc;
 	return pseudo;
@@ -340,7 +326,8 @@ static Pseudo *allocate_nil_pseudo(Proc *proc)
 
 static Pseudo *allocate_boolean_pseudo(Proc *proc, bool is_true)
 {
-	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = is_true ? PSEUDO_TRUE : PSEUDO_FALSE;
 	pseudo->proc = proc;
 	return pseudo;
@@ -348,7 +335,8 @@ static Pseudo *allocate_boolean_pseudo(Proc *proc, bool is_true)
 
 static Pseudo *allocate_block_pseudo(Proc *proc, BasicBlock *block)
 {
-	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_BLOCK;
 	pseudo->block = block;
 	return pseudo;
@@ -366,6 +354,7 @@ a particular value in the range and for that we use PSEUDO_RANGE_SELECT.
 */
 static Pseudo *allocate_temp_pseudo(Proc *proc, ravitype_t type)
 {
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
 	PseudoGenerator *gen;
 	enum PseudoType pseudo_type;
 	switch (type) {
@@ -384,7 +373,7 @@ static Pseudo *allocate_temp_pseudo(Proc *proc, ravitype_t type)
 		break;
 	}
 	unsigned reg = allocate_register(gen);
-	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = pseudo_type;
 	pseudo->regnum = reg;
 	pseudo->temp_for_local = NULL;
@@ -393,7 +382,8 @@ static Pseudo *allocate_temp_pseudo(Proc *proc, ravitype_t type)
 
 static Pseudo *allocate_range_pseudo(Proc *proc, Pseudo *orig_pseudo)
 {
-	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_RANGE;
 	pseudo->regnum = orig_pseudo->regnum;
 	if (orig_pseudo->type == PSEUDO_TEMP_ANY) {
@@ -408,8 +398,9 @@ specified by a PSEUDO_RANGE. Pick of 0 means pick first value from the range.
 */
 Pseudo *raviX_allocate_range_select_pseudo(Proc *proc, Pseudo *range_pseudo, int pick)
 {
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
 	assert(range_pseudo->type == PSEUDO_RANGE);
-	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_RANGE_SELECT;
 	pseudo->regnum = range_pseudo->regnum + pick;
 	pseudo->range_pseudo = range_pseudo;
@@ -456,16 +447,17 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
  */
 static Proc *allocate_proc(LinearizerState *linearizer, AstNode *function_expr)
 {
+	C_MemoryAllocator *allocator = linearizer->ast_container->allocator;
 	assert(function_expr->type == EXPR_FUNCTION);
-	Proc *proc = (Proc *) raviX_allocator_allocate(&linearizer->proc_allocator, 0);
+	Proc *proc = (Proc *) allocator->calloc(allocator->arena, 1, sizeof(Proc));
 	proc->function_expr = function_expr;
 	proc->id = raviX_ptrlist_size((PtrList *)linearizer->all_procs)+1; // so that 0 is not assigned
 	function_expr->function_expr.proc_id = proc->id;
-	raviX_ptrlist_add((PtrList **)&linearizer->all_procs, proc, &linearizer->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)&linearizer->all_procs, proc, linearizer->ast_container->allocator);
 	if (linearizer->current_proc) {
 		proc->parent = linearizer->current_proc;
 		raviX_ptrlist_add((PtrList **)&linearizer->current_proc->procs, proc,
-				  &linearizer->ptrlist_allocator);
+				  linearizer->ast_container->allocator);
 	}
 	proc->constants = raviX_set_create(hash_constant, compare_constants);
 	proc->linearizer = linearizer;
@@ -1615,7 +1607,7 @@ static void linearize_expr_list(Proc *proc, AstNodeList *expr_list, Instruction 
 		if (ne != 0 && pseudo->type == PSEUDO_RANGE) {
 			convert_range_to_temp(pseudo); // Only accept one result unless it is the last expr
 		}
-		raviX_ptrlist_add((PtrList **)pseudo_list, pseudo, &proc->linearizer->ptrlist_allocator);
+		raviX_ptrlist_add((PtrList **)pseudo_list, pseudo, proc->linearizer->ast_container->allocator);
 	}
 	END_FOR_EACH_PTR(expr)
 }
@@ -1726,14 +1718,14 @@ static void linearize_if_statement(Proc *proc, AstNode *ifnode)
 	FOR_EACH_PTR(if_else_stmts, AstNode, this_node)
 	{
 		BasicBlock *block = create_block(proc);
-		raviX_ptrlist_add((PtrList **)&if_blocks, block, &proc->linearizer->ptrlist_allocator);
+		raviX_ptrlist_add((PtrList **)&if_blocks, block, proc->linearizer->ast_container->allocator);
 	}
 	END_FOR_EACH_PTR(this_node)
 
 	FOR_EACH_PTR(if_else_stmts, AstNode, this_node)
 	{
 		BasicBlock *block = create_block(proc);
-		raviX_ptrlist_add((PtrList **)&if_true_blocks, block, &proc->linearizer->ptrlist_allocator);
+		raviX_ptrlist_add((PtrList **)&if_true_blocks, block, proc->linearizer->ast_container->allocator);
 	}
 	END_FOR_EACH_PTR(this_node)
 
@@ -2464,10 +2456,11 @@ static void linearize_statement(Proc *proc, AstNode *node)
  */
 static BasicBlock *create_block(Proc *proc)
 {
+	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
 	if (proc->node_count >= proc->allocated) {
 		unsigned new_size = proc->allocated + 25;
 		BasicBlock **new_data = (BasicBlock **)
-		    raviX_allocator_allocate(&proc->linearizer->unsized_allocator, new_size * sizeof(BasicBlock *));
+		    allocator->calloc(allocator->arena, new_size, sizeof(BasicBlock *));
 		assert(new_data != NULL);
 		if (proc->node_count > 0) {
 			memcpy(new_data, proc->nodes, proc->allocated * sizeof(BasicBlock *));
@@ -2476,7 +2469,7 @@ static BasicBlock *create_block(Proc *proc)
 		proc->nodes = new_data;
 	}
 	assert(proc->node_count < proc->allocated);
-	BasicBlock *new_block = (BasicBlock *) raviX_allocator_allocate(&proc->linearizer->basic_block_allocator, 0);
+	BasicBlock *new_block = (BasicBlock *) allocator->calloc(allocator->arena, 1, sizeof(BasicBlock));
 	/* note that each block must have an index that can be used to access the block as nodes[index] */
 	new_block->index = proc->node_count;
 	proc->nodes[proc->node_count++] = new_block;

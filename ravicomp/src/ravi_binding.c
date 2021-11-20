@@ -29,7 +29,6 @@
 #include "cfg.h"
 #include "codegen.h"
 #include "optimizer.h"
-#include "parser.h"
 
 int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 {
@@ -39,8 +38,8 @@ int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 		dump_ir = strstr(compiler_interface->compiler_options, "--dump-ir") != NULL;
 	}
 	compiler_interface->generated_code = NULL;
-	CompilerState *container = raviX_init_compiler();
-	LinearizerState* linearizer = raviX_init_linearizer(container);
+	CompilerState *container = raviX_init_compiler(compiler_interface->memory_allocator);
+	LinearizerState *linearizer = raviX_init_linearizer(container);
 	rc = raviX_parse(container, compiler_interface->source, compiler_interface->source_len,
 			 compiler_interface->source_name);
 	if (rc != 0) {
@@ -73,9 +72,11 @@ int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 	TextBuffer buf;
 	raviX_buffer_init(&buf, 4096);
 	if (dump_ir) {
-		raviX_buffer_add_string(&buf, "/* Following is an IR Dump from the compiler\n");
+		raviX_buffer_add_string(&buf, "#if 0\n");
+		raviX_buffer_add_string(&buf, "// Following is an IR Dump from the compiler\n");
 		raviX_show_linearizer(linearizer, &buf);
-		raviX_buffer_add_string(&buf, "\nEnd of IR dump*/\n");
+		raviX_buffer_add_string(&buf, "\n// End of IR dump\n");
+		raviX_buffer_add_string(&buf, "#endif\n");
 	}
 	rc = raviX_generate_C(linearizer, &buf, compiler_interface);
 	compiler_interface->generated_code = buf.buf;

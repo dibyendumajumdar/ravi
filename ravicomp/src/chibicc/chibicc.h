@@ -26,8 +26,6 @@ SOFTWARE.
 #ifndef CHIBICC_H
 #define CHIBICC_H
 
-#include "ravi_alloc.h"
-
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -67,13 +65,18 @@ typedef struct C_Parser C_Parser;
 
 #ifndef C_MEMORYALLOCATOR_DEFINED
 #define C_MEMORYALLOCATOR_DEFINED
-typedef struct C_MemoryAllocator C_MemoryAllocator;
-struct C_MemoryAllocator {
+/*
+ * Note that this struct below is also defined in allocate.h/ravi_compiler.h and all
+ * definitions must be kept in sync.
+ */
+typedef struct C_MemoryAllocator {
   void *arena;
   void *(*realloc)(void *arena, void* mem, size_t newsize);
   void *(*calloc)(void *arena,  size_t n_elements, size_t elem_size);
   void (*free)(void *arena, void *p);
-};
+  void *(*create_arena)(size_t, int);
+  void (*destroy_arena)(void *arena);
+} C_MemoryAllocator;
 #endif
 
 //

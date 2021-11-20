@@ -50,12 +50,12 @@ static void add_local_symbol_to_current_scope(ParserState *parser, LuaSymbol *sy
 
 void raviX_add_symbol(CompilerState *container, LuaSymbolList **list, LuaSymbol *sym)
 {
-	raviX_ptrlist_add((PtrList **)list, sym, &container->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)list, sym, container->allocator);
 }
 
 static void add_ast_node(CompilerState *container, AstNodeList **list, AstNode *node)
 {
-	raviX_ptrlist_add((PtrList **)list, node, &container->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)list, node, container->allocator);
 }
 
 static int astlist_num_nodes(AstNodeList *list)
@@ -75,7 +75,7 @@ static AstNode* astlist_last(AstNodeList *list)
 
 
 AstNode *raviX_allocate_ast_node_at_line(CompilerState *container, enum AstNodeType type, int line_num) {
-	AstNode *node = (AstNode *)raviX_allocator_allocate(&container->ast_node_allocator, 0);
+	AstNode *node = (AstNode *)container->allocator->calloc(container->allocator->arena, 1, sizeof(AstNode));
 	node->type = type;
 	node->line_number = line_num;
 	return node;
@@ -180,7 +180,7 @@ static const StringObject *check_name_and_next(LexerState *ls)
 LuaSymbol *raviX_new_local_symbol(CompilerState *container, Scope *scope, const StringObject *name, ravitype_t tt,
 				   const StringObject *usertype)
 {
-	LuaSymbol *symbol = (LuaSymbol *) raviX_allocator_allocate(&container->symbol_allocator, 0);
+	LuaSymbol *symbol = (LuaSymbol *) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
 	set_typename(&symbol->variable.value_type, tt, usertype);
 	symbol->symbol_type = SYM_LOCAL;
 	symbol->variable.block = scope;
@@ -202,9 +202,10 @@ static LuaSymbol *new_local_symbol(ParserState *parser, const StringObject *name
 /* create a new label */
 static LuaSymbol *new_label(ParserState *parser, const StringObject *name)
 {
+	CompilerState *container = parser->container;
 	Scope *scope = parser->current_scope;
 	assert(scope);
-	LuaSymbol *symbol = (LuaSymbol *) raviX_allocator_allocate(&parser->container->symbol_allocator, 0);
+	LuaSymbol *symbol = (LuaSymbol *) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
 	symbol->symbol_type = SYM_LABEL;
 	symbol->label.block = scope;
 	symbol->label.label_name = name;
@@ -301,7 +302,8 @@ static bool add_upvalue_in_function(ParserState *parser, AstNode *function, LuaS
 		}
 		END_FOR_EACH_PTR(cursor)
 	}
-	LuaSymbol *upvalue = (LuaSymbol *) raviX_allocator_allocate(&parser->container->symbol_allocator, 0);
+	CompilerState *container = parser->container;
+	LuaSymbol *upvalue = (LuaSymbol *) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
 	upvalue->symbol_type = SYM_UPVALUE;
 	upvalue->upvalue.target_variable = symbol;
 	upvalue->upvalue.target_variable_function = function;
@@ -381,7 +383,8 @@ static void add_upvalue_for_ENV(ParserState *parser)
 		// No definition of _ENV found
 		// Create special symbol for _ENV - so that upvalues can reference it
 		// Note that this symbol is not added to any scope, however upvalue created below will reference it
-		symbol = (LuaSymbol *) raviX_allocator_allocate(&parser->container->symbol_allocator, 0);
+		CompilerState *container = parser->container;
+		symbol = (LuaSymbol *) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
 		symbol->symbol_type = SYM_ENV;
 		symbol->variable.var_name = parser->container->_ENV;
 		symbol->variable.block = NULL;
@@ -435,7 +438,8 @@ static AstNode *new_symbol_reference(ParserState *parser, const StringObject *va
 		}
 	} else {
 		// Return global symbol
-		LuaSymbol *global = (LuaSymbol * ) raviX_allocator_allocate(&parser->container->symbol_allocator, 0);
+		CompilerState *container = parser->container;
+		LuaSymbol *global = (LuaSymbol * ) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
 		global->symbol_type = SYM_GLOBAL;
 		global->variable.var_name = varname;
 		global->variable.block = NULL;
@@ -1731,7 +1735,8 @@ static void parse_statement_list(ParserState *parser, AstNodeList **list)
 }
 
 Scope *raviX_allocate_scope(CompilerState *container, AstNode *function, Scope *parent_scope) {
-	Scope *scope = (Scope *) raviX_allocator_allocate(&container->block_scope_allocator, 0);
+	C_MemoryAllocator *allocator = container->allocator;
+	Scope *scope = (Scope *) allocator->calloc(allocator->arena, 1, sizeof(Scope));
 	scope->symbol_list = NULL;
 	scope->function = function;
 	scope->need_close = 0; /* Assume we do not need to close upvalues when scope is exited */
@@ -1867,20 +1872,10 @@ static uint32_t string_hash(const void *c)
 	return c1->hash;
 }
 
-CompilerState *raviX_init_compiler()
+CompilerState *raviX_init_compiler(C_MemoryAllocator *allocator)
 {
 	CompilerState *container = (CompilerState *)raviX_calloc(1, sizeof(CompilerState));
-	raviX_allocator_init(&container->ast_node_allocator, "ast nodes", sizeof(AstNode), sizeof(double),
-			     sizeof(AstNode) * 32);
-	raviX_allocator_init(&container->ptrlist_allocator, "ptrlists", sizeof(PtrList), sizeof(double),
-			     sizeof(PtrList) * 32);
-	raviX_allocator_init(&container->block_scope_allocator, "block scopes", sizeof(Scope),
-			     sizeof(double), sizeof(Scope) * 32);
-	raviX_allocator_init(&container->symbol_allocator, "symbols", sizeof(LuaSymbol), sizeof(double),
-			     sizeof(LuaSymbol) * 64);
-	raviX_allocator_init(&container->string_allocator, "strings", 0, sizeof(double), 1024);
-	raviX_allocator_init(&container->string_object_allocator, "string_objects", sizeof(StringObject),
-			     sizeof(double), sizeof(StringObject) * 64);
+	container->allocator = allocator;
 	raviX_buffer_init(&container->buff, 1024);
 	raviX_buffer_init(&container->error_message, 256);
 	container->strings = raviX_set_create(string_hash, string_equal);
@@ -1891,20 +1886,9 @@ CompilerState *raviX_init_compiler()
 	return container;
 }
 
-// static void show_allocations(CompilerState *compiler)
-//{
-//	raviX_allocator_show_allocations(&compiler->symbol_allocator);
-//	raviX_allocator_show_allocations(&compiler->block_scope_allocator);
-//	raviX_allocator_show_allocations(&compiler->ast_node_allocator);
-//	raviX_allocator_show_allocations(&compiler->ptrlist_allocator);
-//	raviX_allocator_show_allocations(&compiler->string_allocator);
-//	raviX_allocator_show_allocations(&compiler->string_object_allocator);
-//}
-
 void raviX_destroy_compiler(CompilerState *container)
 {
 	if (!container->killed) {
-		// show_allocations(container);
 		if (container->linearizer) {
 			raviX_destroy_linearizer(container->linearizer);
 			raviX_free(container->linearizer);
@@ -1912,12 +1896,6 @@ void raviX_destroy_compiler(CompilerState *container)
 		raviX_set_destroy(container->strings, NULL);
 		raviX_buffer_free(&container->buff);
 		raviX_buffer_free(&container->error_message);
-		raviX_allocator_destroy(&container->symbol_allocator);
-		raviX_allocator_destroy(&container->block_scope_allocator);
-		raviX_allocator_destroy(&container->ast_node_allocator);
-		raviX_allocator_destroy(&container->ptrlist_allocator);
-		raviX_allocator_destroy(&container->string_allocator);
-		raviX_allocator_destroy(&container->string_object_allocator);
 		container->killed = true;
 	}
 	raviX_free(container);

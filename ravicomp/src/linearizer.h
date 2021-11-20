@@ -268,13 +268,6 @@ struct Proc {
 };
 
 struct LinearizerState {
-	Allocator instruction_allocator;
-	Allocator pseudo_allocator;
-	Allocator ptrlist_allocator;
-	Allocator basic_block_allocator;
-	Allocator proc_allocator;
-	Allocator unsized_allocator;
-	Allocator constant_allocator;
 	CompilerState *ast_container;
 	Proc *main_proc;     /* The root of the compiled chunk of code */
 	ProcList *all_procs; /* All procs allocated by the linearizer */

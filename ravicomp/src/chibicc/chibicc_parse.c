@@ -142,8 +142,8 @@ static int align_down(int n, int align) {
   return C_align_to(n - align + 1, align);
 }
 
-static char *str_dup(struct C_MemoryAllocator *allocator, const char *temp, size_t len) {
-  char *p = (char *) allocator->calloc(allocator->arena, 1, len+1);
+static char *str_dup(C_MemoryAllocator *allocator, const char *temp, size_t len) {
+  char *p = (char *) allocator->calloc(allocator->arena, len+1, sizeof(char));
   memcpy(p, temp, len);
   p[len] = 0;
   return p;
@@ -322,12 +322,12 @@ static C_Obj *new_gvar(C_Parser *parser, char *name, C_Type *ty) {
   return var;
 }
 
-static char *new_unique_name(mspace arena) {
+static char *new_unique_name(C_MemoryAllocator *allocator) {
   static int id = 0;
   char temp[64];
 
   snprintf(temp, sizeof temp, ".L..%d", id++);
-  return str_dup(arena, temp, strlen(temp));
+  return str_dup(allocator, temp, strlen(temp));
 }
 
 static C_Obj *new_anon_gvar(C_Parser *parser, C_Type *ty) {

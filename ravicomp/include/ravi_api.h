@@ -28,16 +28,6 @@
 
 #include <stdlib.h>
 
-#ifndef C_MEMORYALLOCATOR_DEFINED
-#define C_MEMORYALLOCATOR_DEFINED
-typedef struct C_MemoryAllocator {
-	void *arena;
-	void *(*realloc)(void *arena, void* mem, size_t newsize);
-	void *(*calloc)(void *arena,  size_t n_elements, size_t elem_size);
-	void (*free)(void *arena, void *p);
-} C_MemoryAllocator;
-#endif
-
 typedef struct Ravi_CompilerInterface {
 	/* ------------------------ Inputs ------------------------------ */
 	void *context; /* Ravi supplied context */
@@ -52,7 +42,7 @@ typedef struct Ravi_CompilerInterface {
 	C_MemoryAllocator *memory_allocator;
 
 	/* ------------------------- Outputs ------------------------------ */
-	const char* generated_code;  /* Output of the compiler, must be freed by caller. */
+	const char* generated_code;  /* Output of the compiler. */
 
 	/* ------------------------ Debugging and error handling ----------------------------------------- */
 	void (*debug_message)(void *context, const char *filename, long long line, const char *message);
@@ -66,6 +56,7 @@ typedef struct Ravi_CompilerInterface {
  * @return 0 for success, non-zero for failure
  */
 RAVICOMP_EXPORT int raviX_compile(Ravi_CompilerInterface *compiler_interface);
+/* Releases memory etc held by the compiler context */
 RAVICOMP_EXPORT void raviX_release(Ravi_CompilerInterface *compiler_interface);
 
 #endif

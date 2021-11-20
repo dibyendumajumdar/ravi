@@ -104,7 +104,7 @@ static void process_statement_list(CompilerState *container, AstNodeList *list)
 
 static void add_ast_node(CompilerState *container, AstNodeList **list, AstNode *node)
 {
-	raviX_ptrlist_add((PtrList **)list, node, &container->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)list, node, container->allocator);
 }
 
 static AstNode *allocate_expr_ast_node(CompilerState *container, enum AstNodeType type)

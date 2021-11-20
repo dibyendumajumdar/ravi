@@ -59,7 +59,7 @@ enum EdgeType {
 
 
 /* Initialize the graph data structure and associate some userdata with it. */
-Graph *raviX_init_graph(nodeId_t entry, nodeId_t exit, void *userdata);
+Graph *raviX_init_graph(nodeId_t entry, nodeId_t exit, void *userdata, C_MemoryAllocator *allocator);
 /* Destroy the graph data structure */
 void raviX_destroy_graph(Graph *g);
 

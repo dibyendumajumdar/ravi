@@ -160,8 +160,9 @@ const StringObject *raviX_create_string(CompilerState *compiler_state, const cha
 		/* found the string */
 		return (StringObject *)entry->key;
 	else {
-		StringObject *new_string = (StringObject *) raviX_allocator_allocate(&compiler_state->string_object_allocator, 0);
-		char *s = (char* )raviX_allocator_allocate(&compiler_state->string_allocator, len + 1); /* allow for 0 terminator */
+		C_MemoryAllocator *allocator = compiler_state->allocator;
+		StringObject *new_string = (StringObject *) allocator->calloc(allocator->arena, 1, sizeof(StringObject));
+		char *s = (char* )allocator->calloc(allocator->arena, len + 1, sizeof(char)); /* allow for 0 terminator */
 		memcpy(s, input, len);
 		s[len] = 0; /* 0 terminate string, however string may contain embedded 0 characters */
 		new_string->str = s;

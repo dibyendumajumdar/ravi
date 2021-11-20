@@ -25,9 +25,9 @@ static int N_ = LIST_NODE_NR;
 void raviX_ptrlist_split_node(PtrList *head)
 {
 	int old = head->nr_, nr = old / 2;
-	Allocator *alloc = head->allocator_;
+	C_MemoryAllocator *alloc = head->allocator_;
 	assert(alloc);
-	PtrList *newlist = (PtrList *)raviX_allocator_allocate(alloc, 0);
+	PtrList *newlist = (PtrList *)alloc->calloc(alloc->arena, 1, sizeof(PtrList));
 	PtrList *next = head->next_;
 	newlist->allocator_ = alloc;
 
@@ -181,7 +181,7 @@ int raviX_ptrlist_size(const PtrList *self)
 	return nr;
 }
 
-void **raviX_ptrlist_add(PtrList **self, void *ptr, Allocator *ptr_list_allocator)
+void **raviX_ptrlist_add(PtrList **self, void *ptr, C_MemoryAllocator *ptr_list_allocator)
 {
 	PtrList *list = *self;
 	PtrList *last = NULL;
@@ -189,7 +189,7 @@ void **raviX_ptrlist_add(PtrList **self, void *ptr, Allocator *ptr_list_allocato
 	int nr;
 
 	if (!list || (nr = (last = list->prev_)->nr_) >= N_) {
-		PtrList *newlist = (PtrList *)raviX_allocator_allocate(ptr_list_allocator, 0);
+		PtrList *newlist = (PtrList *)ptr_list_allocator->calloc(ptr_list_allocator->arena, 1, sizeof(PtrList));
 		newlist->allocator_ = ptr_list_allocator;
 		if (!list) {
 			newlist->next_ = newlist;
@@ -264,7 +264,6 @@ int raviX_ptrlist_linearize(PtrList *head, void **arr, int max)
 void raviX_ptrlist_pack(PtrList **self)
 {
 	PtrList *head = *self;
-
 	if (head) {
 		PtrList *entry = head;
 		do {
@@ -274,14 +273,16 @@ void raviX_ptrlist_pack(PtrList **self)
 			if (!entry->nr_) {
 				PtrList *prev;
 				if (next == entry) {
-					raviX_allocator_free(entry->allocator_, entry);
+					C_MemoryAllocator *alloc = entry->allocator_;
+					alloc->free(alloc->arena, entry);
 					*self = NULL;
 					return;
 				}
 				prev = entry->prev_;
 				prev->next_ = next;
 				next->prev_ = prev;
-				raviX_allocator_free(entry->allocator_, entry);
+				C_MemoryAllocator *alloc = entry->allocator_;
+				alloc->free(alloc->arena, entry);
 				if (entry == head) {
 					*self = next;
 					head = next;
@@ -303,7 +304,8 @@ void raviX_ptrlist_remove_all(PtrList **self)
 	while (list) {
 		tmp = list;
 		list = list->next_;
-		raviX_allocator_free(tmp->allocator_, tmp);
+		C_MemoryAllocator *alloc = tmp->allocator_;
+		alloc->free(alloc->arena, tmp);
 	}
 	*self = NULL;
 }
@@ -375,14 +377,15 @@ void *raviX_ptrlist_delete_last(PtrList **self)
 		last->prev_->next_ = first;
 		if (last == first)
 			*self = NULL;
-		raviX_allocator_free(last->allocator_, last);
+		C_MemoryAllocator *alloc = last->allocator_;
+		alloc->free(alloc->arena, last);
 	}
 	return ptr;
 }
 
 void raviX_ptrlist_concat(PtrList *a, PtrList **self)
 {
-	Allocator *alloc = NULL;
+	C_MemoryAllocator *alloc = NULL;
 	PtrListIterator iter = raviX_ptrlist_forward_iterator(a);
 	if (a)
 		alloc = a->allocator_;
