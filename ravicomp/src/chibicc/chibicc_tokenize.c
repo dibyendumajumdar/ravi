@@ -566,6 +566,8 @@ C_Token *C_tokenize(C_Parser *tokenizer, C_File *file) {
 
     // Skip block comments.
     if (startswith(p, "/*")) {
+      if (tokenizer->embedded_mode)
+        C_error_at(tokenizer, p, "block comment not allowed in this mode");
       char *q = strstr(p + 2, "*/");
       if (!q)
 	      C_error_at(tokenizer, p, "unclosed block comment");

@@ -48,14 +48,14 @@ static AstNode *new_literal_expression(ParserState *parser, ravitype_t type);
 static AstNode *generate_label(ParserState *parser, const StringObject *label);
 static void add_local_symbol_to_current_scope(ParserState *parser, LuaSymbol *sym);
 
-void raviX_add_symbol(CompilerState *container, LuaSymbolList **list, LuaSymbol *sym)
+void raviX_add_symbol(CompilerState *compiler_state, LuaSymbolList **list, LuaSymbol *sym)
 {
-	raviX_ptrlist_add((PtrList **)list, sym, container->allocator);
+	raviX_ptrlist_add((PtrList **)list, sym, compiler_state->allocator);
 }
 
-static void add_ast_node(CompilerState *container, AstNodeList **list, AstNode *node)
+static void add_ast_node(CompilerState *compiler_state, AstNodeList **list, AstNode *node)
 {
-	raviX_ptrlist_add((PtrList **)list, node, container->allocator);
+	raviX_ptrlist_add((PtrList **)list, node, compiler_state->allocator);
 }
 
 static int astlist_num_nodes(AstNodeList *list)
@@ -74,8 +74,8 @@ static AstNode* astlist_last(AstNodeList *list)
 }
 
 
-AstNode *raviX_allocate_ast_node_at_line(CompilerState *container, enum AstNodeType type, int line_num) {
-	AstNode *node = (AstNode *)container->allocator->calloc(container->allocator->arena, 1, sizeof(AstNode));
+AstNode *raviX_allocate_ast_node_at_line(CompilerState *compiler_state, enum AstNodeType type, int line_num) {
+	AstNode *node = (AstNode *)compiler_state->allocator->calloc(compiler_state->allocator->arena, 1, sizeof(AstNode));
 	node->type = type;
 	node->line_number = line_num;
 	return node;
@@ -83,7 +83,7 @@ AstNode *raviX_allocate_ast_node_at_line(CompilerState *container, enum AstNodeT
 
 static AstNode *raviX_allocate_ast_node(ParserState *parser, enum AstNodeType type)
 {
-	return raviX_allocate_ast_node_at_line(parser->container, type, parser->ls->lastline);
+	return raviX_allocate_ast_node_at_line(parser->compiler_state, type, parser->ls->lastline);
 }
 
 static AstNode *allocate_expr_ast_node(ParserState *parser, enum AstNodeType type)
@@ -97,9 +97,9 @@ static AstNode *allocate_expr_ast_node(ParserState *parser, enum AstNodeType typ
 
 static void error_expected(LexerState *ls, int token)
 {
-	raviX_token2str(token, &ls->container->error_message);
-	raviX_buffer_add_string(&ls->container->error_message, " expected");
-	longjmp(ls->container->env, 1);
+	raviX_token2str(token, &ls->compiler_state->error_message);
+	raviX_buffer_add_string(&ls->compiler_state->error_message, " expected");
+	longjmp(ls->compiler_state->env, 1);
 }
 
 static int testnext(LexerState *ls, int c)
@@ -177,10 +177,10 @@ static const StringObject *check_name_and_next(LexerState *ls)
 	return ts;
 }
 
-LuaSymbol *raviX_new_local_symbol(CompilerState *container, Scope *scope, const StringObject *name, ravitype_t tt,
+LuaSymbol *raviX_new_local_symbol(CompilerState *compiler_state, Scope *scope, const StringObject *name, ravitype_t tt,
 				   const StringObject *usertype)
 {
-	LuaSymbol *symbol = (LuaSymbol *) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
+	LuaSymbol *symbol = (LuaSymbol *) compiler_state->allocator->calloc(compiler_state->allocator->arena, 1, sizeof(LuaSymbol));
 	set_typename(&symbol->variable.value_type, tt, usertype);
 	symbol->symbol_type = SYM_LOCAL;
 	symbol->variable.block = scope;
@@ -196,23 +196,23 @@ static LuaSymbol *new_local_symbol(ParserState *parser, const StringObject *name
 					   const StringObject *usertype)
 {
 	Scope *scope = parser->current_scope;
-	return raviX_new_local_symbol(parser->container, scope, name, tt, usertype);
+	return raviX_new_local_symbol(parser->compiler_state, scope, name, tt, usertype);
 }
 
 /* create a new label */
 static LuaSymbol *new_label(ParserState *parser, const StringObject *name)
 {
-	CompilerState *container = parser->container;
+	CompilerState *compiler_state = parser->compiler_state;
 	Scope *scope = parser->current_scope;
 	assert(scope);
-	LuaSymbol *symbol = (LuaSymbol *) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
+	LuaSymbol *symbol = (LuaSymbol *) compiler_state->allocator->calloc(compiler_state->allocator->arena, 1, sizeof(LuaSymbol));
 	symbol->symbol_type = SYM_LABEL;
 	symbol->label.block = scope;
 	symbol->label.label_name = name;
 	// Add to the end of the symbol list
 	// Note that Lua allows multiple local declarations of the same name
 	// so a new instance just gets added to the end
-	raviX_add_symbol(parser->container, &scope->symbol_list, symbol);
+	raviX_add_symbol(parser->compiler_state, &scope->symbol_list, symbol);
 	return symbol;
 }
 
@@ -220,7 +220,7 @@ static LuaSymbol *new_label(ParserState *parser, const StringObject *name)
  */
 static LuaSymbol *new_localvarliteral_(ParserState *parser, const char *name, size_t sz)
 {
-	return new_local_symbol(parser, raviX_create_string(parser->container, name, (uint32_t)sz), RAVI_TANY, NULL);
+	return new_local_symbol(parser, raviX_create_string(parser->compiler_state, name, (uint32_t)sz), RAVI_TANY, NULL);
 }
 
 /* create a new local variable
@@ -302,15 +302,15 @@ static bool add_upvalue_in_function(ParserState *parser, AstNode *function, LuaS
 		}
 		END_FOR_EACH_PTR(cursor)
 	}
-	CompilerState *container = parser->container;
-	LuaSymbol *upvalue = (LuaSymbol *) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
+	CompilerState *compiler_state = parser->compiler_state;
+	LuaSymbol *upvalue = (LuaSymbol *) compiler_state->allocator->calloc(compiler_state->allocator->arena, 1, sizeof(LuaSymbol));
 	upvalue->symbol_type = SYM_UPVALUE;
 	upvalue->upvalue.target_variable = symbol;
 	upvalue->upvalue.target_variable_function = function;
 	upvalue->upvalue.upvalue_index = raviX_ptrlist_size(
 	    (const PtrList *)function->function_expr.upvalues); /* position of upvalue in function */
 	copy_type(&upvalue->upvalue.value_type, &symbol->variable.value_type);
-	raviX_add_symbol(parser->container, &function->function_expr.upvalues, upvalue);
+	raviX_add_symbol(parser->compiler_state, &function->function_expr.upvalues, upvalue);
 	if (symbol->symbol_type == SYM_LOCAL) {
 		symbol->variable.escaped = 1;	     /* mark original variable as having escaped */
 		symbol->variable.block->need_close = 1; /* mark block containing variable as needing close operation */
@@ -378,15 +378,15 @@ static void add_upvalue_in_levels_upto(ParserState *parser, AstNode *current_fun
 static void add_upvalue_for_ENV(ParserState *parser)
 {
 	bool is_local = false;
-	LuaSymbol *symbol = search_for_variable(parser, parser->container->_ENV, &is_local);
+	LuaSymbol *symbol = search_for_variable(parser, parser->compiler_state->_ENV, &is_local);
 	if (symbol == NULL) {
 		// No definition of _ENV found
 		// Create special symbol for _ENV - so that upvalues can reference it
 		// Note that this symbol is not added to any scope, however upvalue created below will reference it
-		CompilerState *container = parser->container;
-		symbol = (LuaSymbol *) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
+		CompilerState *compiler_state = parser->compiler_state;
+		symbol = (LuaSymbol *) compiler_state->allocator->calloc(compiler_state->allocator->arena, 1, sizeof(LuaSymbol));
 		symbol->symbol_type = SYM_ENV;
-		symbol->variable.var_name = parser->container->_ENV;
+		symbol->variable.var_name = parser->compiler_state->_ENV;
 		symbol->variable.block = NULL;
 		set_type(&symbol->variable.value_type, RAVI_TTABLE); // _ENV is by default a table
 		// Create an upvalue for _ENV
@@ -438,8 +438,8 @@ static AstNode *new_symbol_reference(ParserState *parser, const StringObject *va
 		}
 	} else {
 		// Return global symbol
-		CompilerState *container = parser->container;
-		LuaSymbol *global = (LuaSymbol * ) container->allocator->calloc(container->allocator->arena, 1, sizeof(LuaSymbol));
+		CompilerState *compiler_state = parser->compiler_state;
+		LuaSymbol *global = (LuaSymbol * ) compiler_state->allocator->calloc(compiler_state->allocator->arena, 1, sizeof(LuaSymbol));
 		global->symbol_type = SYM_GLOBAL;
 		global->variable.var_name = varname;
 		global->variable.block = NULL;
@@ -453,7 +453,7 @@ static AstNode *new_symbol_reference(ParserState *parser, const StringObject *va
 		// However adding an upvalue later is hard so we do it here.
 		add_upvalue_for_ENV(parser);
 		bool is_local;
-		global->variable.env = search_for_variable(parser, parser->container->_ENV, &is_local);
+		global->variable.env = search_for_variable(parser, parser->compiler_state->_ENV, &is_local);
 		assert(global->variable.env);
 	}
 	AstNode *symbol_expr = allocate_expr_ast_node(parser, EXPR_SYMBOL);
@@ -632,7 +632,7 @@ static AstNode *parse_table_constructor(ParserState *parser)
 		if (ls->t.token == '}')
 			break;
 		AstNode *field_expr = parse_field(parser);
-		add_ast_node(parser->container, &table_expr->table_expr.expr_list, field_expr);
+		add_ast_node(parser->compiler_state, &table_expr->table_expr.expr_list, field_expr);
 	} while (testnext(ls, ',') || testnext(ls, ';'));
 	set_multireturn(parser, table_expr->table_expr.expr_list, true);
 	check_match(ls, '}', '{', line);
@@ -673,7 +673,7 @@ static const StringObject *parse_user_defined_type_name(LexerState *ls,
 			snprintf(buffer + len, sizeof buffer - len, ".%s", str);
 			len = newlen;
 		} while (testnext(ls, '.'));
-		type_name = raviX_create_string(ls->container, buffer, (uint32_t)strlen(buffer));
+		type_name = raviX_create_string(ls->compiler_state, buffer, (uint32_t)strlen(buffer));
 	}
 	return type_name;
 }
@@ -731,7 +731,7 @@ static LuaSymbol *parse_local_variable_declaration(ParserState *parser)
 static void add_parameter_to_current_function(ParserState *parser, LuaSymbolList **list, LuaSymbol *symbol)
 {
 	symbol->variable.function_parameter = 1;
-	raviX_add_symbol(parser->container, list, symbol);
+	raviX_add_symbol(parser->compiler_state, list, symbol);
 	add_local_symbol_to_current_scope(parser, symbol);
 }
 
@@ -786,10 +786,10 @@ static int parse_expression_list(ParserState *parser, AstNodeList **list)
 	/* explist -> expr { ',' expr } */
 	int n = 1; /* at least one expression */
 	AstNode *expr = parse_expression(parser);
-	add_ast_node(parser->container, list, expr);
+	add_ast_node(parser->compiler_state, list, expr);
 	while (testnext(ls, ',')) {
 		expr = parse_expression(parser);
-		add_ast_node(parser->container, list, expr);
+		add_ast_node(parser->compiler_state, list, expr);
 		n++;
 	}
 	return n;
@@ -819,13 +819,13 @@ static AstNode *parse_function_call(ParserState *parser, const StringObject *met
 	}
 	case '{': { /* funcargs -> constructor */
 		AstNode *table_expr = parse_table_constructor(parser);
-		add_ast_node(parser->container, &call_expr->function_call_expr.arg_list, table_expr);
+		add_ast_node(parser->compiler_state, &call_expr->function_call_expr.arg_list, table_expr);
 		break;
 	}
 	case TOK_STRING: { /* funcargs -> STRING */
 		AstNode *string_expr = new_literal_expression(parser, RAVI_TSTRING);
 		string_expr->literal_expr.u.ts = ls->t.seminfo.ts;
-		add_ast_node(parser->container, &call_expr->function_call_expr.arg_list, string_expr);
+		add_ast_node(parser->compiler_state, &call_expr->function_call_expr.arg_list, string_expr);
 		raviX_next(ls);
 		break;
 	}
@@ -869,28 +869,38 @@ static AstNode *parse_primary_expression(ParserState *parser)
 	return primary_expr;
 }
 
-/* Parse C__new '(' string ',' expr ')' */
-static AstNode *parse_builtin_expression(ParserState *parser)
+/* Parse builtins:
+ * C__new '(' string ',' expr ')'
+ */
+static AstNode *parse_builtin_expression(ParserState *parser, int token)
 {
 	LexerState *ls = parser->ls;
+
+	if (token != TOK_C__new) {
+		raviX_syntaxerror(ls, "Unsupported builtin: expecting C__new");
+	}
 
 	AstNode *builtin_expr = allocate_expr_ast_node(parser, EXPR_BUILTIN);
 	builtin_expr->builtin_expr.type.type_code = RAVI_TUSERDATA;
 	builtin_expr->builtin_expr.type.type_name = NULL;
-	builtin_expr->builtin_expr.type_name = NULL;
-	builtin_expr->builtin_expr.size_expr = NULL;
+	builtin_expr->builtin_expr.token = token;
+	builtin_expr->builtin_expr.arg_list = NULL;
 
 	raviX_next(ls);
 	checknext(ls, '(');
-	check(ls, TOK_STRING);
-	builtin_expr->builtin_expr.type_name = ls->t.seminfo.ts;
-	raviX_next(ls);
+	AstNode *expr1 = parse_expression(parser);
+	if (expr1->type != EXPR_LITERAL && expr1->literal_expr.type.type_code != RAVI_TSTRING) {
+		raviX_syntaxerror(ls, "Expected a size expression as second argument to C__new");
+	}
 	checknext(ls, ',');
-	builtin_expr->builtin_expr.size_expr = parse_expression(parser);
-	if (builtin_expr->builtin_expr.size_expr == NULL) {
+	AstNode *expr2 = parse_expression(parser);
+	if (expr2 == NULL) {
 		raviX_syntaxerror(ls, "Expected a size expression as second argument to C__new");
 	}
 	checknext(ls, ')');
+
+	add_ast_node(parser->compiler_state, &builtin_expr->builtin_expr.arg_list, expr1);
+	add_ast_node(parser->compiler_state, &builtin_expr->builtin_expr.arg_list, expr2);
 
 	return builtin_expr;
 }
@@ -903,7 +913,7 @@ static AstNode *parse_suffixed_expression(ParserState *parser)
 	primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
 	int line = ls->linenumber;
 	if (ls->t.token == TOK_C__new) {
-		return parse_builtin_expression(parser);
+		return parse_builtin_expression(parser, TOK_C__new);
 	}
 	AstNode *suffixed_expr = allocate_expr_ast_node(parser, EXPR_SUFFIXED);
 	suffixed_expr->suffixed_expr.primary_expr = parse_primary_expression(parser);
@@ -913,13 +923,13 @@ static AstNode *parse_suffixed_expression(ParserState *parser)
 		switch (ls->t.token) {
 		case '.': { /* fieldsel */
 			AstNode *suffix = parse_field_selector(parser);
-			add_ast_node(parser->container, &suffixed_expr->suffixed_expr.suffix_list, suffix);
+			add_ast_node(parser->compiler_state, &suffixed_expr->suffixed_expr.suffix_list, suffix);
 			set_type(&suffixed_expr->suffixed_expr.type, RAVI_TANY);
 			break;
 		}
 		case '[': { /* '[' exp1 ']' */
 			AstNode *suffix = parse_yindex(parser);
-			add_ast_node(parser->container, &suffixed_expr->suffixed_expr.suffix_list, suffix);
+			add_ast_node(parser->compiler_state, &suffixed_expr->suffixed_expr.suffix_list, suffix);
 			set_type(&suffixed_expr->suffixed_expr.type, RAVI_TANY);
 			break;
 		}
@@ -927,14 +937,14 @@ static AstNode *parse_suffixed_expression(ParserState *parser)
 			raviX_next(ls);
 			const StringObject *methodname = check_name_and_next(ls);
 			AstNode *suffix = parse_function_call(parser, methodname, line);
-			add_ast_node(parser->container, &suffixed_expr->suffixed_expr.suffix_list, suffix);
+			add_ast_node(parser->compiler_state, &suffixed_expr->suffixed_expr.suffix_list, suffix);
 			break;
 		}
 		case '(':
 		case TOK_STRING:
 		case '{': { /* funcargs */
 			AstNode *suffix = parse_function_call(parser, NULL, line);
-			add_ast_node(parser->container, &suffixed_expr->suffixed_expr.suffix_list, suffix);
+			add_ast_node(parser->compiler_state, &suffixed_expr->suffixed_expr.suffix_list, suffix);
 			break;
 		}
 		default:
@@ -1179,8 +1189,8 @@ static void add_local_symbol_to_current_scope(ParserState *parser, LuaSymbol *sy
 {
 	// Note that Lua allows multiple local declarations of the same name
 	// so a new instance just gets added to the end
-	raviX_add_symbol(parser->container, &parser->current_scope->symbol_list, sym);
-	//raviX_add_symbol(parser->container, &parser->current_scope->function->function_expr.locals, sym);
+	raviX_add_symbol(parser->compiler_state, &parser->current_scope->symbol_list, sym);
+	//raviX_add_symbol(parser->compiler_state, &parser->current_scope->function->function_expr.locals, sym);
 }
 
 static Scope *parse_block(ParserState *parser, AstNodeList **statement_list)
@@ -1210,7 +1220,7 @@ static AstNode *parse_goto_statment(ParserState *parser)
 		label = check_name_and_next(ls);
 	else {
 		raviX_next(ls); /* skip break */
-		label = raviX_create_string(ls->container, "break", sizeof "break");
+		label = raviX_create_string(ls->compiler_state, "break", sizeof "break");
 		is_break = 1;
 	}
 	// Resolve labels in the end?
@@ -1242,7 +1252,7 @@ static AstNode *parse_embedded_C(ParserState *parser, bool is_decl) {
 			bool is_local = 0;
 			LuaSymbol *symbol = search_for_variable(parser, varname, &is_local);
 			if (symbol && is_local)
-				raviX_add_symbol(parser->container, &node->embedded_C_stmt.symbols, symbol);
+				raviX_add_symbol(parser->compiler_state, &node->embedded_C_stmt.symbols, symbol);
 			else {
 				raviX_syntaxerror(ls, "Argument to C__unsafe() must be a local variable");
 			}
@@ -1251,7 +1261,7 @@ static AstNode *parse_embedded_C(ParserState *parser, bool is_decl) {
 				varname = check_name_and_next(ls);
 				symbol = search_for_variable(parser, varname, &is_local);
 				if (symbol && is_local)
-					raviX_add_symbol(parser->container, &node->embedded_C_stmt.symbols, symbol);
+					raviX_add_symbol(parser->compiler_state, &node->embedded_C_stmt.symbols, symbol);
 				else {
 					raviX_syntaxerror(ls, "Argument to C__unsafe() must be a local variable");
 				}
@@ -1375,15 +1385,15 @@ static void parse_fornum_statement(ParserState *parser, AstNode *stmt,
 	LexerState *ls = parser->ls;
 	/* fornum -> NAME = exp1,exp1[,exp1] forbody */
 	LuaSymbol *local = new_local_symbol(parser, varname, RAVI_TANY, NULL);
-	raviX_add_symbol(parser->container, &stmt->for_stmt.symbols, local);
+	raviX_add_symbol(parser->compiler_state, &stmt->for_stmt.symbols, local);
 	add_local_symbol_to_current_scope(parser, local);
 	checknext(ls, '=');
 	/* get the type of each expression */
-	add_ast_node(parser->container, &stmt->for_stmt.expr_list, parse_expression(parser)); /* initial value */
+	add_ast_node(parser->compiler_state, &stmt->for_stmt.expr_list, parse_expression(parser)); /* initial value */
 	checknext(ls, ',');
-	add_ast_node(parser->container, &stmt->for_stmt.expr_list, parse_expression(parser)); /* limit */
+	add_ast_node(parser->compiler_state, &stmt->for_stmt.expr_list, parse_expression(parser)); /* limit */
 	if (testnext(ls, ',')) {
-		add_ast_node(parser->container, &stmt->for_stmt.expr_list,
+		add_ast_node(parser->compiler_state, &stmt->for_stmt.expr_list,
 			     parse_expression(parser)); /* optional step */
 	}
 	parse_forbody(parser, stmt, line, 1, 1);
@@ -1397,11 +1407,11 @@ static void parse_for_list(ParserState *parser, AstNode *stmt, const StringObjec
 	int nvars = 4; /* gen, state, control, plus at least one declared var */
 	/* create declared variables */
 	LuaSymbol *local = new_local_symbol(parser, indexname, RAVI_TANY, NULL);
-	raviX_add_symbol(parser->container, &stmt->for_stmt.symbols, local);
+	raviX_add_symbol(parser->compiler_state, &stmt->for_stmt.symbols, local);
 	add_local_symbol_to_current_scope(parser, local);
 	while (testnext(ls, ',')) {
 		local = new_local_symbol(parser, check_name_and_next(ls), RAVI_TANY, NULL);
-		raviX_add_symbol(parser->container, &stmt->for_stmt.symbols, local);
+		raviX_add_symbol(parser->compiler_state, &stmt->for_stmt.symbols, local);
 		add_local_symbol_to_current_scope(parser, local);
 		nvars++;
 	}
@@ -1459,7 +1469,7 @@ static AstNode *parse_if_cond_then_block(ParserState *parser)
 	if (ls->t.token == TOK_goto || ls->t.token == TOK_break) {
 		test_then_block->test_then_block.test_then_scope = new_scope(parser);
 		AstNode *stmt = parse_goto_statment(parser); /* handle goto/break */
-		add_ast_node(parser->container, &test_then_block->test_then_block.test_then_statement_list, stmt);
+		add_ast_node(parser->compiler_state, &test_then_block->test_then_block.test_then_statement_list, stmt);
 		skip_noop_statements(parser); /* skip other no-op statements */
 		if (block_follow(ls, 0)) {    /* 'goto' is the entire block? */
 			end_scope(parser);
@@ -1484,10 +1494,10 @@ static AstNode *parse_if_statement(ParserState *parser, int line)
 	stmt->if_stmt.else_block = NULL;
 	stmt->if_stmt.else_statement_list = NULL;
 	AstNode *test_then_block = parse_if_cond_then_block(parser); /* IF cond THEN block */
-	add_ast_node(parser->container, &stmt->if_stmt.if_condition_list, test_then_block);
+	add_ast_node(parser->compiler_state, &stmt->if_stmt.if_condition_list, test_then_block);
 	while (ls->t.token == TOK_elseif) {
 		test_then_block = parse_if_cond_then_block(parser); /* ELSEIF cond THEN block */
-		add_ast_node(parser->container, &stmt->if_stmt.if_condition_list, test_then_block);
+		add_ast_node(parser->compiler_state, &stmt->if_stmt.if_condition_list, test_then_block);
 	}
 	if (testnext(ls, TOK_else))
 		stmt->if_stmt.else_block = parse_block(parser, &stmt->if_stmt.else_statement_list); /* 'else' part */
@@ -1508,8 +1518,8 @@ static AstNode *parse_local_function_statement(ParserState *parser)
 	AstNode *stmt = raviX_allocate_ast_node(parser, STMT_LOCAL);
 	stmt->local_stmt.var_list = NULL;
 	stmt->local_stmt.expr_list = NULL;
-	raviX_add_symbol(parser->container, &stmt->local_stmt.var_list, symbol);
-	add_ast_node(parser->container, &stmt->local_stmt.expr_list, function_ast);
+	raviX_add_symbol(parser->compiler_state, &stmt->local_stmt.var_list, symbol);
+	add_ast_node(parser->compiler_state, &stmt->local_stmt.expr_list, function_ast);
 	return stmt;
 }
 
@@ -1541,7 +1551,7 @@ static AstNode *parse_local_statement(ParserState *parser)
 	do {
 		/* local name : type = value */
 		LuaSymbol *symbol = parse_local_variable_declaration(parser);
-		raviX_add_symbol(parser->container, &node->local_stmt.var_list, symbol);
+		raviX_add_symbol(parser->compiler_state, &node->local_stmt.var_list, symbol);
 		nvars++;
 		if (nvars >= MAXVARS)
 			raviX_syntaxerror(ls, "too many local variables");
@@ -1572,7 +1582,7 @@ static AstNode *parse_function_name(ParserState *parser)
 	function_stmt->function_stmt.selectors = NULL;
 	function_stmt->function_stmt.name = new_symbol_reference(parser, check_name_and_next(parser->ls));
 	while (ls->t.token == '.') {
-		add_ast_node(parser->container, &function_stmt->function_stmt.selectors, parse_field_selector(parser));
+		add_ast_node(parser->compiler_state, &function_stmt->function_stmt.selectors, parse_field_selector(parser));
 	}
 	if (ls->t.token == ':') {
 		function_stmt->function_stmt.method_name = parse_field_selector(parser);
@@ -1604,9 +1614,9 @@ static AstNode *parse_expression_statement(ParserState *parser)
 	/* stat -> func | assignment */
 	/* Until we see '=' we do not know if this is an assignment or expr list*/
 	AstNodeList *current_list = NULL;
-	add_ast_node(parser->container, &current_list, parse_suffixed_expression(parser));
+	add_ast_node(parser->compiler_state, &current_list, parse_suffixed_expression(parser));
 	while (testnext(ls, ',')) { /* assignment -> ',' suffixedexp assignment */
-		add_ast_node(parser->container, &current_list, parse_suffixed_expression(parser));
+		add_ast_node(parser->compiler_state, &current_list, parse_suffixed_expression(parser));
 	}
 	if (ls->t.token == '=') { /* stat -> assignment ? */
 		checknext(ls, '=');
@@ -1728,14 +1738,14 @@ static void parse_statement_list(ParserState *parser, AstNodeList **list)
 		bool was_return = ls->t.token == TOK_return;
 		AstNode *stmt = parse_statement(parser);
 		if (stmt)
-			add_ast_node(parser->container, list, stmt);
+			add_ast_node(parser->compiler_state, list, stmt);
 		if (was_return)
 			break; /* 'return' must be last statement */
 	}
 }
 
-Scope *raviX_allocate_scope(CompilerState *container, AstNode *function, Scope *parent_scope) {
-	C_MemoryAllocator *allocator = container->allocator;
+Scope *raviX_allocate_scope(CompilerState *compiler_state, AstNode *function, Scope *parent_scope) {
+	C_MemoryAllocator *allocator = compiler_state->allocator;
 	Scope *scope = (Scope *) allocator->calloc(allocator->arena, 1, sizeof(Scope));
 	scope->symbol_list = NULL;
 	scope->function = function;
@@ -1753,8 +1763,8 @@ Scope *raviX_allocate_scope(CompilerState *container, AstNode *function, Scope *
  */
 static Scope *new_scope(ParserState *parser)
 {
-	CompilerState *container = parser->container;
-	Scope *scope = raviX_allocate_scope(container, parser->current_function, parser->current_scope);
+	CompilerState *compiler_state = parser->compiler_state;
+	Scope *scope = raviX_allocate_scope(compiler_state, parser->current_function, parser->current_scope);
 	parser->current_scope = scope;
 	if (!parser->current_function->function_expr.main_block)
 		parser->current_function->function_expr.main_block = scope;
@@ -1793,7 +1803,7 @@ static AstNode *new_function(ParserState *parser)
 	node->function_expr.parent_function = parser->current_function;
 	if (parser->current_function) {
 		// Make this function a child of current function
-		add_ast_node(parser->container, &parser->current_function->function_expr.child_functions, node);
+		add_ast_node(parser->compiler_state, &parser->current_function->function_expr.child_functions, node);
 	}
 	parser->current_function = node;
 	new_scope(parser); /* Start function scope */
@@ -1818,20 +1828,20 @@ The code is wrapped in a vararg function */
 static void parse_lua_chunk(ParserState *parser)
 {
 	raviX_next(parser->ls);					 /* read first token */
-	parser->container->main_function = new_function(parser); /* vararg function wrapper */
-	parser->container->main_function->function_expr.is_vararg = true;
+	parser->compiler_state->main_function = new_function(parser); /* vararg function wrapper */
+	parser->compiler_state->main_function->function_expr.is_vararg = true;
 	add_upvalue_for_ENV(parser);
-	parse_statement_list(parser, &parser->container->main_function->function_expr.function_statement_list);
+	parse_statement_list(parser, &parser->compiler_state->main_function->function_expr.function_statement_list);
 	end_function(parser);
 	assert(parser->current_function == NULL);
 	assert(parser->current_scope == NULL);
 	check(parser->ls, TOK_EOS);
 }
 
-static void parser_state_init(ParserState *parser, LexerState *ls, CompilerState *container)
+static void parser_state_init(ParserState *parser, LexerState *ls, CompilerState *compiler_state)
 {
 	parser->ls = ls;
-	parser->container = container;
+	parser->compiler_state = compiler_state;
 	parser->current_function = NULL;
 	parser->current_scope = NULL;
 }
@@ -1841,12 +1851,12 @@ static void parser_state_init(ParserState *parser, LexerState *ls, CompilerState
 ** syntax tree; return 0 on success / non-zero return code on
 ** failure
 */
-int raviX_parse(CompilerState *container, const char *buffer, size_t buflen, const char *name)
+int raviX_parse(CompilerState *compiler_state, const char *buffer, size_t buflen, const char *name)
 {
-	LexerState *lexstate = raviX_init_lexer(container, buffer, buflen, name);
+	LexerState *lexstate = raviX_init_lexer(compiler_state, buffer, buflen, name);
 	ParserState parser_state;
-	parser_state_init(&parser_state, lexstate, container);
-	int rc = setjmp(container->env);
+	parser_state_init(&parser_state, lexstate, compiler_state);
+	int rc = setjmp(compiler_state->env);
 	if (rc == 0) {
 		parse_lua_chunk(&parser_state);
 	}
@@ -1874,29 +1884,29 @@ static uint32_t string_hash(const void *c)
 
 CompilerState *raviX_init_compiler(C_MemoryAllocator *allocator)
 {
-	CompilerState *container = (CompilerState *)raviX_calloc(1, sizeof(CompilerState));
-	container->allocator = allocator;
-	raviX_buffer_init(&container->buff, 1024);
-	raviX_buffer_init(&container->error_message, 256);
-	container->strings = raviX_set_create(string_hash, string_equal);
-	container->main_function = NULL;
-	container->killed = false;
-	container->linearizer = NULL;
-	container->_ENV = raviX_create_string(container, "_ENV", 4);
-	return container;
+	CompilerState *compiler_state = (CompilerState *)raviX_calloc(1, sizeof(CompilerState));
+	compiler_state->allocator = allocator;
+	raviX_buffer_init(&compiler_state->buff, 1024);
+	raviX_buffer_init(&compiler_state->error_message, 256);
+	compiler_state->strings = raviX_set_create(string_hash, string_equal);
+	compiler_state->main_function = NULL;
+	compiler_state->killed = false;
+	compiler_state->linearizer = NULL;
+	compiler_state->_ENV = raviX_create_string(compiler_state, "_ENV", 4);
+	return compiler_state;
 }
 
-void raviX_destroy_compiler(CompilerState *container)
+void raviX_destroy_compiler(CompilerState *compiler_state)
 {
-	if (!container->killed) {
-		if (container->linearizer) {
-			raviX_destroy_linearizer(container->linearizer);
-			raviX_free(container->linearizer);
+	if (!compiler_state->killed) {
+		if (compiler_state->linearizer) {
+			raviX_destroy_linearizer(compiler_state->linearizer);
+			raviX_free(compiler_state->linearizer);
 		}
-		raviX_set_destroy(container->strings, NULL);
-		raviX_buffer_free(&container->buff);
-		raviX_buffer_free(&container->error_message);
-		container->killed = true;
+		raviX_set_destroy(compiler_state->strings, NULL);
+		raviX_buffer_free(&compiler_state->buff);
+		raviX_buffer_free(&compiler_state->error_message);
+		compiler_state->killed = true;
 	}
-	raviX_free(container);
+	raviX_free(compiler_state);
 }

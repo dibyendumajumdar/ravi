@@ -28,9 +28,9 @@
 #include <math.h>
 #include <string.h>
 
-static void process_expression_list(CompilerState *container, AstNodeList *node);
-static void process_statement_list(CompilerState *container, AstNodeList *node);
-static void process_statement(CompilerState *container, AstNode *node);
+static void process_expression_list(CompilerState *compiler_state, AstNodeList *node);
+static void process_statement_list(CompilerState *compiler_state, AstNodeList *node);
+static void process_statement(CompilerState *compiler_state, AstNode *node);
 
 #define l_mathop(op) op
 
@@ -161,11 +161,11 @@ typedef enum {
 /* convert an object to an integer (without string coercion) */
 #define tointegerns(o, i) (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointegerns(o, i, LUA_FLOORN2I))
 
-static void handle_error(CompilerState *container, const char *msg)
+static void handle_error(CompilerState *compiler_state, const char *msg)
 {
 	// TODO source and line number
-	raviX_buffer_add_string(&container->error_message, msg);
-	longjmp(container->env, 1);
+	raviX_buffer_add_string(&compiler_state->error_message, msg);
+	longjmp(compiler_state->env, 1);
 }
 
 /*
@@ -367,27 +367,27 @@ static int luaO_rawarith(CompilerState *compiler_state, int op, const LiteralExp
 	}
 }
 
-static void walk_binary_expr(CompilerState *container, AstNode *node, AstNodeList **expr_list) { 
+static void walk_binary_expr(CompilerState *compiler_state, AstNode *node, AstNodeList **expr_list) {
 	assert(node->type == EXPR_BINARY && node->binary_expr.binary_op == BINOPR_CONCAT);
 	AstNode *left = node->binary_expr.expr_left;
 	AstNode *right = node->binary_expr.expr_right;
 	if (left->type == EXPR_BINARY && left->binary_expr.binary_op == BINOPR_CONCAT) {
-		walk_binary_expr(container, left, expr_list);
+		walk_binary_expr(compiler_state, left, expr_list);
 	} else {
-		raviX_ptrlist_add((PtrList **)expr_list, left, container->allocator);
+		raviX_ptrlist_add((PtrList **)expr_list, left, compiler_state->allocator);
 	}
 	if (right->type == EXPR_BINARY && right->binary_expr.binary_op == BINOPR_CONCAT) {
-		walk_binary_expr(container, right, expr_list);
+		walk_binary_expr(compiler_state, right, expr_list);
 	} else {
-		raviX_ptrlist_add((PtrList **)expr_list, right, container->allocator);
+		raviX_ptrlist_add((PtrList **)expr_list, right, compiler_state->allocator);
 	}
 }
 
 /* node must be a binary op with op code CONCAT */
-static void flatten_concat_expression(CompilerState *container, AstNode *node) {
+static void flatten_concat_expression(CompilerState *compiler_state, AstNode *node) {
 	assert(node->type == EXPR_BINARY && node->binary_expr.binary_op == BINOPR_CONCAT);
 	AstNodeList  *expr_list = NULL;
-	walk_binary_expr(container, node, &expr_list);
+	walk_binary_expr(compiler_state, node, &expr_list);
 	node->type = EXPR_CONCAT;
 	node->binary_expr.expr_left = NULL;
 	node->binary_expr.expr_left = NULL;
@@ -406,16 +406,16 @@ static void flatten_concat_expression(CompilerState *container, AstNode *node) {
 	END_FOR_EACH_PTR(node);
 }
 
-static void process_expression(CompilerState *container, AstNode *node)
+static void process_expression(CompilerState *compiler_state, AstNode *node)
 {
 	switch (node->type) {
 	case EXPR_FUNCTION:
-		process_statement_list(container, node->function_expr.function_statement_list);
+		process_statement_list(compiler_state, node->function_expr.function_statement_list);
 		break;
 	case EXPR_SUFFIXED:
-		process_expression(container, node->suffixed_expr.primary_expr);
+		process_expression(compiler_state, node->suffixed_expr.primary_expr);
 		if (node->suffixed_expr.suffix_list) {
-			process_expression_list(container, node->suffixed_expr.suffix_list);
+			process_expression_list(compiler_state, node->suffixed_expr.suffix_list);
 		} else {
 			// We can simplify and get rid of the suffixed expr
 			// TODO free primary_expr
@@ -423,23 +423,23 @@ static void process_expression(CompilerState *container, AstNode *node)
 		}
 		break;
 	case EXPR_FUNCTION_CALL:
-		process_expression_list(container, node->function_call_expr.arg_list);
+		process_expression_list(compiler_state, node->function_call_expr.arg_list);
 		break;
 	case EXPR_SYMBOL:
 		break;
 	case EXPR_BINARY:
 		if (node->binary_expr.binary_op == BINOPR_CONCAT) {
-			flatten_concat_expression(container, node);
+			flatten_concat_expression(compiler_state, node);
 			goto L_string_concat;
 		}
-		process_expression(container, node->binary_expr.expr_left);
-		process_expression(container, node->binary_expr.expr_right);
+		process_expression(compiler_state, node->binary_expr.expr_left);
+		process_expression(compiler_state, node->binary_expr.expr_right);
 		if (node->binary_expr.expr_left->type == EXPR_LITERAL &&
 		    node->binary_expr.expr_right->type == EXPR_LITERAL && 
 			node->binary_expr.binary_op >= BINOPR_ADD &&
 			node->binary_expr.binary_op <= BINOPR_SHR) {
 			LiteralExpression result = { { RAVI_TANY } };
-			if (luaO_rawarith(container, node->binary_expr.binary_op,
+			if (luaO_rawarith(compiler_state, node->binary_expr.binary_op,
 					  &node->binary_expr.expr_left->literal_expr,
 					  &node->binary_expr.expr_right->literal_expr, &result)) {
 				node->type = EXPR_LITERAL;
@@ -456,14 +456,14 @@ static void process_expression(CompilerState *container, AstNode *node)
 		break;
 	case EXPR_CONCAT:
 	L_string_concat:
-		process_expression_list(container, node->string_concatenation_expr.expr_list);
+		process_expression_list(compiler_state, node->string_concatenation_expr.expr_list);
 		break;
 	case EXPR_UNARY:
-		process_expression(container, node->unary_expr.expr);
+		process_expression(compiler_state, node->unary_expr.expr);
 		if (node->unary_expr.expr->type == EXPR_LITERAL && 
 			(node->unary_expr.unary_op == UNOPR_BNOT || node->unary_expr.unary_op == UNOPR_MINUS)) {
 			LiteralExpression result = { { RAVI_TANY } };
-			if (luaO_rawarith(container, node->unary_expr.unary_op, &node->unary_expr.expr->literal_expr,
+			if (luaO_rawarith(compiler_state, node->unary_expr.unary_op, &node->unary_expr.expr->literal_expr,
 					  &node->unary_expr.expr->literal_expr, &result)) {
 				node->type = EXPR_LITERAL;
 				node->literal_expr.type.type_code = result.type.type_code;
@@ -480,19 +480,19 @@ static void process_expression(CompilerState *container, AstNode *node)
 	case EXPR_LITERAL:
 		break;
 	case EXPR_FIELD_SELECTOR:
-		process_expression(container, node->index_expr.expr);
+		process_expression(compiler_state, node->index_expr.expr);
 		break;
 	case EXPR_Y_INDEX:
-		process_expression(container, node->index_expr.expr);
+		process_expression(compiler_state, node->index_expr.expr);
 		break;
 	case EXPR_TABLE_ELEMENT_ASSIGN:
 		if (node->table_elem_assign_expr.key_expr) {
-			process_expression(container, node->table_elem_assign_expr.key_expr);
+			process_expression(compiler_state, node->table_elem_assign_expr.key_expr);
 		}
-		process_expression(container, node->table_elem_assign_expr.value_expr);
+		process_expression(compiler_state, node->table_elem_assign_expr.value_expr);
 		break;
 	case EXPR_TABLE_LITERAL:
-		process_expression_list(container, node->table_expr.expr_list);
+		process_expression_list(compiler_state, node->table_expr.expr_list);
 		break;
 	case EXPR_BUILTIN:
 		break;
@@ -502,71 +502,71 @@ static void process_expression(CompilerState *container, AstNode *node)
 	}
 }
 
-static void process_expression_list(CompilerState *container, AstNodeList *list)
+static void process_expression_list(CompilerState *compiler_state, AstNodeList *list)
 {
 	AstNode *node;
-	FOR_EACH_PTR(list, AstNode, node) { process_expression(container, node); }
+	FOR_EACH_PTR(list, AstNode, node) { process_expression(compiler_state, node); }
 	END_FOR_EACH_PTR(node);
 }
 
-static void process_statement_list(CompilerState *container, AstNodeList *list)
+static void process_statement_list(CompilerState *compiler_state, AstNodeList *list)
 {
 	AstNode *node;
-	FOR_EACH_PTR(list, AstNode, node) { process_statement(container, node); }
+	FOR_EACH_PTR(list, AstNode, node) { process_statement(compiler_state, node); }
 	END_FOR_EACH_PTR(node);
 }
 
-static void process_statement(CompilerState *container, AstNode *node)
+static void process_statement(CompilerState *compiler_state, AstNode *node)
 {
 	switch (node->type) {
 	case AST_NONE:
 		break;
 	case STMT_RETURN:
-		process_expression_list(container, node->return_stmt.expr_list);
+		process_expression_list(compiler_state, node->return_stmt.expr_list);
 		break;
 	case STMT_LOCAL:
-		process_expression_list(container, node->local_stmt.expr_list);
+		process_expression_list(compiler_state, node->local_stmt.expr_list);
 		break;
 	case STMT_FUNCTION:
-		process_expression(container, node->function_stmt.function_expr);
+		process_expression(compiler_state, node->function_stmt.function_expr);
 		break;
 	case STMT_LABEL:
 	case STMT_GOTO:
 		break;
 	case STMT_DO:
-		process_statement_list(container, node->do_stmt.do_statement_list);
+		process_statement_list(compiler_state, node->do_stmt.do_statement_list);
 		break;
 	case STMT_EXPR:
 		if (node->expression_stmt.var_expr_list) {
-			process_expression_list(container, node->expression_stmt.var_expr_list);
+			process_expression_list(compiler_state, node->expression_stmt.var_expr_list);
 		}
-		process_expression_list(container, node->expression_stmt.expr_list);
+		process_expression_list(compiler_state, node->expression_stmt.expr_list);
 		break;
 	case STMT_IF: {
 		AstNode *test_then_block;
 		FOR_EACH_PTR(node->if_stmt.if_condition_list, AstNode, test_then_block)
 		{
-			process_expression(container, test_then_block->test_then_block.condition);
-			process_statement_list(container, test_then_block->test_then_block.test_then_statement_list);
+			process_expression(compiler_state, test_then_block->test_then_block.condition);
+			process_statement_list(compiler_state, test_then_block->test_then_block.test_then_statement_list);
 		}
 		END_FOR_EACH_PTR(node);
 		if (node->if_stmt.else_block) {
-			process_statement_list(container, node->if_stmt.else_statement_list);
+			process_statement_list(compiler_state, node->if_stmt.else_statement_list);
 		}
 		break;
 	}
 	case STMT_WHILE:
-		process_expression(container, node->while_or_repeat_stmt.condition);
-		process_statement_list(container, node->while_or_repeat_stmt.loop_statement_list);
+		process_expression(compiler_state, node->while_or_repeat_stmt.condition);
+		process_statement_list(compiler_state, node->while_or_repeat_stmt.loop_statement_list);
 		break;
 	case STMT_REPEAT:
-		process_statement_list(container, node->while_or_repeat_stmt.loop_statement_list);
-		process_expression(container, node->while_or_repeat_stmt.condition);
+		process_statement_list(compiler_state, node->while_or_repeat_stmt.loop_statement_list);
+		process_expression(compiler_state, node->while_or_repeat_stmt.condition);
 		break;
 	case STMT_FOR_IN:
 	case STMT_FOR_NUM:
-		process_expression_list(container, node->for_stmt.expr_list);
-		process_statement_list(container, node->for_stmt.for_statement_list);
+		process_expression_list(compiler_state, node->for_stmt.expr_list);
+		process_statement_list(compiler_state, node->for_stmt.for_statement_list);
 		break;
 	case STMT_EMBEDDED_C:
 		break;
@@ -577,11 +577,11 @@ static void process_statement(CompilerState *container, AstNode *node)
 	}
 }
 
-int raviX_ast_simplify(CompilerState *container)
+int raviX_ast_simplify(CompilerState *compiler_state)
 {
-	int rc = setjmp(container->env);
+	int rc = setjmp(compiler_state->env);
 	if (rc == 0) {
-		process_expression(container, container->main_function);
+		process_expression(compiler_state, compiler_state->main_function);
 	} else {
 		// dump it?
 	}

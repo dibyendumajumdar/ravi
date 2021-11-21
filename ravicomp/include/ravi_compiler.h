@@ -559,6 +559,18 @@ RAVICOMP_EXPORT void
 raviX_function_call_expression_foreach_argument(const FunctionCallExpression *expression, void *userdata,
 						void (*callback)(void *, const Expression *expr));
 
+/* string concatenation expression */
+RAVICOMP_EXPORT void
+raviX_string_concatenation_expression_foreach_argument(const StringConcatenationExpression *expression, void *userdata,
+					  void (*callback)(void *, const Expression *expr));
+
+/* builtin expression */
+RAVICOMP_EXPORT int raviX_builtin_expression_token(const BuiltinExpression *expression);
+RAVICOMP_EXPORT void
+raviX_builtin_expression_foreach_argument(const BuiltinExpression *expression, void *userdata,
+						void (*callback)(void *, const Expression *expr));
+
+
 /* Convert a statement to the correct type */
 RAVICOMP_EXPORT enum AstNodeType raviX_statement_type(const Statement *statement);
 RAVICOMP_EXPORT const ReturnStatement *raviX_return_statement(const Statement *stmt);
@@ -587,6 +599,8 @@ raviX_table_element_assignment_expression(const Expression *expr);
 RAVICOMP_EXPORT const TableLiteralExpression *raviX_table_literal_expression(const Expression *expr);
 RAVICOMP_EXPORT const SuffixedExpression *raviX_suffixed_expression(const Expression *expr);
 RAVICOMP_EXPORT const FunctionCallExpression *raviX_function_call_expression(const Expression *expr);
+RAVICOMP_EXPORT const StringConcatenationExpression *raviX_string_concatenation_expression(const Expression *expr);
+RAVICOMP_EXPORT const BuiltinExpression *raviX_builtin_expression(const Expression *expr);
 
 RAVICOMP_EXPORT const FunctionExpression *raviX_scope_owning_function(const Scope *scope);
 RAVICOMP_EXPORT const Scope *raviX_scope_parent_scope(const Scope *scope);

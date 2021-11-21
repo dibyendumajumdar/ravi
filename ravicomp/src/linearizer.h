@@ -47,8 +47,6 @@ DECLARE_PTR_LIST(PseudoList, Pseudo);
 DECLARE_PTR_LIST(ProcList, Proc);
 DECLARE_PTR_LIST(StringObjectList, StringObject);
 
-#define container_of(ptr, type, member) ((type *)((char *)(ptr)-offsetof(type, member)))
-
 /* order is important here ! */
 enum opcode {
 	op_nop,
@@ -147,11 +145,12 @@ enum opcode {
 	op_init,
 	op_C__unsafe,
 	op_C__new
+	/* TODO need opcode for C declarations */
 };
 
 /*
  * The IR instructions use operands and targets of type pseudo, which
- * is a way of referencing several different types of objects.
+ * is a way of referencing different types of objects.
  */
 enum PseudoType {
 	PSEUDO_SYMBOL,	  /* An object of type lua_symbol representing local variable or upvalue, always refers to Lua
@@ -211,7 +210,7 @@ struct Instruction {
  * references blocks by the block's index.
  */
 struct BasicBlock {
-	nodeId_t index;		/* The index of the block is a key to enable retrieving the block from its container */
+	nodeId_t index;		/* The index of the block is a key to enable retrieving the block from its compiler_state */
 	InstructionList *insns; /* Note that if number of instructions is 0 then the block was logically deleted */
 };
 DECLARE_PTR_LIST(BasicBlockList, BasicBlock);
@@ -268,12 +267,12 @@ struct Proc {
 };
 
 struct LinearizerState {
-	CompilerState *ast_container;
+	CompilerState *compiler_state;
 	Proc *main_proc;     /* The root of the compiled chunk of code */
 	ProcList *all_procs; /* All procs allocated by the linearizer */
 	Proc *current_proc;  /* proc being compiled */
 	uint32_t proc_id;
-	TextBuffer C_declarations; /* List of top level C declarations to be added to generated code, build from C__decl statements */
+	TextBuffer C_declarations; /* List of top level C declarations to be added to generated code, build from C__decl statements; TODO need op code for this */
 };
 
 // Get string name of an op code

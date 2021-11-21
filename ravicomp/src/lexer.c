@@ -210,20 +210,20 @@ static void txtToken(LexerState *ls, int token)
 	case TOK_FLT:
 	case TOK_INT:
 		save(ls, '\0');
-		raviX_buffer_add_fstring(&ls->container->error_message, "'%s'", raviX_buffer_data(ls->buff));
+		raviX_buffer_add_fstring(&ls->compiler_state->error_message, "'%s'", raviX_buffer_data(ls->buff));
 		break;
 	default:
-		raviX_token2str(token, &ls->container->error_message);
+		raviX_token2str(token, &ls->compiler_state->error_message);
 	}
 }
 static void lexerror(LexerState *ls, const char *msg, int token)
 {
-	raviX_buffer_add_fstring(&ls->container->error_message, "%s(%d): %s", ls->source, ls->linenumber, msg);
+	raviX_buffer_add_fstring(&ls->compiler_state->error_message, "%s(%d): %s", ls->source, ls->linenumber, msg);
 	if (token) {
-		raviX_buffer_add_string(&ls->container->error_message, " near ");
+		raviX_buffer_add_string(&ls->compiler_state->error_message, " near ");
 		txtToken(ls, token);
 	}
-	longjmp(ls->container->env, 1);
+	longjmp(ls->compiler_state->env, 1);
 }
 
 void raviX_syntaxerror(LexerState *ls, const char *msg) { lexerror(ls, msg, ls->t.token); }
@@ -256,7 +256,7 @@ static inline void save_and_next(LexerState *ls)
 */
 static const StringObject *luaX_newstring(LexerState *ls, const char *str, uint32_t l)
 {
-	return raviX_create_string(ls->container, str, l);
+	return raviX_create_string(ls->compiler_state, str, l);
 }
 
 /*
@@ -274,11 +274,11 @@ static void inclinenumber(LexerState *ls)
 		lexerror(ls, "chunk has too many lines", 0);
 }
 
-LexerState *raviX_init_lexer(CompilerState *container, const char *buf, size_t buflen,
+LexerState *raviX_init_lexer(CompilerState *compiler_state, const char *buf, size_t buflen,
 				     const char *source)
 {
 	LexerState *ls = (LexerState *)raviX_calloc(1, sizeof(LexerState));
-	ls->container = container;
+	ls->compiler_state = compiler_state;
 	ls->t.token = 0;
 	ls->buf = buf;
 	ls->bufsize = buflen;
@@ -289,10 +289,10 @@ LexerState *raviX_init_lexer(CompilerState *container, const char *buf, size_t b
 	ls->linenumber = 1;
 	ls->lastline = 1;
 	ls->source = source;
-	ls->envn = raviX_create_string(ls->container, LUA_ENV, (uint32_t)strlen(LUA_ENV))->str; /* get env name */
-	ls->buff = &container->buff;
+	ls->envn = raviX_create_string(ls->compiler_state, LUA_ENV, (uint32_t)strlen(LUA_ENV))->str; /* get env name */
+	ls->buff = &compiler_state->buff;
 	for (int i = 0; i < NUM_RESERVED; i++) {
-		raviX_create_string(ls->container, luaX_tokens[i], (uint32_t)strlen(luaX_tokens[i]));
+		raviX_create_string(ls->compiler_state, luaX_tokens[i], (uint32_t)strlen(luaX_tokens[i]));
 	}
 	return ls;
 }
@@ -977,7 +977,7 @@ static int llex(LexerState *ls, SemInfo *seminfo)
 				do {
 					save_and_next(ls);
 				} while (lislalnum(ls->current));
-				ts = raviX_create_string(ls->container, raviX_buffer_data(ls->buff),
+				ts = raviX_create_string(ls->compiler_state, raviX_buffer_data(ls->buff),
 							 (int32_t)raviX_buffer_len(ls->buff));
 				seminfo->ts = ts;
 				int tok = is_reserved(ts);
@@ -1013,4 +1013,4 @@ int raviX_lookahead(LexerState *ls)
 	return ls->lookahead.token;
 }
 
-const char *raviX_get_last_error(CompilerState *container) { return container->error_message.buf; }
+const char *raviX_get_last_error(CompilerState *compiler_state) { return compiler_state->error_message.buf; }

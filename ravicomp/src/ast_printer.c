@@ -596,11 +596,11 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 	}
 }
 
-void raviX_output_ast(CompilerState *container, FILE *fp)
+void raviX_output_ast(CompilerState *compiler_state, FILE *fp)
 {
 	TextBuffer mbuf;
 	raviX_buffer_init(&mbuf, 1024);
-	raviX_print_ast_node(&mbuf, container->main_function, 0);
+	raviX_print_ast_node(&mbuf, compiler_state->main_function, 0);
 	fputs(mbuf.buf, fp);
 	raviX_buffer_free(&mbuf);
 }

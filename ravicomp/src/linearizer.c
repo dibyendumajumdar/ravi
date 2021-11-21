@@ -53,11 +53,11 @@ The final instruction of a block must always be a branch instruction.
 #include <malloc.h>
 #endif
 
-static void handle_error(CompilerState *container, const char *msg)
+static void handle_error(CompilerState *compiler_state, const char *msg)
 {
 	// TODO source and line number
-	raviX_buffer_add_string(&container->error_message, msg);
-	longjmp(container->env, 1);
+	raviX_buffer_add_string(&compiler_state->error_message, msg);
+	longjmp(compiler_state->env, 1);
 }
 
 static Pseudo *linearize_expression(Proc *proc, AstNode *expr);
@@ -73,6 +73,11 @@ static Pseudo *instruct_move(Proc *proc, enum opcode op, Pseudo *target, Pseudo 
 static void linearize_function(LinearizerState *linearizer);
 static Instruction *allocate_instruction(Proc *proc, enum opcode op, unsigned line_number);
 static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local);
+
+static AstNode* astlist_get(AstNodeList *list, unsigned int i)
+{
+	return (AstNode*) raviX_ptrlist_nth_entry((struct PtrList *) list, i);
+}
 
 /**
  * Allocates a register by reusing a free'd register if possible otherwise
@@ -93,7 +98,7 @@ static inline void free_register(Proc *proc, PseudoGenerator *generator, unsigne
 {
 	if (generator->free_pos == (sizeof generator->free_regs / sizeof generator->free_regs[0])) {
 		/* TODO proper error handling */
-		handle_error(proc->linearizer->ast_container, "Out of register space\n");
+		handle_error(proc->linearizer->compiler_state, "Out of register space\n");
 		return;
 	}
 	// Debug check - ensure register being freed hasn't already been freed
@@ -104,10 +109,10 @@ static inline void free_register(Proc *proc, PseudoGenerator *generator, unsigne
 }
 
 /* Linearizer initialization  */
-LinearizerState *raviX_init_linearizer(CompilerState *container)
+LinearizerState *raviX_init_linearizer(CompilerState *compiler_state)
 {
 	LinearizerState *linearizer = (LinearizerState *)raviX_calloc(1, sizeof(LinearizerState));
-	linearizer->ast_container = container;
+	linearizer->compiler_state = compiler_state;
 	linearizer->proc_id = 0;
 	return linearizer;
 }
@@ -192,7 +197,7 @@ static const Constant *add_constant(Proc *proc, const Constant *c)
 			reg = proc->num_strconstants++;
 			break;
 		}
-		C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+		C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 		Constant *c1 = (Constant *) allocator->calloc(allocator->arena, 1, sizeof(Constant));
 		memcpy(c1, c, sizeof(Constant));
 		c1->index = reg;
@@ -238,17 +243,17 @@ static const Constant *allocate_string_constant(Proc *proc, const StringObject *
 
 static inline void add_instruction_operand(Proc *proc, Instruction *insn, Pseudo *pseudo)
 {
-	raviX_ptrlist_add((PtrList **)&insn->operands, pseudo, proc->linearizer->ast_container->allocator);
+	raviX_ptrlist_add((PtrList **)&insn->operands, pseudo, proc->linearizer->compiler_state->allocator);
 }
 
 static inline void add_instruction_target(Proc *proc, Instruction *insn, Pseudo *pseudo)
 {
-	raviX_ptrlist_add((PtrList **)&insn->targets, pseudo, proc->linearizer->ast_container->allocator);
+	raviX_ptrlist_add((PtrList **)&insn->targets, pseudo, proc->linearizer->compiler_state->allocator);
 }
 
 static Instruction *allocate_instruction(Proc *proc, enum opcode op, unsigned line_number)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	Instruction *insn = (Instruction *) allocator->calloc(allocator->arena, 1, sizeof(Instruction));
 	insn->opcode = op;
 	insn->line_number = line_number;
@@ -265,7 +270,7 @@ static void free_instruction_operand_pseudos(Proc *proc, Instruction *insn)
 static inline void add_instruction(Proc *proc, Instruction *insn)
 {
 	assert(insn->block == NULL || insn->block == proc->current_bb);
-	raviX_ptrlist_add((PtrList **)&proc->current_bb->insns, insn, proc->linearizer->ast_container->allocator);
+	raviX_ptrlist_add((PtrList **)&proc->current_bb->insns, insn, proc->linearizer->compiler_state->allocator);
 	insn->block = proc->current_bb;
 }
 
@@ -284,7 +289,7 @@ Instruction *raviX_last_instruction(BasicBlock *block)
 
 static Pseudo *allocate_symbol_pseudo(Proc *proc, LuaSymbol *sym, unsigned reg)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_SYMBOL;
 	pseudo->symbol = sym;
@@ -298,7 +303,7 @@ static Pseudo *allocate_symbol_pseudo(Proc *proc, LuaSymbol *sym, unsigned reg)
 
 static Pseudo *allocate_constant_pseudo(Proc *proc, const Constant *constant)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_CONSTANT;
 	pseudo->constant = constant;
@@ -308,7 +313,7 @@ static Pseudo *allocate_constant_pseudo(Proc *proc, const Constant *constant)
 
 static Pseudo *allocate_closure_pseudo(Proc *proc)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_PROC;
 	pseudo->proc = proc;
@@ -317,7 +322,7 @@ static Pseudo *allocate_closure_pseudo(Proc *proc)
 
 static Pseudo *allocate_nil_pseudo(Proc *proc)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_NIL;
 	pseudo->proc = proc;
@@ -326,7 +331,7 @@ static Pseudo *allocate_nil_pseudo(Proc *proc)
 
 static Pseudo *allocate_boolean_pseudo(Proc *proc, bool is_true)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = is_true ? PSEUDO_TRUE : PSEUDO_FALSE;
 	pseudo->proc = proc;
@@ -335,7 +340,7 @@ static Pseudo *allocate_boolean_pseudo(Proc *proc, bool is_true)
 
 static Pseudo *allocate_block_pseudo(Proc *proc, BasicBlock *block)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_BLOCK;
 	pseudo->block = block;
@@ -354,7 +359,7 @@ a particular value in the range and for that we use PSEUDO_RANGE_SELECT.
 */
 static Pseudo *allocate_temp_pseudo(Proc *proc, ravitype_t type)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	PseudoGenerator *gen;
 	enum PseudoType pseudo_type;
 	switch (type) {
@@ -382,7 +387,7 @@ static Pseudo *allocate_temp_pseudo(Proc *proc, ravitype_t type)
 
 static Pseudo *allocate_range_pseudo(Proc *proc, Pseudo *orig_pseudo)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_RANGE;
 	pseudo->regnum = orig_pseudo->regnum;
@@ -398,7 +403,7 @@ specified by a PSEUDO_RANGE. Pick of 0 means pick first value from the range.
 */
 Pseudo *raviX_allocate_range_select_pseudo(Proc *proc, Pseudo *range_pseudo, int pick)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	assert(range_pseudo->type == PSEUDO_RANGE);
 	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_RANGE_SELECT;
@@ -447,17 +452,17 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
  */
 static Proc *allocate_proc(LinearizerState *linearizer, AstNode *function_expr)
 {
-	C_MemoryAllocator *allocator = linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = linearizer->compiler_state->allocator;
 	assert(function_expr->type == EXPR_FUNCTION);
 	Proc *proc = (Proc *) allocator->calloc(allocator->arena, 1, sizeof(Proc));
 	proc->function_expr = function_expr;
 	proc->id = raviX_ptrlist_size((PtrList *)linearizer->all_procs)+1; // so that 0 is not assigned
 	function_expr->function_expr.proc_id = proc->id;
-	raviX_ptrlist_add((PtrList **)&linearizer->all_procs, proc, linearizer->ast_container->allocator);
+	raviX_ptrlist_add((PtrList **)&linearizer->all_procs, proc, linearizer->compiler_state->allocator);
 	if (linearizer->current_proc) {
 		proc->parent = linearizer->current_proc;
 		raviX_ptrlist_add((PtrList **)&linearizer->current_proc->procs, proc,
-				  linearizer->ast_container->allocator);
+				  linearizer->compiler_state->allocator);
 	}
 	proc->constants = raviX_set_create(hash_constant, compare_constants);
 	proc->linearizer = linearizer;
@@ -559,10 +564,10 @@ static Pseudo *linearize_literal(Proc *proc, AstNode *expr)
 		pseudo = allocate_boolean_pseudo(proc, expr->literal_expr.u.i);
 		break;
 	case RAVI_TVARARGS:
-		handle_error(proc->linearizer->ast_container, "Var args not supported");
+		handle_error(proc->linearizer->compiler_state, "Var args not supported");
 		break;
 	default:
-		handle_error(proc->linearizer->ast_container, "feature not yet implemented");
+		handle_error(proc->linearizer->compiler_state, "feature not yet implemented");
 		break;
 	}
 	return pseudo;
@@ -623,7 +628,7 @@ static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 	default: {
 		char err[100];
 		snprintf(err, sizeof err, "unexpected unary op %s", raviX_get_unary_opr_str(op));
-		handle_error(proc->linearizer->ast_container, err);
+		handle_error(proc->linearizer->compiler_state, err);
 		break;
 	}
 	}
@@ -829,7 +834,7 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 	default: {
 		char err[100];
 		snprintf(err, sizeof err, "unexpected binary op %s", raviX_get_binary_opr_str(op));
-		handle_error(proc->linearizer->ast_container, err);
+		handle_error(proc->linearizer->compiler_state, err);
 		targetop = op_nop;
 		break;
 	}
@@ -984,7 +989,7 @@ static Pseudo *linearize_symbol_expression(Proc *proc, AstNode *expr)
 		 * the upvalue */
 		return allocate_symbol_pseudo(proc, sym, sym->upvalue.upvalue_index);
 	} else {
-		handle_error(proc->linearizer->ast_container, "feature not yet implemented");
+		handle_error(proc->linearizer->compiler_state, "feature not yet implemented");
 		return NULL;
 	}
 }
@@ -1240,7 +1245,7 @@ static Pseudo *linearize_suffixedexpr(Proc *proc, AstNode *node)
 			next = linearize_function_call_expression(proc, this_node, prev_node, prev_pseudo);
 		} else {
 			next = NULL;
-			handle_error(proc->linearizer->ast_container, "Unexpected expr type in suffix list");
+			handle_error(proc->linearizer->compiler_state, "Unexpected expr type in suffix list");
 		}
 		prev_node = this_node;
 		prev_pseudo = next;
@@ -1537,9 +1542,14 @@ static void linearize_local_statement(Proc *proc, AstNode *stmt)
 
 static Pseudo *linearize_builtin_expression(Proc *proc, AstNode *expr)
 {
+	// For now the only built-in is C__new
+	if (expr->builtin_expr.token != TOK_C__new) {
+		handle_error(proc->linearizer->compiler_state, "feature not yet implemented");
+	}
 	Instruction *insn = allocate_instruction(proc, op_C__new, expr->line_number);
-	add_instruction_operand(proc, insn, allocate_constant_pseudo(proc, allocate_string_constant(proc, expr->builtin_expr.type_name)));
-	Pseudo *size_expr = linearize_expression(proc, expr->builtin_expr.size_expr);
+	const StringObject *type_name = astlist_get(expr->builtin_expr.arg_list, 0)->literal_expr.u.ts;
+	add_instruction_operand(proc, insn, allocate_constant_pseudo(proc, allocate_string_constant(proc, type_name)));
+	Pseudo *size_expr = linearize_expression(proc, astlist_get(expr->builtin_expr.arg_list, 1));
 	add_instruction_operand(proc, insn, size_expr);
 	Pseudo *target = allocate_temp_pseudo(proc, RAVI_TUSERDATA);
 	add_instruction_target(proc, insn, target);
@@ -1584,7 +1594,7 @@ static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 		result = linearize_builtin_expression(proc, expr);
 	} break;
 	default:
-		handle_error(proc->linearizer->ast_container, "feature not yet implemented");
+		handle_error(proc->linearizer->compiler_state, "feature not yet implemented");
 		break;
 	}
 	assert(result);
@@ -1607,7 +1617,7 @@ static void linearize_expr_list(Proc *proc, AstNodeList *expr_list, Instruction 
 		if (ne != 0 && pseudo->type == PSEUDO_RANGE) {
 			convert_range_to_temp(pseudo); // Only accept one result unless it is the last expr
 		}
-		raviX_ptrlist_add((PtrList **)pseudo_list, pseudo, proc->linearizer->ast_container->allocator);
+		raviX_ptrlist_add((PtrList **)pseudo_list, pseudo, proc->linearizer->compiler_state->allocator);
 	}
 	END_FOR_EACH_PTR(expr)
 }
@@ -1718,14 +1728,14 @@ static void linearize_if_statement(Proc *proc, AstNode *ifnode)
 	FOR_EACH_PTR(if_else_stmts, AstNode, this_node)
 	{
 		BasicBlock *block = create_block(proc);
-		raviX_ptrlist_add((PtrList **)&if_blocks, block, proc->linearizer->ast_container->allocator);
+		raviX_ptrlist_add((PtrList **)&if_blocks, block, proc->linearizer->compiler_state->allocator);
 	}
 	END_FOR_EACH_PTR(this_node)
 
 	FOR_EACH_PTR(if_else_stmts, AstNode, this_node)
 	{
 		BasicBlock *block = create_block(proc);
-		raviX_ptrlist_add((PtrList **)&if_true_blocks, block, proc->linearizer->ast_container->allocator);
+		raviX_ptrlist_add((PtrList **)&if_true_blocks, block, proc->linearizer->compiler_state->allocator);
 	}
 	END_FOR_EACH_PTR(this_node)
 
@@ -1924,7 +1934,7 @@ static void linearize_goto_statement(Proc *proc, const AstNode *node)
 {
 	if (node->goto_stmt.is_break) {
 		if (proc->current_break_target == NULL) {
-			handle_error(proc->linearizer->ast_container, "no current break target");
+			handle_error(proc->linearizer->compiler_state, "no current break target");
 		}
 		/* Find the oldest ancestor scope that may need to be closed */
 		Scope *min_closing_block = find_min_closing_block(node->goto_stmt.goto_scope, proc->current_break_scope);
@@ -1959,7 +1969,7 @@ static void linearize_goto_statement(Proc *proc, const AstNode *node)
 			return;
 		}
 	}
-	handle_error(proc->linearizer->ast_container, "goto label not found");
+	handle_error(proc->linearizer->compiler_state, "goto label not found");
 }
 
 static void linearize_do_statement(Proc *proc, AstNode *node)
@@ -2068,7 +2078,7 @@ static void linearize_for_num_statement_positivestep(Proc *proc, AstNode *node)
 	LuaSymbol *var_sym = (LuaSymbol *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.symbols, 0);
 
 	if (index_var_expr == NULL || limit_expr == NULL) {
-		handle_error(proc->linearizer->ast_container, "A least index and limit must be supplied");
+		handle_error(proc->linearizer->compiler_state, "A least index and limit must be supplied");
 	}
 	Pseudo *t = linearize_expression(proc, index_var_expr);
 	if (t->type == PSEUDO_RANGE) {
@@ -2151,7 +2161,7 @@ static void linearize_for_num_statement(Proc *proc, AstNode *node)
 	FOR_EACH_PTR(node->for_stmt.expr_list, AstNode, expr)
 		{
 			if (expr->common_expr.type.type_code != RAVI_TNUMINT) {
-				handle_error(proc->linearizer->ast_container,
+				handle_error(proc->linearizer->compiler_state,
 					     "Only for loops with integer expressions currently supported");
 			}
 		}
@@ -2186,7 +2196,7 @@ static void linearize_for_num_statement(Proc *proc, AstNode *node)
 	LuaSymbol *var_sym = (LuaSymbol *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.symbols, 0);
 
 	if (index_var_expr == NULL || limit_expr == NULL) {
-		handle_error(proc->linearizer->ast_container, "A least index and limit must be supplied");
+		handle_error(proc->linearizer->compiler_state, "A least index and limit must be supplied");
 	}
 
 	Pseudo *t = linearize_expression(proc, index_var_expr);
@@ -2310,7 +2320,7 @@ static void linearize_while_statment(Proc *proc, AstNode *node)
 static void linearize_embedded_C_decl(Proc *proc, AstNode *node)
 {
 	if (proc != proc->linearizer->main_proc) {
-		handle_error(proc->linearizer->ast_container,
+		handle_error(proc->linearizer->compiler_state,
 			     "Embedded C declarations can only be present in the main chunk");
 	}
 	add_C_declaration(proc->linearizer, node->embedded_C_stmt.C_src_snippet);
@@ -2331,7 +2341,7 @@ static void linearize_embedded_C(Proc *proc, AstNode *node)
 			Pseudo *pseudo = sym->variable.pseudo;
 			add_instruction_operand(proc, insn, pseudo);
 		} else {
-			handle_error(proc->linearizer->ast_container,
+			handle_error(proc->linearizer->compiler_state,
 				     "Variables referenced by embed C instruction must be locals");
 		}
 	}
@@ -2361,7 +2371,7 @@ static void linearize_function_statement(Proc *proc, AstNode *node)
 						     key_pseudo, this_node->common_expr.type.type_code, node->line_number);
 		} else {
 			next = NULL;
-			handle_error(proc->linearizer->ast_container,
+			handle_error(proc->linearizer->compiler_state,
 				     "Unexpected expr type in function name selector list");
 		}
 		prev_node = this_node;
@@ -2379,7 +2389,7 @@ static void linearize_function_statement(Proc *proc, AstNode *node)
 			    instruct_indexed_load(proc, prev_node->common_expr.type.type_code, prev_pseudo, key_type,
 						  key_pseudo, this_node->common_expr.type.type_code, node->line_number);
 		} else {
-			handle_error(proc->linearizer->ast_container,
+			handle_error(proc->linearizer->compiler_state,
 				     "Unexpected expr type in function name selector list");
 		}
 		prev_node = this_node;
@@ -2434,7 +2444,7 @@ static void linearize_statement(Proc *proc, AstNode *node)
 		break;
 	}
 	case STMT_FOR_IN: {
-		handle_error(proc->linearizer->ast_container, "STMT_FOR_IN not yet implemented");
+		handle_error(proc->linearizer->compiler_state, "STMT_FOR_IN not yet implemented");
 		break;
 	}
 	case STMT_FOR_NUM: {
@@ -2446,7 +2456,7 @@ static void linearize_statement(Proc *proc, AstNode *node)
 		break;
 	}
 	default:
-		handle_error(proc->linearizer->ast_container, "unknown statement type");
+		handle_error(proc->linearizer->compiler_state, "unknown statement type");
 		break;
 	}
 }
@@ -2456,7 +2466,7 @@ static void linearize_statement(Proc *proc, AstNode *node)
  */
 static BasicBlock *create_block(Proc *proc)
 {
-	C_MemoryAllocator *allocator = proc->linearizer->ast_container->allocator;
+	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
 	if (proc->node_count >= proc->allocated) {
 		unsigned new_size = proc->allocated + 25;
 		BasicBlock **new_data = (BasicBlock **)
@@ -2660,7 +2670,7 @@ void raviX_output_pseudo(const Pseudo *pseudo, TextBuffer *mb)
 			break;
 		}
 		default:
-			// handle_error(proc->linearizer->ast_container, "feature not yet implemented");
+			// handle_error(proc->linearizer->compiler_state, "feature not yet implemented");
 			abort();
 		}
 		break;
@@ -2786,10 +2796,10 @@ Returns 0 on success.
 */
 int raviX_ast_linearize(LinearizerState *linearizer)
 {
-	Proc *proc = allocate_proc(linearizer, linearizer->ast_container->main_function);
+	Proc *proc = allocate_proc(linearizer, linearizer->compiler_state->main_function);
 	set_main_proc(linearizer, proc);
 	set_current_proc(linearizer, proc);
-	int rc = setjmp(linearizer->ast_container->env);
+	int rc = setjmp(linearizer->compiler_state->env);
 	if (rc == 0) {
 		linearize_function(linearizer);
 	}

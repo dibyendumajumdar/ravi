@@ -88,7 +88,7 @@ struct LexerState {
 	int lastline;	 /* line of last token 'consumed' */
 	Token t;	 /* current token */
 	Token lookahead; /* look ahead token */
-	CompilerState *container;
+	CompilerState *compiler_state;
 	const char *buf;
 	size_t bufsize;
 	size_t n;
@@ -277,9 +277,9 @@ struct ForStatement {
 };
 /* for embedded C */
 struct EmbeddedCStatement {
-	LuaSymbolList *symbols;
-	const StringObject *C_src_snippet; // C source snippet
-	bool is_decl; // true if the snippet is only supposed to be declarations
+	LuaSymbolList *symbols; // Ravi symbols that can be referenced in the embedded C code; only applicable if !is_decl (C__unsafe)
+	const StringObject *C_src_snippet; // C source snippet - if is_decl then should only have type definitions
+	bool is_decl; // true if the snippet is declarations (C__decl)
 };
 
 /* To access the type field common to all expr objects */
@@ -372,8 +372,8 @@ struct FunctionCallExpression {
 struct BuiltinExpression {
 	/* Currently only for C__new but potentially could be other builtins */
 	BASE_EXPRESSION_FIELDS;
-	const StringObject *type_name; /* Name of the C struct type */
-	AstNode *size_expr; /* Number of elements of type - > 1 means array */
+	int token;
+	AstNodeList *arg_list;
 };
 #undef BASE_EXPRESSION_FIELDS
 
@@ -384,7 +384,7 @@ struct BuiltinExpression {
 struct Statement {
 	BASE_AST_FIELDS;
 };
-/* Expression AST nodes have following common fields
+/* Expression AST nodes have the following common fields
 */
 struct Expression {
 	BASE_AST_FIELDS;
@@ -450,7 +450,7 @@ static inline void copy_type(VariableType *a, const VariableType *b)
 
 typedef struct ParserState {
 	LexerState *ls;
-	CompilerState *container;
+	CompilerState *compiler_state;
 	AstNode *current_function;
 	Scope *current_scope;
 } ParserState;
@@ -458,16 +458,16 @@ typedef struct ParserState {
 void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level); /* output the AST structure recursively */
 const char *raviX_get_type_name(ravitype_t tt);
 
-int raviX_ast_simplify(CompilerState* container);
-int raviX_ast_lower(CompilerState *container);
+int raviX_ast_simplify(CompilerState* compiler_state);
+int raviX_ast_lower(CompilerState *compiler_state);
 
 ////////////////////////// Internal stuff
 
 //AstNode *raviX_allocate_ast_node(ParserState *parser, enum AstNodeType type);
-Scope *raviX_allocate_scope(CompilerState *container, AstNode *function, Scope *parent_scope);
-LuaSymbol *raviX_new_local_symbol(CompilerState *container, Scope *scope, const StringObject *name, ravitype_t tt,
+Scope *raviX_allocate_scope(CompilerState *compiler_state, AstNode *function, Scope *parent_scope);
+LuaSymbol *raviX_new_local_symbol(CompilerState *compiler_state, Scope *scope, const StringObject *name, ravitype_t tt,
 				  const StringObject *usertype);
-void raviX_add_symbol(CompilerState *container, LuaSymbolList **list, LuaSymbol *sym);
-AstNode *raviX_allocate_ast_node_at_line(CompilerState *container, enum AstNodeType type, int line_num);
+void raviX_add_symbol(CompilerState *compiler_state, LuaSymbolList **list, LuaSymbol *sym);
+AstNode *raviX_allocate_ast_node_at_line(CompilerState *compiler_state, enum AstNodeType type, int line_num);
 
 #endif

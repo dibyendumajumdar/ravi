@@ -43,29 +43,29 @@ static bool is_type_same(const VariableType *a, const VariableType *b)
 	return a->type_code == b->type_code && a->type_name == b->type_name;
 }
 
-static void handle_error(CompilerState *container, const char *msg)
+static void handle_error(CompilerState *compiler_state, const char *msg)
 {
 	// TODO source and line number
-	raviX_buffer_add_string(&container->error_message, msg);
-	longjmp(container->env, 1);
+	raviX_buffer_add_string(&compiler_state->error_message, msg);
+	longjmp(compiler_state->env, 1);
 }
 
 /* Type checker - WIP  */
-static void typecheck_ast_node(CompilerState *container, AstNode *function, AstNode *node);
+static void typecheck_ast_node(CompilerState *compiler_state, AstNode *function, AstNode *node);
 
 /* Type checker - WIP  */
-static void typecheck_ast_list(CompilerState *container, AstNode *function, AstNodeList *list)
+static void typecheck_ast_list(CompilerState *compiler_state, AstNode *function, AstNodeList *list)
 {
 	AstNode *node;
-	FOR_EACH_PTR(list, AstNode, node) { typecheck_ast_node(container, function, node); }
+	FOR_EACH_PTR(list, AstNode, node) { typecheck_ast_node(compiler_state, function, node); }
 	END_FOR_EACH_PTR(node);
 }
 
 /* Type checker - WIP  */
-static void typecheck_unary_operator(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_unary_operator(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
 	UnaryOperatorType op = node->unary_expr.unary_op;
-	typecheck_ast_node(container, function, node->unary_expr.expr);
+	typecheck_ast_node(compiler_state, function, node->unary_expr.expr);
 	ravitype_t subexpr_type = node->unary_expr.expr->common_expr.type.type_code;
 	switch (op) {
 	case UNOPR_MINUS:
@@ -83,7 +83,7 @@ static void typecheck_unary_operator(CompilerState *container, AstNode *function
 	case UNOPR_TO_INTEGER:
 		if (node->unary_expr.expr->common_expr.type.type_code != RAVI_TANY &&
 		    node->unary_expr.expr->common_expr.type.type_code != RAVI_TNUMINT) {
-			handle_error(container, "Cannot convert type to integer");
+			handle_error(compiler_state, "Cannot convert type to integer");
 		}
 		set_type(&node->unary_expr.type, RAVI_TNUMINT);
 		break;
@@ -91,21 +91,21 @@ static void typecheck_unary_operator(CompilerState *container, AstNode *function
 		if (node->unary_expr.expr->common_expr.type.type_code != RAVI_TANY &&
 		    node->unary_expr.expr->common_expr.type.type_code != RAVI_TNUMINT &&
 		    node->unary_expr.expr->common_expr.type.type_code != RAVI_TNUMFLT) {
-			handle_error(container, "Cannot convert type to number");
+			handle_error(compiler_state, "Cannot convert type to number");
 		}
 		set_type(&node->unary_expr.type, RAVI_TNUMFLT);
 		break;
 	case UNOPR_TO_CLOSURE:
 		if (node->unary_expr.expr->common_expr.type.type_code != RAVI_TANY &&
 		    node->unary_expr.expr->common_expr.type.type_code != RAVI_TFUNCTION) {
-			handle_error(container, "Cannot convert type to function");
+			handle_error(compiler_state, "Cannot convert type to function");
 		}
 		set_type(&node->unary_expr.type, RAVI_TFUNCTION);
 		break;
 	case UNOPR_TO_STRING:
 		if (node->unary_expr.expr->common_expr.type.type_code != RAVI_TANY &&
 		    node->unary_expr.expr->common_expr.type.type_code != RAVI_TSTRING) {
-			handle_error(container, "Cannot convert type to string");
+			handle_error(compiler_state, "Cannot convert type to string");
 		}
 		set_type(&node->unary_expr.type, RAVI_TSTRING);
 		break;
@@ -116,7 +116,7 @@ static void typecheck_unary_operator(CompilerState *container, AstNode *function
 			set_type(&node->unary_expr.expr->table_expr.type, RAVI_TARRAYINT);
 		} else if (node->unary_expr.expr->common_expr.type.type_code != RAVI_TANY &&
 			   node->unary_expr.expr->common_expr.type.type_code != RAVI_TARRAYINT) {
-			handle_error(container, "Cannot convert type to integer[]");
+			handle_error(compiler_state, "Cannot convert type to integer[]");
 		}
 		set_type(&node->unary_expr.type, RAVI_TARRAYINT);
 		break;
@@ -127,21 +127,21 @@ static void typecheck_unary_operator(CompilerState *container, AstNode *function
 			set_type(&node->unary_expr.expr->table_expr.type, RAVI_TARRAYFLT);
 		} else if (node->unary_expr.expr->common_expr.type.type_code != RAVI_TANY &&
 			   node->unary_expr.expr->common_expr.type.type_code != RAVI_TARRAYFLT) {
-			handle_error(container, "Cannot convert type to number[]");
+			handle_error(compiler_state, "Cannot convert type to number[]");
 		}
 		set_type(&node->unary_expr.type, RAVI_TARRAYFLT);
 		break;
 	case UNOPR_TO_TABLE:
 		if (node->unary_expr.expr->common_expr.type.type_code != RAVI_TANY &&
 		    node->unary_expr.expr->common_expr.type.type_code != RAVI_TTABLE) {
-			handle_error(container, "Cannot convert type to table");
+			handle_error(compiler_state, "Cannot convert type to table");
 		}
 		set_type(&node->unary_expr.type, RAVI_TTABLE);
 		break;
 	case UNOPR_TO_TYPE:
 		if (node->unary_expr.expr->common_expr.type.type_code != RAVI_TANY &&
 		    node->unary_expr.expr->common_expr.type.type_code != RAVI_TUSERDATA) {
-			handle_error(container, "Cannot convert type to usertype");
+			handle_error(compiler_state, "Cannot convert type to usertype");
 		}
 		assert(node->unary_expr.type.type_name != NULL); // Should already be set by the parser
 		set_typecode(&node->unary_expr.type, RAVI_TUSERDATA);
@@ -152,13 +152,13 @@ static void typecheck_unary_operator(CompilerState *container, AstNode *function
 }
 
 /* Type checker - WIP  */
-static void typecheck_binary_operator(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_binary_operator(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
 	BinaryOperatorType op = node->binary_expr.binary_op;
 	AstNode *e1 = node->binary_expr.expr_left;
 	AstNode *e2 = node->binary_expr.expr_right;
-	typecheck_ast_node(container, function, e1);
-	typecheck_ast_node(container, function, e2);
+	typecheck_ast_node(compiler_state, function, e1);
+	typecheck_ast_node(compiler_state, function, e2);
 	switch (op) {
 	case BINOPR_ADD:
 	case BINOPR_SUB:
@@ -247,29 +247,29 @@ static bool is_unindexable_type(VariableType *type)
  * x[1][2]
  * x.y[1]
  */
-static void typecheck_suffixedexpr(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_suffixedexpr(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
-	typecheck_ast_node(container, function, node->suffixed_expr.primary_expr);
+	typecheck_ast_node(compiler_state, function, node->suffixed_expr.primary_expr);
 	AstNode *prev_node = node->suffixed_expr.primary_expr;
 	AstNode *this_node;
 	FOR_EACH_PTR(node->suffixed_expr.suffix_list, AstNode, this_node)
 	{
-		typecheck_ast_node(container, function, this_node);
+		typecheck_ast_node(compiler_state, function, this_node);
 		if (this_node->type == EXPR_Y_INDEX) {
 			if (prev_node->common_expr.type.type_code == RAVI_TARRAYFLT) {
 				if (this_node->index_expr.expr->common_expr.type.type_code == RAVI_TNUMINT) {
 					set_typecode(&this_node->index_expr.type, RAVI_TNUMFLT);
 				} else {
-					handle_error(container, "invalid type in index");
+					handle_error(compiler_state, "invalid type in index");
 				}
 			} else if (prev_node->common_expr.type.type_code == RAVI_TARRAYINT) {
 				if (this_node->index_expr.expr->common_expr.type.type_code == RAVI_TNUMINT) {
 					set_typecode(&this_node->index_expr.type, RAVI_TNUMINT);
 				} else {
-					handle_error(container, "invalid type in index");
+					handle_error(compiler_state, "invalid type in index");
 				}
 			} else if (is_unindexable_type(&prev_node->common_expr.type)) {
-				handle_error(container, "invalid type in index");
+				handle_error(compiler_state, "invalid type in index");
 			}
 		}
 		prev_node = this_node;
@@ -278,7 +278,7 @@ static void typecheck_suffixedexpr(CompilerState *container, AstNode *function, 
 	copy_type(&node->suffixed_expr.type, &prev_node->common_expr.type);
 }
 
-static void typecheck_var_assignment(CompilerState *container, VariableType *var_type, AstNode *expr,
+static void typecheck_var_assignment(CompilerState *compiler_state, VariableType *var_type, AstNode *expr,
 				     const StringObject *var_name)
 {
 	if (var_type->type_code == RAVI_TANY)
@@ -303,7 +303,7 @@ static void typecheck_var_assignment(CompilerState *container, VariableType *var
 			char tempbuf[256];
 			snprintf(tempbuf, sizeof tempbuf, "%d: Assignment to local symbol %s is not type compatible\n",
 				 expr->line_number, variable_name);
-			handle_error(container, tempbuf);
+			handle_error(compiler_state, tempbuf);
 		}
 		return;
 	}
@@ -315,7 +315,7 @@ static void typecheck_var_assignment(CompilerState *container, VariableType *var
 			char tempbuf[256];
 			snprintf(tempbuf, sizeof tempbuf, "%d: Assignment to local symbol %s is not type compatible\n",
 				 expr->line_number, variable_name);
-			handle_error(container, tempbuf);
+			handle_error(compiler_state, tempbuf);
 		}
 		return;
 	}
@@ -343,18 +343,18 @@ static void typecheck_var_assignment(CompilerState *container, VariableType *var
 		char tempbuf[256];
 		snprintf(tempbuf, sizeof tempbuf, "%d: Assignment to local symbol %s is not type compatible\n",
 			 expr->line_number, variable_name);
-		handle_error(container, tempbuf);
+		handle_error(compiler_state, tempbuf);
 	}
 }
 
-static void typecheck_local_statement(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_local_statement(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
 	// The local vars should already be annotated
 	// We need to typecheck the expressions to the right of =
 	// Then we need to ensure that the assignments are valid
 	// We can perhaps insert type assertions where we have a mismatch?
 
-	typecheck_ast_list(container, function, node->local_stmt.expr_list);
+	typecheck_ast_list(compiler_state, function, node->local_stmt.expr_list);
 
 	LuaSymbol *var;
 	AstNode *expr;
@@ -368,18 +368,18 @@ static void typecheck_local_statement(CompilerState *container, AstNode *functio
 		VariableType *var_type = &var->variable.value_type;
 		const StringObject *var_name = var->variable.var_name;
 
-		typecheck_var_assignment(container, var_type, expr, var_name);
+		typecheck_var_assignment(compiler_state, var_type, expr, var_name);
 
 		NEXT_PTR_LIST(LuaSymbol, var);
 		NEXT_PTR_LIST(AstNode, expr);
 	}
 }
 
-static void typecheck_expr_statement(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_expr_statement(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
 	if (node->expression_stmt.var_expr_list)
-		typecheck_ast_list(container, function, node->expression_stmt.var_expr_list);
-	typecheck_ast_list(container, function, node->expression_stmt.expr_list);
+		typecheck_ast_list(compiler_state, function, node->expression_stmt.var_expr_list);
+	typecheck_ast_list(compiler_state, function, node->expression_stmt.expr_list);
 
 	if (!node->expression_stmt.var_expr_list)
 		return;
@@ -396,22 +396,22 @@ static void typecheck_expr_statement(CompilerState *container, AstNode *function
 		VariableType *var_type = &var->common_expr.type;
 		const StringObject *var_name = NULL; // FIXME how do we get this?
 
-		typecheck_var_assignment(container, var_type, expr, var_name);
+		typecheck_var_assignment(compiler_state, var_type, expr, var_name);
 
 		NEXT_PTR_LIST(AstNode, var);
 		NEXT_PTR_LIST(AstNode, expr);
 	}
 }
 
-static void typecheck_for_in_statment(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_for_in_statment(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
-	typecheck_ast_list(container, function, node->for_stmt.expr_list);
-	typecheck_ast_list(container, function, node->for_stmt.for_statement_list);
+	typecheck_ast_list(compiler_state, function, node->for_stmt.expr_list);
+	typecheck_ast_list(compiler_state, function, node->for_stmt.for_statement_list);
 }
 
-static void typecheck_for_num_statment(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_for_num_statment(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
-	typecheck_ast_list(container, function, node->for_stmt.expr_list);
+	typecheck_ast_list(compiler_state, function, node->for_stmt.expr_list);
 	AstNode *expr;
 	enum { I = 1, F = 2, A = 4 }; /* bits representing integer, number, any */
 	int index_type = 0;
@@ -448,28 +448,28 @@ static void typecheck_for_num_statment(CompilerState *container, AstNode *functi
 		}
 		END_FOR_EACH_PTR(sym);
 	}
-	typecheck_ast_list(container, function, node->for_stmt.for_statement_list);
+	typecheck_ast_list(compiler_state, function, node->for_stmt.for_statement_list);
 }
 
-static void typecheck_if_statement(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_if_statement(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
 	AstNode *test_then_block;
 	FOR_EACH_PTR(node->if_stmt.if_condition_list, AstNode, test_then_block)
 	{
-		typecheck_ast_node(container, function, test_then_block->test_then_block.condition);
-		typecheck_ast_list(container, function, test_then_block->test_then_block.test_then_statement_list);
+		typecheck_ast_node(compiler_state, function, test_then_block->test_then_block.condition);
+		typecheck_ast_list(compiler_state, function, test_then_block->test_then_block.test_then_statement_list);
 	}
 	END_FOR_EACH_PTR(node);
 	if (node->if_stmt.else_statement_list) {
-		typecheck_ast_list(container, function, node->if_stmt.else_statement_list);
+		typecheck_ast_list(compiler_state, function, node->if_stmt.else_statement_list);
 	}
 }
 
-static void typecheck_while_or_repeat_statement(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_while_or_repeat_statement(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
-	typecheck_ast_node(container, function, node->while_or_repeat_stmt.condition);
+	typecheck_ast_node(compiler_state, function, node->while_or_repeat_stmt.condition);
 	if (node->while_or_repeat_stmt.loop_statement_list) {
-		typecheck_ast_list(container, function, node->while_or_repeat_stmt.loop_statement_list);
+		typecheck_ast_list(compiler_state, function, node->while_or_repeat_stmt.loop_statement_list);
 	}
 }
 
@@ -498,27 +498,27 @@ static void infer_table_type(CompilerState *compiler_state, AstNode *function, A
 }
 
 /* Type checker - WIP  */
-static void typecheck_ast_node(CompilerState *container, AstNode *function, AstNode *node)
+static void typecheck_ast_node(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
 	switch (node->type) {
 	case EXPR_FUNCTION: {
 		/* args need type assertions but those have no ast - i.e. code gen should do it */
-		typecheck_ast_list(container, function, node->function_expr.function_statement_list);
+		typecheck_ast_list(compiler_state, function, node->function_expr.function_statement_list);
 		break;
 	}
 	case AST_NONE: {
 		break;
 	}
 	case STMT_RETURN: {
-		typecheck_ast_list(container, function, node->return_stmt.expr_list);
+		typecheck_ast_list(compiler_state, function, node->return_stmt.expr_list);
 		break;
 	}
 	case STMT_LOCAL: {
-		typecheck_local_statement(container, function, node);
+		typecheck_local_statement(compiler_state, function, node);
 		break;
 	}
 	case STMT_FUNCTION: {
-		typecheck_ast_node(container, function, node->function_stmt.function_expr);
+		typecheck_ast_node(compiler_state, function, node->function_stmt.function_expr);
 		break;
 	}
 	case STMT_LABEL: {
@@ -528,42 +528,42 @@ static void typecheck_ast_node(CompilerState *container, AstNode *function, AstN
 		break;
 	}
 	case STMT_DO: {
-		typecheck_ast_list(container, function, node->do_stmt.do_statement_list);
+		typecheck_ast_list(compiler_state, function, node->do_stmt.do_statement_list);
 		break;
 	}
 	case STMT_EXPR: {
-		typecheck_expr_statement(container, function, node);
+		typecheck_expr_statement(compiler_state, function, node);
 		break;
 	}
 	case STMT_IF: {
-		typecheck_if_statement(container, function, node);
+		typecheck_if_statement(compiler_state, function, node);
 		break;
 	}
 	case STMT_WHILE:
 	case STMT_REPEAT: {
-		typecheck_while_or_repeat_statement(container, function, node);
+		typecheck_while_or_repeat_statement(compiler_state, function, node);
 		break;
 	}
 	case STMT_FOR_IN: {
-		typecheck_for_in_statment(container, function, node);
+		typecheck_for_in_statment(compiler_state, function, node);
 		break;
 	}
 	case STMT_FOR_NUM: {
-		typecheck_for_num_statment(container, function, node);
+		typecheck_for_num_statment(compiler_state, function, node);
 		break;
 	}
 	case STMT_EMBEDDED_C: {
 		break;
 	}
 	case EXPR_SUFFIXED: {
-		typecheck_suffixedexpr(container, function, node);
+		typecheck_suffixedexpr(compiler_state, function, node);
 		break;
 	}
 	case EXPR_FUNCTION_CALL: {
 		if (node->function_call_expr.method_name) {
 		} else {
 		}
-		typecheck_ast_list(container, function, node->function_call_expr.arg_list);
+		typecheck_ast_list(compiler_state, function, node->function_call_expr.arg_list);
 		break;
 	}
 	case EXPR_SYMBOL: {
@@ -577,11 +577,11 @@ static void typecheck_ast_node(CompilerState *container, AstNode *function, AstN
 		break;
 	}
 	case EXPR_BINARY: {
-		typecheck_binary_operator(container, function, node);
+		typecheck_binary_operator(compiler_state, function, node);
 		break;
 	}
 	case EXPR_UNARY: {
-		typecheck_unary_operator(container, function, node);
+		typecheck_unary_operator(compiler_state, function, node);
 		break;
 	}
 	case EXPR_LITERAL: {
@@ -589,25 +589,25 @@ static void typecheck_ast_node(CompilerState *container, AstNode *function, AstN
 		break;
 	}
 	case EXPR_FIELD_SELECTOR: {
-		typecheck_ast_node(container, function, node->index_expr.expr);
+		typecheck_ast_node(compiler_state, function, node->index_expr.expr);
 		break;
 	}
 	case EXPR_Y_INDEX: {
-		typecheck_ast_node(container, function, node->index_expr.expr);
+		typecheck_ast_node(compiler_state, function, node->index_expr.expr);
 		break;
 	}
 	case EXPR_TABLE_ELEMENT_ASSIGN: {
 		if (node->table_elem_assign_expr.key_expr) {
-			typecheck_ast_node(container, function, node->table_elem_assign_expr.key_expr);
+			typecheck_ast_node(compiler_state, function, node->table_elem_assign_expr.key_expr);
 		}
-		typecheck_ast_node(container, function, node->table_elem_assign_expr.value_expr);
+		typecheck_ast_node(compiler_state, function, node->table_elem_assign_expr.value_expr);
 		copy_type(&node->table_elem_assign_expr.type,
 			  &node->table_elem_assign_expr.value_expr->common_expr.type);
 		break;
 	}
 	case EXPR_TABLE_LITERAL: {
-		typecheck_ast_list(container, function, node->table_expr.expr_list);
-		infer_table_type(container, function, node);
+		typecheck_ast_list(compiler_state, function, node->table_expr.expr_list);
+		infer_table_type(compiler_state, function, node);
 		break;
 	}
 	case EXPR_BUILTIN:
@@ -618,19 +618,19 @@ static void typecheck_ast_node(CompilerState *container, AstNode *function, AstN
 }
 
 /* Type checker - WIP  */
-static void typecheck_function(CompilerState *container, AstNode *func)
+static void typecheck_function(CompilerState *compiler_state, AstNode *func)
 {
-	typecheck_ast_list(container, func, func->function_expr.function_statement_list);
+	typecheck_ast_list(compiler_state, func, func->function_expr.function_statement_list);
 }
 
 /* Type checker - WIP  */
-int raviX_ast_typecheck(CompilerState *container)
+int raviX_ast_typecheck(CompilerState *compiler_state)
 {
-	AstNode *main_function = container->main_function;
-	raviX_buffer_reset(&container->error_message);
-	int rc = setjmp(container->env);
+	AstNode *main_function = compiler_state->main_function;
+	raviX_buffer_reset(&compiler_state->error_message);
+	int rc = setjmp(compiler_state->env);
 	if (rc == 0) {
-		typecheck_function(container, main_function);
+		typecheck_function(compiler_state, main_function);
 	}
 	return rc;
 }
