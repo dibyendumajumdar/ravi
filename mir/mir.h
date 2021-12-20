@@ -6,6 +6,10 @@
 
 #define MIR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(_WIN32) && !defined(_WIN64)
 #error "MIR does not work on 32-bit Windows"
 #endif
@@ -16,6 +20,8 @@
 #include "mir-dlist.h"
 #include "mir-varr.h"
 #include "mir-htab.h"
+
+#define MIR_API_VERSION 0.1
 
 #ifdef NDEBUG
 static inline int mir_assert (int cond) { return 0 && cond; }
@@ -106,11 +112,11 @@ typedef pthread_attr_t mir_thread_attr_t;
 #define INSN_EL(i) MIR_##i
 
 /* The most MIR insns have destination operand and one or two source
-   operands.  The destination can be ony a register or memory.
+   operands.  The destination can be only a register or memory.
 
    There are additional constraints on insn operands:
 
-   o A register in porgram can contain only one type values: integer,
+   o A register in program can contain only one type values: integer,
      float, double, or long double.
    o Operand types should be what the insn expects */
 typedef enum {
@@ -139,7 +145,7 @@ typedef enum {
   REP7 (INSN_EL, LE, LES, ULE, ULES, FLE, DLE, LDLE),        /* Less or equal */
   REP7 (INSN_EL, GT, GTS, UGT, UGTS, FGT, DGT, LDGT),        /* Greater then */
   REP7 (INSN_EL, GE, GES, UGE, UGES, FGE, DGE, LDGE),        /* Greater or equal */
-  /* Uncoditional (1 operand) and conditional (2 operands) branch
+  /* Unconditional (1 operand) and conditional (2 operands) branch
      insns.  The first operand is a label.  */
   REP5 (INSN_EL, JMP, BT, BTS, BF, BFS),
   /* Compare and branch (3 operand) insns.  The first operand is the
@@ -156,7 +162,7 @@ typedef enum {
   REP2 (INSN_EL, CALL, INLINE),
   /* 1st operand is an index, subsequent ops are labels to which goto
      according the index (1st label has index zero).  The insn
-     behaviour is undefined if there is no label for the index. */
+     behavior is undefined if there is no label for the index. */
   INSN_EL (SWITCH),
   /* 1 operand insn: */
   INSN_EL (RET),
@@ -312,6 +318,8 @@ DEF_VARR (MIR_var_t);
 /* Function definition */
 typedef struct MIR_func {
   const char *name;
+  MIR_item_t func_item;
+  size_t original_vars_num;
   DLIST (MIR_insn_t) insns, original_insns;
   uint32_t nres, nargs, last_temp_num, n_inlines;
   MIR_type_t *res_types;
@@ -452,8 +460,20 @@ static inline int MIR_branch_code_p (MIR_insn_code_t code) {
   return (code == MIR_JMP || MIR_int_branch_code_p (code) || MIR_FP_branch_code_p (code));
 }
 
+extern double _MIR_get_api_version (void);
+extern MIR_context_t _MIR_init (void);
+
 /* Use only the following API to create MIR code.  */
-extern MIR_context_t MIR_init (void);
+static inline MIR_context_t MIR_init (void) {
+  if (MIR_API_VERSION != _MIR_get_api_version ()) {
+    fprintf (stderr,
+             "mir.h header has version %g different from used mir code version %g -- good bye!\n",
+             MIR_API_VERSION, _MIR_get_api_version ());
+    exit (1);
+  }
+  return _MIR_init ();
+}
+
 extern void MIR_finish (MIR_context_t ctx);
 
 extern MIR_module_t MIR_new_module (MIR_context_t ctx, const char *name);
@@ -488,6 +508,7 @@ extern MIR_item_t MIR_new_vararg_func_arr (MIR_context_t ctx, const char *name, 
 extern MIR_item_t MIR_new_vararg_func (MIR_context_t ctx, const char *name, size_t nres,
                                        MIR_type_t *res_types, size_t nargs, ...);
 extern const char *MIR_item_name (MIR_context_t ctx, MIR_item_t item);
+extern MIR_func_t MIR_get_item_func(MIR_context_t ctx, MIR_item_t item);
 extern MIR_reg_t MIR_new_func_reg (MIR_context_t ctx, MIR_func_t func, MIR_type_t type,
                                    const char *name);
 extern void MIR_finish_func (MIR_context_t ctx);
@@ -589,6 +610,8 @@ extern void MIR_interp_arr_varg (MIR_context_t ctx, MIR_item_t func_item, MIR_va
 extern void MIR_set_interp_interface (MIR_context_t ctx, MIR_item_t func_item);
 
 /* Private: */
+extern double _MIR_get_api_version (void);
+extern MIR_context_t _MIR_init (void);
 extern const char *_MIR_uniq_string (MIR_context_t ctx, const char *str);
 extern int _MIR_reserved_ref_name_p (MIR_context_t ctx, const char *name);
 extern int _MIR_reserved_name_p (MIR_context_t ctx, const char *name);
@@ -660,5 +683,9 @@ extern void _MIR_redirect_thunk (MIR_context_t ctx, void *thunk, void *to);
 extern void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_address);
 
 extern void _MIR_dump_code (const char *name, int index, uint8_t *code, size_t code_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* #ifndef MIR_H */

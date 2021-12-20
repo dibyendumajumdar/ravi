@@ -1069,9 +1069,37 @@ static void target_machinize (gen_ctx_t gen_ctx) {
       new_insn = MIR_new_insn (ctx, MIR_MOV, insn->ops[0], areg_op);
       gen_add_insn_after (gen_ctx, insn, new_insn);
       insn->ops[0] = areg_op;
+      /* Following conditional branches are changed to correctly process unordered numbers: */
+      switch (code) {
+      case MIR_FLT:
+        SWAP (insn->ops[1], insn->ops[2], temp_op);
+        insn->code = MIR_FGT;
+        break;
+      case MIR_FLE:
+        SWAP (insn->ops[1], insn->ops[2], temp_op);
+        insn->code = MIR_FGE;
+        break;
+      case MIR_DLT:
+        SWAP (insn->ops[1], insn->ops[2], temp_op);
+        insn->code = MIR_DGT;
+        break;
+      case MIR_DLE:
+        SWAP (insn->ops[1], insn->ops[2], temp_op);
+        insn->code = MIR_DGE;
+        break;
+      default: break; /* do nothing */
+      }
       break;
     }
-      /* Following conditional branches are changed to correctly process unordered numbers: */
+    /* Following conditional branches are changed to correctly process unordered numbers: */
+    case MIR_LDLT:
+      SWAP (insn->ops[1], insn->ops[2], temp_op);
+      insn->code = MIR_LDGT;
+      break;
+    case MIR_LDLE:
+      SWAP (insn->ops[1], insn->ops[2], temp_op);
+      insn->code = MIR_LDGE;
+      break;
     case MIR_FBLT:
       SWAP (insn->ops[1], insn->ops[2], temp_op);
       insn->code = MIR_FBGT;
@@ -1307,7 +1335,7 @@ struct pattern {
   const char *replacement;
 };
 
-// make imm always second operand (symplify for cmp and commutative op)
+// make imm always second operand (simplify for cmp and commutative op)
 // make result of cmp op always a register and memory only the 2nd operand if first is reg,
 // but not for FP (NAN) (simplify)
 // for FP cmp first operand should be always reg (machinize)
@@ -1659,11 +1687,11 @@ static void target_get_early_clobbered_hard_regs (MIR_insn_t insn, MIR_reg_t *hr
 // constraint: esp can not be index
 
 static int int8_p (int64_t v) { return INT8_MIN <= v && v <= INT8_MAX; }
-static int uint8_p (int64_t v) { return 0 <= v && v <= UINT8_MAX; }
+static int MIR_UNUSED uint8_p (int64_t v) { return 0 <= v && v <= UINT8_MAX; }
 static int int16_p (int64_t v) { return INT16_MIN <= v && v <= INT16_MAX; }
 static int MIR_UNUSED uint16_p (int64_t v) { return 0 <= v && v <= UINT16_MAX; }
 static int int32_p (int64_t v) { return INT32_MIN <= v && v <= INT32_MAX; }
-static int uint32_p (int64_t v) { return 0 <= v && v <= UINT32_MAX; }
+static int MIR_UNUSED uint32_p (int64_t v) { return 0 <= v && v <= UINT32_MAX; }
 
 static int dec_value (int ch) { return '0' <= ch && ch <= '9' ? ch - '0' : -1; }
 

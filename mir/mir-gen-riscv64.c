@@ -1327,10 +1327,10 @@ struct pattern {
      mcd[s] - double memory with compressed based register (or stack register)
               and 6-bit unsigned displacement scaled by 8
 
-     i -- 2nd or 3rd immediate op for arithemtic insn (12-bit signed)
+     i -- 2nd or 3rd immediate op for arithmetic insn (12-bit signed)
      j -- as i but -j should be also i (it means excluding minimal 12-bit signed) and only 3rd op
      ju -- as j but but rounded to 16 first and only 2nd op
-     iu -- 32-bit signed immediate for arithemtic insn with zero 12 bits as 2nd op
+     iu -- 32-bit signed immediate for arithmetic insn with zero 12 bits as 2nd op
      ia -- any 32-bit signed immediate as 2nd op
      I --  any 64-bit immediate
      s --  immediate shift (5 bits) as 3th op
@@ -1338,10 +1338,10 @@ struct pattern {
      Sp --  nonzero immediate shift (6 bits) as 3th op
      l --  label as the 1st or 2nd op which can be present by signed 13-bit pc offset
 
-     k -- 2nd or 3rd immediate op for arithemtic insn (6-bit signed)
-     kp -- nonzero 2nd or 3rd immediate op for arithemtic insn (6-bit signed)
-     ks -- nonzero 2nd or 3rd immediate op for arithemtic insn (9-bit signed) multiple of 16
-     ku -- 18-bit signed immediate for arithemtic insn with zero low 12-bits as 2nd op
+     k -- 2nd or 3rd immediate op for arithmetic insn (6-bit signed)
+     kp -- nonzero 2nd or 3rd immediate op for arithmetic insn (6-bit signed)
+     ks -- nonzero 2nd or 3rd immediate op for arithmetic insn (9-bit signed) multiple of 16
+     ku -- 18-bit signed immediate for arithmetic insn with zero low 12-bits as 2nd op
      kw -- nonzero scaled by 4 8-bit unsigned immediate
      jus -- imm rounded to 16 first and considered as ks
 
@@ -1589,7 +1589,6 @@ static const struct pattern patterns[] = {
   {MIR_ULTS, "r r i", "O13 F3 f0 rd0 rs1 i"},   /* sltiu rd,rs1,i */
 
   // ??? le r,imm -> lt r,imm+1
-  /* !(op2 < op1)
   /* sgt rd,rs1,rs2;xori rd,rs1,1 */
   {MIR_LE, "r r r", "O33 F2 f0 rd0 rs2 rS1; O13 F4 f0 rd0 rs0 i1"},
   /* sgti rd,rs1,i;xori rd,rs1,1 */
@@ -1880,7 +1879,6 @@ static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_in
   char ch, start_ch;
   MIR_op_t op, original;
   MIR_op_mode_t mode;
-  MIR_reg_t hr;
 
   for (nop = 0, p = pat->pattern; *p != 0; p++, nop++) {
     while (*p == ' ' || *p == '\t') p++;
@@ -2196,7 +2194,6 @@ static uint32_t check_and_set_mask (uint32_t opcode_mask, uint32_t mask) {
 
 static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacement) {
   MIR_context_t ctx = gen_ctx->ctx;
-  size_t offset;
   const char *p, *insn_str;
   label_ref_t lr;
   const_ref_t cr;
@@ -2208,11 +2205,12 @@ static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacemen
     insn->ops[1].u.u = (insn->ops[1].u.u + 15) & -16;
   for (insn_str = replacement;; insn_str = p + 1) {
     char ch, ch2, start_ch, d;
-    uint32_t insn32 = 0, insn_mask = 0, el_mask;
+    uint32_t insn32 = 0, insn_mask = 0, el_mask = 0;
     int n, opcode = -1, funct3 = -1, funct7 = -1, rd = -1, rs1 = -1, rs2 = -1;
     int opcodec = -1, funct3c = -1, funct4c = -1, funct6c = -1, funct2c = -1, funct2bc = -1;
     int rs2m = -1, rdc = -1, rs2c = -1, uimm8c = -1;
-    int shamt = -1, shamtc = -1, imm12, imm20, imm6c, st_disp, unsign_disp4 = -1, unsign_disp8 = -1;
+    int shamt = -1, shamtc = -1, imm12, imm20, imm6c = 0, st_disp = 0;
+    int unsign_disp4 = -1, unsign_disp8 = -1;
     int unsign_sp_disp4 = -1, unsign_sp_disp8 = -1;
     int unsign_sp_store_disp4 = -1, unsign_sp_store_disp8 = -1;
     int imm12_p = FALSE, imm20_p = FALSE, imm6c_p = FALSE, st_disp_p = FALSE;
