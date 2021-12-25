@@ -1,5 +1,5 @@
 /*
-** $Id: lbaselib.c,v 1.314.1.1 2017/04/19 17:39:34 roberto Exp $
+** $Id: lbaselib.c $
 ** Basic library
 ** See Copyright Notice in lua.h
 */
@@ -49,7 +49,7 @@ static const char *b_str2int (const char *s, int base, lua_Integer *pn) {
   lua_Unsigned n = 0;
   int neg = 0;
   s += strspn(s, SPACECHARS);  /* skip initial spaces */
-  if (*s == '-') { s++; neg = 1; }  /* handle signal */
+  if (*s == '-') { s++; neg = 1; }  /* handle sign */
   else if (*s == '+') s++;
   if (!isalnum((unsigned char)*s))  /* no digit? */
     return NULL;
@@ -68,7 +68,6 @@ static const char *b_str2int (const char *s, int base, lua_Integer *pn) {
 
 static int luaB_tonumber (lua_State *L) {
   if (lua_isnoneornil(L, 2)) {  /* standard conversion? */
-    luaL_checkany(L, 1);
     if (lua_type(L, 1) == LUA_TNUMBER) {  /* already a number? */
       lua_settop(L, 1);  /* yes; return it */
       return 1;
@@ -79,6 +78,7 @@ static int luaB_tonumber (lua_State *L) {
       if (s != NULL && lua_stringtonumber(L, s) == l + 1)
         return 1;  /* successful conversion to number */
       /* else not a number */
+      luaL_checkany(L, 1);  /* (but there must be some parameter) */
     }
   }
   else {
@@ -94,7 +94,7 @@ static int luaB_tonumber (lua_State *L) {
       return 1;
     }  /* else not a number */
   }  /* else not a number */
-  lua_pushnil(L);  /* not a number */
+  luaL_pushfail(L);  /* not a number */
   return 1;
 }
 
@@ -171,10 +171,19 @@ static int luaB_rawset (lua_State *L) {
 
 
 static int pushmode (lua_State *L, int oldmode) {
-  lua_pushstring(L, (oldmode == LUA_GCINC) ? "incremental" : "generational");
+  if (oldmode == -1)
+    luaL_pushfail(L);  /* invalid call to 'lua_gc' */
+  else
+    lua_pushstring(L, (oldmode == LUA_GCINC) ? "incremental"
+                                             : "generational");
   return 1;
 }
 
+
+/*
+** check whether call to 'lua_gc' was valid (not inside a finalizer)
+*/
+#define checkvalres(res) { if (res == -1) break; }
 
 static int luaB_collectgarbage (lua_State *L) {
   static const char *const opts[] = {"stop", "restart", "collect",
@@ -188,12 +197,14 @@ static int luaB_collectgarbage (lua_State *L) {
     case LUA_GCCOUNT: {
       int k = lua_gc(L, o);
       int b = lua_gc(L, LUA_GCCOUNTB);
+      checkvalres(k);
       lua_pushnumber(L, (lua_Number)k + ((lua_Number)b/1024));
       return 1;
     }
     case LUA_GCSTEP: {
       int step = (int)luaL_optinteger(L, 2, 0);
       int res = lua_gc(L, o, step);
+      checkvalres(res);
       lua_pushboolean(L, res);
       return 1;
     }
@@ -201,11 +212,13 @@ static int luaB_collectgarbage (lua_State *L) {
     case LUA_GCSETSTEPMUL: {
       int p = (int)luaL_optinteger(L, 2, 0);
       int previous = lua_gc(L, o, p);
+      checkvalres(previous);
       lua_pushinteger(L, previous);
       return 1;
     }
     case LUA_GCISRUNNING: {
       int res = lua_gc(L, o);
+      checkvalres(res);
       lua_pushboolean(L, res);
       return 1;
     }
@@ -222,10 +235,13 @@ static int luaB_collectgarbage (lua_State *L) {
     }
     default: {
       int res = lua_gc(L, o);
+      checkvalres(res);
       lua_pushinteger(L, res);
       return 1;
     }
   }
+  luaL_pushfail(L);  /* invalid call (inside a finalizer) */
+  return 1;
 }
 
 
@@ -313,9 +329,9 @@ static int load_aux (lua_State *L, int status, int envidx) {
     return 1;
   }
   else {  /* error (message is on top of the stack) */
-    lua_pushnil(L);
+    luaL_pushfail(L);
     lua_insert(L, -2);  /* put before error message */
-    return 2;  /* return nil plus error message */
+    return 2;  /* return fail plus error message */
   }
 }
 

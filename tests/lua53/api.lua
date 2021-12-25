@@ -678,19 +678,18 @@ local F
 F = function (x)
   local udval = T.udataval(x)
   table.insert(cl, udval)
-  local d = T.newuserdata(100)   -- cria lixo
+  local d = T.newuserdata(100)   -- create garbage
   d = nil
   assert(debug.getmetatable(x).__gc == F)
-  assert(load("table.insert({}, {})"))()   -- cria mais lixo
-  collectgarbage()   -- forca coleta de lixo durante coleta!
-  assert(debug.getmetatable(x).__gc == F)   -- coleta anterior nao melou isso?
-  local dummy = {}    -- cria lixo durante coleta
+  assert(load("table.insert({}, {})"))()   -- create more garbage
+  assert(not collectgarbage())    -- GC during GC (no op)
+  local dummy = {}    -- create more garbage during GC
   if A ~= nil then
     assert(type(A) == "userdata")
     assert(T.udataval(A) == B)
-    debug.getmetatable(A)    -- just acess it
+    debug.getmetatable(A)    -- just access it
   end
-  A = x   -- ressucita userdata
+  A = x   -- ressurect userdata
   B = udval
   return 1,2,3
 end

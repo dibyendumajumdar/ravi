@@ -371,8 +371,8 @@ if T then
 
   --warn("@on"); warn("@store")
   collectgarbage()
-  --assert(string.find(_WARN, "error in __gc metamethod"))
-  --assert(string.match(_WARN, "@(.-)@") == "expected"); _WARN = nil
+  --assert(string.find(_WARN, "error in __gc"))
+  --assert(string.match(_WARN, "@(.-)@") == "expected"); _WARN = false
   for i = 8, 10 do assert(s[i]) end
 
   for i = 1, 5 do
@@ -481,7 +481,7 @@ if T then
   u = setmetatable({}, {__gc = function () error "@expected error" end})
   u = nil
   collectgarbage()
-  --assert(string.find(_WARN, "@expected error")); _WARN = nil
+  --assert(string.find(_WARN, "@expected error")); _WARN = false
   --warn("@normal")
 end
 
@@ -561,7 +561,7 @@ end
 
 
 if T then   -- tests for weird cases collecting upvalues
-  print 'weird up-values'
+
   local function foo ()
     local a = {x = 20}
     coroutine.yield(function () return a.x end)  -- will run collector
@@ -661,14 +661,14 @@ if T then
     n = n + 1
     assert(n == o[1])
     if n == 1 then
-      _WARN = nil
+      _WARN = false
     elseif n == 2 then
       assert(find(_WARN, "@expected warning"))
       lastmsg = _WARN    -- get message from previous error (first 'o')
     else
       assert(lastmsg == _WARN)  -- subsequent error messages are equal
     end
-    warn("@store"); _WARN = nil
+    warn("@store"); _WARN = false
     error"@expected warning"
   end}
   for i = 10, 1, -1 do
@@ -679,6 +679,16 @@ end
 
 -- just to make sure
 assert(collectgarbage'isrunning')
+
+do    -- check that the collector is not reentrant in incremental mode
+  local res = true
+  setmetatable({}, {__gc = function ()
+    res = collectgarbage()
+  end})
+  collectgarbage()
+  assert(not res)
+end
+
 
 collectgarbage(oldmode)
 

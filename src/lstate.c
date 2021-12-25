@@ -209,7 +209,7 @@ static void f_luaopen (lua_State *L, void *ud) {
   luaS_init(L);
   luaT_init(L);
   luaX_init(L);
-  g->gcrunning = 1;  /* allow gc */
+  g->gcstp = 0;  /* allow gc */
   g->version = lua_version(NULL);
   luai_userstateopen(L);
 }
@@ -384,7 +384,7 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->ud = ud;
   g->mainthread = L;
   g->seed = makeseed(L);
-  g->gcrunning = 0;  /* no GC while building state */
+  g->gcstp = GCSTPGC;  /* no GC while building state */
   g->strt.size = g->strt.nuse = 0;
   g->strt.hash = NULL;
   setnilvalue(&g->l_registry);
@@ -392,6 +392,7 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->version = NULL;
   g->gcstate = GCSpause;
   g->gckind = KGC_INC;
+  g->gcstopem = 0;
   g->gcemergency = 0;
   g->finobj = g->tobefnz = g->fixedgc = NULL;
   g->firstold1 = g->survival = g->old1 = g->reallyold = NULL;
