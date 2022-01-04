@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (C) 2020-2021 Dibyendu Majumdar
+ * Copyright (C) 2020-2022 Dibyendu Majumdar
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -107,6 +107,14 @@ const Scope *raviX_variable_symbol_scope(const LuaVariableSymbol *lua_local_symb
 {
 	return lua_local_symbol->block;
 }
+bool raviX_variable_symbol_is_function_parameter(const LuaVariableSymbol *lua_local_symbol)
+{
+	return lua_local_symbol->function_parameter ? true : false;
+}
+bool raviX_variable_symbol_has_escaped(const LuaVariableSymbol *lua_local_symbol)
+{
+	return lua_local_symbol->escaped ? true : false;
+}
 
 #define n(v) ((AstNode *)v)
 const ReturnStatement *raviX_return_statement(const Statement *stmt)
@@ -164,7 +172,7 @@ const ForStatement *raviX_for_statement(const Statement *stmt)
 	assert(stmt->type == STMT_FOR_IN || stmt->type == STMT_FOR_NUM);
 	return &n(stmt)->for_stmt;
 }
-const EmbeddedCStatement *raviX_embedded_C_statment(const Statement *stmt)
+const EmbeddedCStatement *raviX_embedded_C_statement(const Statement *stmt)
 {
 	assert(stmt->type == STMT_EMBEDDED_C);
 	return &n(stmt)->embedded_C_stmt;
@@ -348,7 +356,7 @@ void raviX_function_statement_foreach_selector(const FunctionStatement *statemen
 	AstNode *node;
 	FOR_EACH_PTR(statement->selectors, AstNode, node)
 	{
-		assert(node->type == EXPR_Y_INDEX || node->type == EXPR_FIELD_SELECTOR);
+		assert(/* node->type == EXPR_Y_INDEX ||*/ node->type == EXPR_FIELD_SELECTOR);
 		callback(userdata, &node->index_expr);
 	}
 	END_FOR_EACH_PTR(node)
@@ -653,6 +661,10 @@ void raviX_scope_foreach_symbol(const Scope *scope, void *userdata,
 	LuaSymbol *symbol;
 	FOR_EACH_PTR(scope->symbol_list, LuaSymbol, symbol) { callback(userdata, symbol); }
 	END_FOR_EACH_PTR(node)
+}
+bool raviX_scope_needs_closing(const Scope *scope)
+{
+	return scope->need_close ? true: false;
 }
 enum SymbolType raviX_symbol_type(const LuaSymbol *symbol) { return symbol->symbol_type; }
 const LuaVariableSymbol *raviX_symbol_variable(const LuaSymbol *symbol)

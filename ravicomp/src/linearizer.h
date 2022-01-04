@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (C) 2020-2021 Dibyendu Majumdar
+ * Copyright (C) 2020-2022 Dibyendu Majumdar
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -216,9 +216,9 @@ struct BasicBlock {
 DECLARE_PTR_LIST(BasicBlockList, BasicBlock);
 
 typedef struct PseudoGenerator {
-	uint8_t next_reg;	/* Next register if no free registers, initially 0 */
-	int16_t free_pos;	/* number of values in free_regs */
-	uint8_t free_regs[256]; /* list of free registers */
+	uint8_t max_reg;	/* Maximum # of regs allocated  */
+	int16_t free_pos;	/* Next free register */
+	uint8_t regs_in_use[256]; /* list of registers, 1=used, 0=free */
 } PseudoGenerator;
 
 struct Constant {
