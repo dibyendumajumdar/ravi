@@ -98,7 +98,6 @@ static void pseudo_gen_free(PseudoGenerator *generator, unsigned reg)
 {
 	unsigned N = sizeof generator->regs_in_use / sizeof generator->regs_in_use[0];
 	assert(reg < N);
-	assert(generator->regs_in_use[reg]);
 	generator->regs_in_use[reg] = 0;
 	if (reg+1 == generator->free_pos) {
 		// We released the top most register
@@ -475,9 +474,6 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 {
 	if (pseudo->freed)
 		return;
-	if (!free_local && pseudo->temp_for_local) {
-		return;
-	}
 	PseudoGenerator *gen;
 	switch (pseudo->type) {
 	case PSEUDO_TEMP_FLT:
@@ -493,6 +489,9 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 		break;
 	default:
 		// Not a temp, so no need to do anything
+		return;
+	}
+	if (!free_local && pseudo->type != PSEUDO_RANGE && pseudo->temp_for_local) {
 		return;
 	}
 	free_register(proc, gen, pseudo->regnum);
@@ -695,11 +694,11 @@ static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 		add_instruction_operand(proc, insn, tname_pseudo);
 	} else if (op == UNOPR_NOT || op == UNOPR_BNOT) {
 		add_instruction_operand(proc, insn, target);
-		free_temp_pseudo(proc, target, false);
+		free_temp_pseudo(proc, target, false); //CHECK
 		target = allocate_temp_pseudo(proc, RAVI_TANY, false);
 	} else if (op == UNOPR_MINUS || op == UNOPR_LEN) {
 		add_instruction_operand(proc, insn, target);
-		free_temp_pseudo(proc, target, false);
+		free_temp_pseudo(proc, target, false); //CHECK
 		target = allocate_temp_pseudo(proc, subexpr_type, false);
 	}
 	add_instruction_target(proc, insn, target);
@@ -708,7 +707,7 @@ static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 	if (targetop == op_toint || targetop == op_toflt) {
 		insn = allocate_instruction(proc, op_mov, node->line_number);
 		add_instruction_operand(proc, insn, target);
-		free_temp_pseudo(proc, target, false);
+		free_temp_pseudo(proc, target, false); //CHECK
 		target = allocate_temp_pseudo(proc, targetop == op_toint ? RAVI_TNUMINT: RAVI_TNUMFLT, false);
 		add_instruction_target(proc, insn, target);
 		add_instruction(proc, insn);
@@ -967,19 +966,22 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 	}
 
 	ravitype_t target_type = node->binary_expr.type.type_code;
-	free_temp_pseudo(proc, operand1, false);
-	free_temp_pseudo(proc, operand2, false);
+	free_temp_pseudo(proc, operand1, false);//CHECK
+	free_temp_pseudo(proc, operand2, false);//CHECK
 	Pseudo *target = allocate_temp_pseudo(proc, target_type, false);
 	create_binary_instruction(proc, (enum opcode) targetop, operand1, operand2, target, node->line_number);
 	if (op == BINOPR_NE) {
 		Pseudo *temp = target;
 		Instruction *not_insn = allocate_instruction(proc, op_not, node->line_number);
 		add_instruction_operand(proc, not_insn, target);
-		free_temp_pseudo(proc, temp, false);
+		free_temp_pseudo(proc, temp, false);//CHECK
 		target = allocate_temp_pseudo(proc, target_type, false);
 		add_instruction_target(proc, not_insn, target);
 		add_instruction(proc, not_insn);
+		//free_temp_pseudo(proc, temp, false);
 	}
+	//free_temp_pseudo(proc, operand1, false);
+	//free_temp_pseudo(proc, operand2, false);
 
 	return target;
 }
@@ -1144,7 +1146,10 @@ static void convert_loadglobal_to_store(Proc *proc, Instruction *insn, Pseudo *v
 	free_temp_pseudo(proc, get_target, false);
 	Pseudo *pseudo;
 	// Move the loadglobal operands to target
-	FOR_EACH_PTR(insn->operands, Pseudo, pseudo) { add_instruction_target(proc, insn, pseudo); }
+	FOR_EACH_PTR(insn->operands, Pseudo, pseudo) {
+		add_instruction_target(proc, insn, pseudo);
+//		free_temp_pseudo(proc, pseudo, false);
+	}
 	END_FOR_EACH_PTR(pseudo)
 	raviX_ptrlist_remove_all((PtrList **)&insn->operands);
 	// Add new operand
@@ -1510,16 +1515,29 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 			}
 		}
 		else {
+			Pseudo *range_pseudo = NULL;
 			if (valinfo[i].pseudo->type == PSEUDO_RANGE) {
 				/* Only the topmost expression can be a range ... assert */
 				assert(i == note_ne-1);
+				range_pseudo = valinfo[i].pseudo;
 				valinfo[i].pseudo = raviX_allocate_range_select_pseudo(proc, valinfo[i].pseudo, 0);
 			}
 			linearize_store_var(proc, varinfo[i].vartype, varinfo[i].pseudo,
 					    valinfo[i].vartype, valinfo[i].pseudo, line_number);
 			free_temp_pseudo(proc, valinfo[i].pseudo, false);
+			if (range_pseudo) {
+				free_temp_pseudo(proc, range_pseudo, false);
+			}
 		}
 	}
+
+	for (int i = ne-1; i >= 0; i--) {
+		free_temp_pseudo(proc, valinfo[i].pseudo, false);
+	}
+	for (int i = nv-1; i >= 0; i--) {
+		free_temp_pseudo(proc, varinfo[i].pseudo, false);
+	}
+	return;
 }
 
 /*
@@ -2454,6 +2472,8 @@ static void linearize_function_statement(Proc *proc, AstNode *node)
 	/* Following will potentially convert load to store */
 	linearize_store_var(proc, &prev_node->common_expr.type, prev_pseudo,
 			    &node->function_stmt.function_expr->common_expr.type, function_pseudo, node->line_number);
+	free_temp_pseudo(proc, prev_pseudo, false);
+	free_temp_pseudo(proc, function_pseudo, false);
 }
 
 static void linearize_statement(Proc *proc, AstNode *node)
