@@ -1988,13 +1988,14 @@ static int emit_op_totype(Function *fn, Instruction *insn)
 		raviX_buffer_add_string(&fn->body, ";\n if (!ttisLtable(ra)) {\n");
 		raviX_buffer_add_fstring(&fn->body, "  raviX__error_code = %d;\n", Error_table_expected);
 	} else if (insn->opcode == op_toclosure) {
-		raviX_buffer_add_string(&fn->body, ";\n if (!ttisclosure(ra)) {\n");
+		raviX_buffer_add_string(&fn->body, ";\n if (!ttisnil(ra) && !ttisclosure(ra)) {\n");
 		raviX_buffer_add_fstring(&fn->body, "  raviX__error_code = %d;\n", Error_closure_expected);
 	} else if (insn->opcode == op_tostring) {
-		raviX_buffer_add_string(&fn->body, ";\n if (!ttisstring(ra)) {\n");
+		raviX_buffer_add_string(&fn->body, ";\n if (!ttisnil(ra) && !ttisstring(ra)) {\n");
 		raviX_buffer_add_fstring(&fn->body, "  raviX__error_code = %d;\n", Error_string_expected);
 	} else if (insn->opcode == op_toint) {
-		raviX_buffer_add_string(&fn->body, ";\n if (!ttisinteger(ra)) {\n");
+		raviX_buffer_add_string(&fn->body, ";\n lua_Integer i = 0;\n");
+		raviX_buffer_add_string(&fn->body, " if (!tointegerns(ra, &i)) {\n");
 		raviX_buffer_add_fstring(&fn->body, "  raviX__error_code = %d;\n", Error_integer_expected);
 	} else {
 		handle_error(fn, "Unexpected opcode");

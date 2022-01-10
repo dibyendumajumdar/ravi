@@ -61,7 +61,7 @@ typedef struct C_MemoryAllocator {
 	void *(*calloc)(void *arena, size_t n_elements, size_t elem_size);
 	void (*free)(void *arena, void *p);
 	void *(*create_arena)(size_t, int);
-	void (*destroy_arena)(void *arena);
+	size_t (*destroy_arena)(void *arena);
 } C_MemoryAllocator;
 #endif
 
