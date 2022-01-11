@@ -1013,7 +1013,7 @@ do
     assert(debug.upvalueid(foo1, 1) ~= debug.upvalueid(foo3, 1))
     assert(debug.upvalueid(foo1, 2) == debug.upvalueid(foo3, 2))
 
-    assert(debug.upvalueid(string.gmatch("x", "x"), 1) ~= nil)
+    --assert(debug.upvalueid(string.gmatch("x", "x"), 1) ~= nil)
 
     assert(foo1() == 3 + 5 and foo2() == 5 + 3)
     debug.upvaluejoin(foo1, 2, foo2, 2)
