@@ -850,9 +850,10 @@ static inline unsigned get_num_childprocs(Proc *proc) { return raviX_ptrlist_siz
  */
 static void emit_vars(const char *type, const char *prefix, PseudoGenerator *gen, TextBuffer *mb)
 {
-	if (gen->max_reg == 0)
+	unsigned max_reg = raviX_max_reg(gen);
+	if (max_reg == 0)
 		return;
-	for (unsigned i = 0; i < gen->max_reg; i++) {
+	for (unsigned i = 0; i < max_reg; i++) {
 		if (i == 0) {
 			raviX_buffer_add_fstring(mb, "%s ", type);
 		}
@@ -944,9 +945,9 @@ static void emit_varname(Function *fn, const Pseudo *pseudo)
 
 static void emit_reload_base(Function *fn) { raviX_buffer_add_string(&fn->body, "base = ci->u.l.base;\n"); }
 
-static inline unsigned num_locals(Proc *proc) { return proc->local_pseudos.max_reg; }
+static inline unsigned num_locals(Proc *proc) { return raviX_max_reg(&proc->local_pseudos); }
 
-static inline unsigned num_temps(Proc *proc) { return proc->temp_pseudos.max_reg; }
+static inline unsigned num_temps(Proc *proc) { return raviX_max_reg(&proc->temp_pseudos); }
 
 /*
  * Max stack size is number of Lua vars and any temps that live on Lua stack during execution.

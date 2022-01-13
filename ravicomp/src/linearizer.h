@@ -216,10 +216,10 @@ struct BasicBlock {
 DECLARE_PTR_LIST(BasicBlockList, BasicBlock);
 
 typedef struct PseudoGenerator {
-	uint8_t max_reg;	/* Maximum # of regs allocated  */
-	int16_t free_pos;	/* Next free register */
-	uint8_t regs_in_use[256]; /* list of registers, 1=used, 0=free */
+	uint64_t bits[4]; /* bitset of registers */
+	unsigned max_reg;
 } PseudoGenerator;
+static inline unsigned raviX_max_reg(PseudoGenerator *generator) { return generator->max_reg; }
 
 struct Constant {
 	uint16_t type;	/* ravitype_t RAVI_TNUMINT, RAVI_TNUMFLT or RAVI_TSTRING */

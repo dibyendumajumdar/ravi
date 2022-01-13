@@ -79,66 +79,67 @@ static AstNode* astlist_get(AstNodeList *list, unsigned int i)
 	return (AstNode*) raviX_ptrlist_nth_entry((struct PtrList *) list, i);
 }
 
+enum { MAXBIT = 4 * sizeof(uint64_t) * 8, ESIZE = sizeof(uint64_t) * 8 };
+
+static int top_reg(PseudoGenerator *generator)
+{
+	for (int i = 3; i >= 0; i--) {
+		if (!generator->bits[i])
+			continue;
+		uint64_t bit = generator->bits[i];
+		int x = i * sizeof(uint64_t) * 8 - 1;
+		while (bit != 0) {
+			bit >>= 1;
+			x++;
+		}
+		return x;
+	}
+	return -1;
+}
+
 /**
  * Is given register top of the stack of registers?
  */
 static int pseudo_gen_is_top(PseudoGenerator *generator, unsigned reg)
 {
-	if (generator->free_pos == 0)
-		// No registers so no
+	int top = top_reg(generator);
+	if (top < 0)
 		return 0;
-	for (int i = generator->free_pos-1; i >= 0; i--) {
-		if (generator->regs_in_use[i])
-			return ((unsigned)i)==reg;
-	}
-	return 0;
+	return top == reg;
 }
 
 static void pseudo_gen_free(PseudoGenerator *generator, unsigned reg)
 {
-	unsigned N = sizeof generator->regs_in_use / sizeof generator->regs_in_use[0];
-	assert(reg < N);
-	generator->regs_in_use[reg] = 0;
-	if (reg+1 == generator->free_pos) {
-		// We released the top most register
-		generator->free_pos--;
-	}
-	if (generator->free_pos > 0 && !generator->regs_in_use[generator->free_pos-1]) {
-		bool set = false;
-		for (int i = generator->free_pos-1; i >= 0; i--) {
-			if (generator->regs_in_use[i]) {
-				generator->free_pos = i+1;
-				set = true;
-				break;
-			}
-		}
-		if (!set)
-			generator->free_pos = 0;
-	}
-	// For debugging
-	for (int i = generator->free_pos; i < N; i++) {
-		assert(!generator->regs_in_use[i]);
-	}
-	if (generator->free_pos > 0) {
-		assert(generator->regs_in_use[generator->free_pos-1]);
-	}
+	assert(reg < MAXBIT);
+	unsigned n = reg / ESIZE;
+	reg = reg % ESIZE;
+	generator->bits[n] &= ~(1ull << reg);
 }
 
 static unsigned pseudo_gen_alloc(PseudoGenerator *generator, bool top)
 {
-	if (!top) {
-		for (unsigned i = 0; i < generator->free_pos; i++) {
-			if (generator->regs_in_use[i] == 0) {
-				generator->regs_in_use[i] = 1;
-				return i;
+	unsigned reg;
+	if (top) {
+		int current_top = top_reg(generator);
+		reg = current_top + 1;
+	} else {
+		reg = 0;
+		int is_set = 1;
+		for (int i = 0; is_set && i < 4; i++) {
+			uint64_t bit = generator->bits[i];
+			for (int j = 0; is_set && j < sizeof(uint64_t) * 8; j++) {
+				is_set = (bit & (1ull << j)) != 0;
+				if (is_set)
+					reg++;
 			}
 		}
 	}
-	unsigned reg = generator->free_pos++;
-	assert(reg < (sizeof generator->regs_in_use / sizeof generator->regs_in_use[0]));
-	generator->regs_in_use[reg] = 1;
-	if (generator->max_reg < generator->free_pos)
-		generator->max_reg = generator->free_pos;
+	unsigned i = reg / ESIZE;
+	unsigned j = reg % ESIZE;
+	generator->bits[i] |= (1ull << j);
+	assert(reg <= generator->max_reg);
+	if (reg == generator->max_reg)
+		generator->max_reg += 1;
 	return reg;
 }
 
@@ -1703,6 +1704,7 @@ static void linearize_return(Proc *proc, AstNode *node)
 	linearize_expr_list(proc, node->return_stmt.expr_list, insn, &insn->operands);
 	add_instruction_target(proc, insn, allocate_block_pseudo(proc, proc->nodes[EXIT_BLOCK]));
 	add_instruction(proc, insn);
+	free_instruction_operand_pseudos(proc, insn);
 }
 
 /* A block is considered terminated if the last instruction is
@@ -2443,6 +2445,8 @@ static void linearize_function_statement(Proc *proc, AstNode *node)
 			ravitype_t key_type = this_node->index_expr.expr->common_expr.type.type_code;
 			next = instruct_indexed_load(proc, prev_node->common_expr.type.type_code, prev_pseudo, key_type,
 						     key_pseudo, this_node->common_expr.type.type_code, node->line_number);
+			free_temp_pseudo(proc, prev_pseudo, 0);
+			free_temp_pseudo(proc, key_pseudo, 0);
 		} else {
 			next = NULL;
 			handle_error(proc->linearizer->compiler_state,
