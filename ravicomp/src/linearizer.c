@@ -298,6 +298,11 @@ static inline void add_instruction_operand(Proc *proc, Instruction *insn, Pseudo
 	raviX_ptrlist_add((PtrList **)&insn->operands, pseudo, proc->linearizer->compiler_state->allocator);
 }
 
+static inline void replace_instruction_operand(Proc *proc, Instruction *insn, Pseudo *old_pseudo, Pseudo *new_pseudo)
+{
+	raviX_ptrlist_replace((PtrList **)&insn->operands, old_pseudo, new_pseudo, 1);
+}
+
 static inline void add_instruction_target(Proc *proc, Instruction *insn, Pseudo *pseudo)
 {
 	raviX_ptrlist_add((PtrList **)&insn->targets, pseudo, proc->linearizer->compiler_state->allocator);
@@ -1225,16 +1230,6 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 {
 	Instruction *insn = allocate_instruction(proc, op_call, expr->line_number);
 
-	// if call site is a symbol copy to temp so that when return values are copied they end up in the temp space
-	if (callsite_pseudo->type != PSEUDO_TEMP_ANY ||
-	    callsite_pseudo->type == PSEUDO_TEMP_ANY && !pseudo_gen_is_top(&proc->temp_pseudos, callsite_pseudo->regnum)) {
-	// FIXME are there scenarios where we can avoid the move?
-	// I think callsite would need to be at the top of the stack / and be a temp?
-		Pseudo *temp = allocate_temp_pseudo(proc, RAVI_TANY, true);
-		instruct_move(proc, op_mov, temp, callsite_pseudo, expr->line_number);
-		callsite_pseudo = temp;
-	}
-
 	Pseudo *self_arg = NULL; /* For method call */
 	if (expr->function_call_expr.method_name) {
 		const Constant *name_constant =
@@ -1264,6 +1259,18 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 		add_instruction_operand(proc, insn, arg_pseudo);
 	}
 	END_FOR_EACH_PTR(arg)
+
+	// Must move call site if necessary after all args etc are evaluated as
+	// the evaluations may use temp registers
+	// args are pushed to callsite stack by the codegen
+	// callsite needs to be at the top of the stack and also must be a temp
+	if (callsite_pseudo->type != PSEUDO_TEMP_ANY ||
+	    callsite_pseudo->type == PSEUDO_TEMP_ANY && !pseudo_gen_is_top(&proc->temp_pseudos, callsite_pseudo->regnum)) {
+		Pseudo *temp = allocate_temp_pseudo(proc, RAVI_TANY, true);
+		instruct_move(proc, op_mov, temp, callsite_pseudo, expr->line_number);
+		replace_instruction_operand(proc, insn, callsite_pseudo, temp);
+		callsite_pseudo = temp;
+	}
 
 	Pseudo *return_pseudo = allocate_range_pseudo(
 	    proc, callsite_pseudo); /* Base reg for function call - where return values will be placed */
@@ -2445,7 +2452,6 @@ static void linearize_function_statement(Proc *proc, AstNode *node)
 			ravitype_t key_type = this_node->index_expr.expr->common_expr.type.type_code;
 			next = instruct_indexed_load(proc, prev_node->common_expr.type.type_code, prev_pseudo, key_type,
 						     key_pseudo, this_node->common_expr.type.type_code, node->line_number);
-			free_temp_pseudo(proc, prev_pseudo, 0);
 			free_temp_pseudo(proc, key_pseudo, 0);
 		} else {
 			next = NULL;
