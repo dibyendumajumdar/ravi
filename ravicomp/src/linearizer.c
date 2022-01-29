@@ -1049,6 +1049,11 @@ static Pseudo *linearize_function_expr(Proc *proc, AstNode *expr)
 
 static Pseudo *create_global_index_pseudo(Proc *proc, Pseudo *container_pseudo, Pseudo *key_pseudo, unsigned line_number)
 {
+	if (container_pseudo->type == PSEUDO_INDEXED || key_pseudo->type == PSEUDO_INDEXED) {
+		assert(container_pseudo->type != PSEUDO_INDEXED);
+		assert(key_pseudo->type != PSEUDO_INDEXED);
+	}
+
 	Pseudo *index_pseudo = allocate_indexed_pseudo(proc);
 	index_pseudo->index_info.line_number = line_number;
 	index_pseudo->index_info.container_type = RAVI_TANY;
@@ -1064,6 +1069,11 @@ static Pseudo *create_indexed_pseudo(Proc *proc, ravitype_t container_type,
 				     Pseudo *container_pseudo, ravitype_t key_type,
 				     Pseudo *key_pseudo, ravitype_t target_type, unsigned line_number)
 {
+	if (container_pseudo->type == PSEUDO_INDEXED || key_pseudo->type == PSEUDO_INDEXED) {
+		assert(container_pseudo->type != PSEUDO_INDEXED);
+		assert(key_pseudo->type != PSEUDO_INDEXED);
+	}
+
 	Pseudo *index_pseudo = allocate_indexed_pseudo(proc);
 	index_pseudo->index_info.line_number = line_number;
 	index_pseudo->index_info.container_type = container_type;
@@ -1412,6 +1422,8 @@ static Pseudo *linearize_suffixedexpr(Proc *proc, AstNode *node)
 			ravitype_t key_type = this_node->index_expr.expr->common_expr.type.type_code;
 //			next = instruct_indexed_load(proc, prev_node->common_expr.type.type_code, prev_pseudo, key_type,
 //						     key_pseudo, this_node->common_expr.type.type_code, node->line_number);
+			if (key_pseudo->type == PSEUDO_INDEXED)
+				key_pseudo = indexed_load(proc, key_pseudo);
 			next = create_indexed_pseudo(proc, prev_node->common_expr.type.type_code, prev_pseudo, key_type,
 						     key_pseudo, this_node->common_expr.type.type_code, node->line_number);
 		} else if (this_node->type == EXPR_FUNCTION_CALL) {
