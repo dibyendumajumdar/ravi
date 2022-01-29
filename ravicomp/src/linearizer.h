@@ -193,7 +193,6 @@ typedef struct PseudoIndexInfo {
  */
 struct Pseudo {
 	unsigned type : 4, regnum : 16, freed : 1;
-	//Instruction *insn; /* instruction that created this pseudo */
 	union {
 		LuaSymbol *symbol;	   /* PSEUDO_SYMBOL */
 		const Constant *constant;  /* PSEUDO_CONSTANT */
