@@ -171,16 +171,29 @@ enum PseudoType {
 	PSEUDO_RANGE_SELECT, /* Picks a certain register from a range, resolves to register on Lua stack, relative to
 				'base' */
 	/* TODO we need a type for var args */
-	PSEUDO_LUASTACK /* Specifies a Lua stack position - not used by linearizer - for use by codegen. This is
+	PSEUDO_LUASTACK, /* Specifies a Lua stack position - not used by linearizer - for use by codegen. This is
 			   relative to CI->func rather than 'base' */
+	PSEUDO_INDEXED    /* Index pseudo means that we have the key, the target but we don't know how this will be used,
+                             i.e. will it be a load or a store */
 };
+
+typedef struct PseudoIndexInfo {
+	ravitype_t container_type;
+	ravitype_t key_type;
+	ravitype_t target_type;
+	unsigned is_global: 1, /* _ENV load or store */
+	    used: 1; /* has been used up */
+	unsigned line_number; /* Carry forward line number info */
+	Pseudo *container;
+	Pseudo *key;
+} PseudoIndexInfo;
 
 /* A pseudo represents an operand/target of an instruction, and can point to
  * different things such as virtual registers, basic blocks, symbols, etc.
  */
 struct Pseudo {
 	unsigned type : 4, regnum : 16, freed : 1;
-	Instruction *insn; /* instruction that created this pseudo */
+	//Instruction *insn; /* instruction that created this pseudo */
 	union {
 		LuaSymbol *symbol;	   /* PSEUDO_SYMBOL */
 		const Constant *constant;  /* PSEUDO_CONSTANT */
@@ -189,6 +202,7 @@ struct Pseudo {
 		BasicBlock *block;	   /* PSEUDO_BLOCK */
 		Pseudo *range_pseudo;	   /* PSEUDO_RANGE_SELECT */
 		int stackidx;		   /* PSEUDO_LUASTACK */
+                PseudoIndexInfo index_info; /* PSEUDO_INDEXED */
 	};
 };
 
