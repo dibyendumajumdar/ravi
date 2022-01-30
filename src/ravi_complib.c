@@ -208,12 +208,19 @@ static int generate(lua_State* L) {
     mainfunc = luaL_checkstring(L, 2);
   }
   struct CompilerContext ccontext = {.L = L, .jit = G(L)->ravi_state};
+  C_MemoryAllocator allocator = {.arena = create_mspace(0, 0),
+                                 .create_arena = create_mspace,
+                                 .destroy_arena = destroy_mspace,
+                                 .calloc = mspace_calloc,
+                                 .realloc = mspace_realloc,
+                                 .free = mspace_free};
   struct Ravi_CompilerInterface ravicomp_interface = {.source = s,
                                                       .source_len = strlen(s),
                                                       .source_name = "input",
                                                       .generated_code = NULL,
                                                       .context = &ccontext,
                                                       .compiler_options = "--dump-ir",
+                                                      .memory_allocator = &allocator,
                                                       .debug_message = debug_message,
                                                       .error_message = error_message};
   if (mainfunc) {
@@ -231,10 +238,12 @@ static int generate(lua_State* L) {
   if (rc == 0) {
     lua_pushstring(L, ravicomp_interface.generated_code);
     raviX_release(&ravicomp_interface);
+    destroy_mspace(allocator.arena);
     return 1;
   }
   else {
     raviX_release(&ravicomp_interface);
+    destroy_mspace(allocator.arena);
     lua_error(L);
     return 0;
   }
