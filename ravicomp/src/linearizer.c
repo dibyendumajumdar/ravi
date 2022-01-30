@@ -22,7 +22,7 @@
  ******************************************************************************/
 
 /*
-This file contains the Linearizer. The goal of the Linearizer is
+This file contains the Linearizer. The goal of the Linearizer is to
 generate a linear intermediate representation (IR) from the AST
 suitable for further analysis.
 
@@ -82,15 +82,37 @@ static AstNode* astlist_get(AstNodeList *list, unsigned int i)
 	return (AstNode*) raviX_ptrlist_nth_entry((struct PtrList *) list, i);
 }
 
-enum { MAXBIT = 4 * sizeof(uint64_t) * 8, ESIZE = sizeof(uint64_t) * 8 };
+/*
+ * A simple register assignment system that uses a bit set 256 bits long.
+ * It is not the most efficient as we don't use hard-ware intrinsics to scan for
+ * next available bit.
+ */
 
+#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+#define FIELD_E_SIZEOF(t, f) (sizeof(((t*)0)->f[0]))
+
+enum {
+	BITSET_SIZE = FIELD_SIZEOF(PseudoGenerator, bits),    /* total size of bits in #bytes */
+	BITSET_ESIZE = FIELD_E_SIZEOF(PseudoGenerator, bits), /* sizeof bits[0] in #bytes */
+	N_WORDS = BITSET_SIZE / BITSET_ESIZE,		      /* bits array size in #bytes */
+	ESIZE = BITSET_ESIZE * 8,			      /* bits in bits[0] */
+	MAXBIT = N_WORDS * ESIZE			      /* total bits */
+};
+
+static_assert(N_WORDS == 4, "Invalid computation of bitset size"); /* must be kept in sync with PseudoGeneraotor.bits */
+
+/* Identify the top most register allocated; this is useful when we need
+ * to ensure that the next register goes to the top of the stack
+ */
 static int top_reg(PseudoGenerator *generator)
 {
-	for (int i = 3; i >= 0; i--) {
-		if (!generator->bits[i])
+	/* start from the last element of bits */
+	for (int i = N_WORDS-1; i >= 0; i--) {
+		if (!generator->bits[i]) // no bit set
 			continue;
 		uint64_t bit = generator->bits[i];
-		int x = i * sizeof(uint64_t) * 8 - 1;
+		int x = i * ESIZE - 1; /* x is rightmost bit in bits[i] */
+		/* keep getting rid of bits until we have none left */
 		while (bit != 0) {
 			bit >>= 1;
 			x++;
@@ -111,6 +133,9 @@ static int pseudo_gen_is_top(PseudoGenerator *generator, unsigned reg)
 	return top == reg;
 }
 
+/**
+ * Free the given register
+ */
 static void pseudo_gen_free(PseudoGenerator *generator, unsigned reg)
 {
 	assert(reg < MAXBIT);
@@ -119,6 +144,11 @@ static void pseudo_gen_free(PseudoGenerator *generator, unsigned reg)
 	generator->bits[n] &= ~(1ull << reg);
 }
 
+/**
+ * Allocate a register, if top is specified then ensure it is top of the
+ * stack else look for a free register. Not the most efficient as we
+ * don't yet use hardware intrinsics for bit scans.
+ */
 static unsigned pseudo_gen_alloc(PseudoGenerator *generator, bool top)
 {
 	unsigned reg;
@@ -126,11 +156,17 @@ static unsigned pseudo_gen_alloc(PseudoGenerator *generator, bool top)
 		int current_top = top_reg(generator);
 		reg = current_top + 1;
 	} else {
+		/* look for the first free reg */
 		reg = 0;
 		int is_set = 1;
-		for (int i = 0; is_set && i < 4; i++) {
+		for (int i = 0; is_set && i < N_WORDS; i++) {
 			uint64_t bit = generator->bits[i];
-			for (int j = 0; is_set && j < sizeof(uint64_t) * 8; j++) {
+			if (bit == ~0ull) {
+				/* all bits set? skip */
+				reg += ESIZE;
+				continue;
+			} 
+			for (int j = 0; is_set && j < ESIZE; j++) {
 				is_set = (bit & (1ull << j)) != 0;
 				if (is_set)
 					reg++;
@@ -148,7 +184,8 @@ static unsigned pseudo_gen_alloc(PseudoGenerator *generator, bool top)
 
 /**
  * Allocates a register by reusing a free'd register if possible otherwise
- * allocating a new one
+ * allocating a new one, if top is set then ensure that the register is
+ * top of the stack
  */
 static inline unsigned allocate_register(PseudoGenerator *generator, bool top)
 {
@@ -331,17 +368,12 @@ static void free_instruction_operand_pseudos(Proc *proc, Instruction *insn)
 	END_FOR_EACH_PTR_REVERSE(operand)
 }
 
+/* adds instruction to the current basic block */
 static inline void add_instruction(Proc *proc, Instruction *insn)
 {
 	assert(insn->block == NULL || insn->block == proc->current_bb);
 	raviX_ptrlist_add((PtrList **)&proc->current_bb->insns, insn, proc->linearizer->compiler_state->allocator);
 	insn->block = proc->current_bb;
-}
-
-static inline void remove_instruction(BasicBlock *block, Instruction *insn)
-{
-	raviX_ptrlist_remove((PtrList **)&block->insns, insn, 1);
-	insn->block = NULL;
 }
 
 Instruction *raviX_last_instruction(BasicBlock *block)
@@ -722,6 +754,9 @@ static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 		free_temp_pseudo(proc, target, false); //CHECK
 		target = allocate_temp_pseudo(proc, subexpr_type, false);
 	}
+	/* unary ops set their operand in the target so we need to check here that the
+	 * operand is not in pending state.
+	 */
 	if (target->type == PSEUDO_INDEXED) {
 		target = indexed_load(proc, target);
 	}
@@ -1002,11 +1037,7 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 		target = allocate_temp_pseudo(proc, target_type, false);
 		add_instruction_target(proc, not_insn, target);
 		add_instruction(proc, not_insn);
-		//free_temp_pseudo(proc, temp, false);
 	}
-	//free_temp_pseudo(proc, operand1, false);
-	//free_temp_pseudo(proc, operand2, false);
-
 	return target;
 }
 
@@ -1047,12 +1078,11 @@ static Pseudo *linearize_function_expr(Proc *proc, AstNode *expr)
 	return target;
 }
 
-static Pseudo *create_global_index_pseudo(Proc *proc, Pseudo *container_pseudo, Pseudo *key_pseudo, unsigned line_number)
+/* Create a deferred pseudo (i.e. reg not allocated yet) for a global var access (i.e. _ENV) */
+static Pseudo *create_global_indexed_pseudo(Proc *proc, Pseudo *container_pseudo, Pseudo *key_pseudo, unsigned line_number)
 {
-	if (container_pseudo->type == PSEUDO_INDEXED || key_pseudo->type == PSEUDO_INDEXED) {
-		assert(container_pseudo->type != PSEUDO_INDEXED);
-		assert(key_pseudo->type != PSEUDO_INDEXED);
-	}
+	assert(container_pseudo->type != PSEUDO_INDEXED);
+	assert(key_pseudo->type != PSEUDO_INDEXED);
 
 	Pseudo *index_pseudo = allocate_indexed_pseudo(proc);
 	index_pseudo->index_info.line_number = line_number;
@@ -1065,14 +1095,15 @@ static Pseudo *create_global_index_pseudo(Proc *proc, Pseudo *container_pseudo, 
 	return index_pseudo;
 }
 
+/* Create a deferred pseudo (i.e. reg not allocated yet) for a array/table access; we don't know at this
+ * point if it will be a load or store
+ */
 static Pseudo *create_indexed_pseudo(Proc *proc, ravitype_t container_type,
 				     Pseudo *container_pseudo, ravitype_t key_type,
 				     Pseudo *key_pseudo, ravitype_t target_type, unsigned line_number)
 {
-	if (container_pseudo->type == PSEUDO_INDEXED || key_pseudo->type == PSEUDO_INDEXED) {
-		assert(container_pseudo->type != PSEUDO_INDEXED);
-		assert(key_pseudo->type != PSEUDO_INDEXED);
-	}
+	assert(container_pseudo->type != PSEUDO_INDEXED);
+	assert(key_pseudo->type != PSEUDO_INDEXED);
 
 	Pseudo *index_pseudo = allocate_indexed_pseudo(proc);
 	index_pseudo->index_info.line_number = line_number;
@@ -1093,7 +1124,7 @@ static Pseudo *linearize_symbol_expression(Proc *proc, AstNode *expr)
 		const Constant *constant = allocate_string_constant(proc, sym->variable.var_name);
 		Pseudo *operand_varname = allocate_constant_pseudo(proc, constant);
 		Pseudo* operand_env = allocate_symbol_pseudo(proc, sym->variable.env, 0); // no register
-		return create_global_index_pseudo(proc, operand_env, operand_varname, expr->line_number);
+		return create_global_indexed_pseudo(proc, operand_env, operand_varname, expr->line_number);
 	} else if (sym->symbol_type == SYM_LOCAL) {
 		return sym->variable.pseudo;
 	} else if (sym->symbol_type == SYM_UPVALUE) {
@@ -1152,10 +1183,6 @@ static Pseudo *indexed_load_from_global(Proc *proc, Pseudo *index_pseudo)
 
 	assert(container_pseudo->type != PSEUDO_INDEXED);
 	assert(key_pseudo->type != PSEUDO_INDEXED);
-//	if (container_pseudo->type == PSEUDO_INDEXED)
-//		container_pseudo = indexed_load(proc, container_pseudo);
-//	if (key_pseudo->type == PSEUDO_INDEXED)
-//		key_pseudo = indexed_load(proc, key_pseudo);
 
 	Pseudo *target = allocate_temp_pseudo(proc, RAVI_TANY, false);
 	Instruction *insn = allocate_instruction(proc, op_loadglobal, index_pseudo->index_info.line_number);
@@ -1186,10 +1213,6 @@ static Pseudo *indexed_load(Proc *proc, Pseudo *index_pseudo)
 
 	assert(container_pseudo->type != PSEUDO_INDEXED);
 	assert(key_pseudo->type != PSEUDO_INDEXED);
-//	if (container_pseudo->type == PSEUDO_INDEXED)
-//		container_pseudo = indexed_load(proc, container_pseudo);
-//	if (key_pseudo->type == PSEUDO_INDEXED)
-//		key_pseudo = indexed_load(proc, key_pseudo);
 
 	int op = op_get;
 	switch (container_type) {
@@ -1233,7 +1256,6 @@ static void instruct_indexed_store(Proc *proc, ravitype_t table_type, Pseudo *ta
 				   Pseudo *index_pseudo, ravitype_t index_type, Pseudo *value_pseudo,
 				   ravitype_t value_type, unsigned line_number)
 {
-	// TODO validate the type of assignment
 	// Insert type assertions if needed
 	int op;
 	switch (table_type) {
@@ -1270,7 +1292,6 @@ static void indexed_store_to_global(Proc *proc, Pseudo *index_pseudo, Pseudo *va
 			  ravitype_t value_type)
 {
 	Instruction *insn = allocate_instruction(proc, op_storeglobal, index_pseudo->index_info.line_number);
-	// Add new operand
 	add_instruction_operand(proc, insn, value_pseudo);
 	add_instruction_target(proc, insn, index_pseudo->index_info.container);
 	add_instruction_target(proc, insn, index_pseudo->index_info.key);
@@ -1316,13 +1337,8 @@ static void indexed_store(Proc *proc, Pseudo *index_pseudo, Pseudo *value_pseudo
 
 	assert(container_pseudo->type != PSEUDO_INDEXED);
 	assert(key_pseudo->type != PSEUDO_INDEXED);
-//	if (container_pseudo->type == PSEUDO_INDEXED)
-//		container_pseudo = indexed_load(proc, container_pseudo);
-//	if (key_pseudo->type == PSEUDO_INDEXED)
-//		key_pseudo = indexed_load(proc, key_pseudo);
 
 	Instruction *insn = allocate_instruction(proc, op, line_number);
-	// Add new operand
 	add_instruction_operand(proc, insn, value_pseudo);
 	add_instruction_target(proc, insn, container_pseudo);
 	add_instruction_target(proc, insn, key_pseudo);
@@ -1420,8 +1436,6 @@ static Pseudo *linearize_suffixedexpr(Proc *proc, AstNode *node)
 		if (this_node->type == EXPR_Y_INDEX || this_node->type == EXPR_FIELD_SELECTOR) {
 			Pseudo *key_pseudo = linearize_expression(proc, this_node->index_expr.expr);
 			ravitype_t key_type = this_node->index_expr.expr->common_expr.type.type_code;
-//			next = instruct_indexed_load(proc, prev_node->common_expr.type.type_code, prev_pseudo, key_type,
-//						     key_pseudo, this_node->common_expr.type.type_code, node->line_number);
 			if (key_pseudo->type == PSEUDO_INDEXED)
 				key_pseudo = indexed_load(proc, key_pseudo);
 			next = create_indexed_pseudo(proc, prev_node->common_expr.type.type_code, prev_pseudo, key_type,
@@ -1474,7 +1488,6 @@ static Pseudo *linearize_table_constructor(Proc *proc, AstNode *expr)
 	add_instruction_target(proc, insn, target);
 	add_instruction(proc, insn);
 
-	/*TODO process constructor elements */
 	AstNode *ia;
 	int i = 1;
 	FOR_EACH_PTR(expr->table_expr.expr_list, AstNode, ia)
@@ -1709,6 +1722,9 @@ static void linearize_expression_statement(Proc *proc, AstNode *node)
 	{
 		Pseudo *var_pseudo = linearize_expression(proc, var);
 
+		// See test case https://github.com/dibyendumajumdar/ravi/blob/master/tests/comptests/inputs/34_assign.lua
+		// We need to ensure that any pending index access in the LHS side is resolved
+		// before we evaluate the RHS side
 		if (var_pseudo->type == PSEUDO_INDEXED) {
 			if (var_pseudo->index_info.container->type == PSEUDO_INDEXED)
 				var_pseudo->index_info.container = indexed_load(proc, var_pseudo->index_info.container);

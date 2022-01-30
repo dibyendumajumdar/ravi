@@ -174,9 +174,14 @@ enum PseudoType {
 	PSEUDO_LUASTACK, /* Specifies a Lua stack position - not used by linearizer - for use by codegen. This is
 			   relative to CI->func rather than 'base' */
 	PSEUDO_INDEXED    /* Index pseudo means that we have the key, the target but we don't know how this will be used,
-                             i.e. will it be a load or a store */
+                             i.e. will it be a load or a store; all such pseudos should disappear by the time we get to
+                             code generation */
 };
 
+/* structure to remember all the details re indexed load/store pending
+ * TODO: optimize the structure
+ * Future note: we may support multi-dimensional indexing
+ * */
 typedef struct PseudoIndexInfo {
 	ravitype_t container_type;
 	ravitype_t key_type;
