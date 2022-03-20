@@ -12,8 +12,8 @@ do
   end
   local y = x(z)
   assert(x(z) == 6 and y == 6)
+  print("Test 1 OK")
 end
-print("Test 1 OK")
 
 -- test 2
 do
@@ -26,8 +26,8 @@ do
     return j
   end
   assert(x() == 10)
+  print("Test 2 OK")
 end
-print("Test 2 OK")
 
 -- test 3
 do
@@ -39,8 +39,8 @@ do
     return j
   end
   assert(x() == 10.0)
+  print("Test 3 OK")
 end
-print("Test 3 OK")
 
 -- test 4
 do
@@ -52,8 +52,8 @@ do
     return j
   end
   assert(x() == 5)
+  print("Test 4 OK")
 end
-print("Test 4 OK")
 
 -- test 5
 do
@@ -64,8 +64,8 @@ do
     return 1.0
   end
   assert(x() == 1.0)
+  print("Test 5 OK")
 end
-print("Test 5 OK")
 
 -- test 6
 do
@@ -76,8 +76,8 @@ do
     return 1.0
   end
   assert(x(1,2) == 1.0)
+  print("Test 6 OK")
 end
-print("Test 6 OK")
 
 -- test 7
 do
@@ -92,8 +92,8 @@ do
   end
   assert(x(5) == 2.0)
   assert(x(4) == 3.0)
+  print("Test 7 OK")
 end
-print("Test 7 OK")
 
 -- test 8
 do
@@ -108,8 +108,8 @@ do
   end
   assert(x(5.1) == 2.0)
   assert(x(4.0) == 3.0)
+  print("Test 8 OK")
 end
-print("Test 8 OK")
 
 -- test 9
 do
@@ -131,8 +131,8 @@ do
   assert(x(1,5.3) == 5.3)
   assert(x(5) == 2.0)
   assert(x(4) == 3.0)
+  print("Test 9 OK")
 end
-print("Test 9 OK")
 
 -- test 10
 do
@@ -145,8 +145,8 @@ do
     assert(i+j == 11)
   end
   x()
+  print("Test 10 OK")
 end
-print("Test 10 OK")
 
 -- test 11
 do
@@ -159,8 +159,8 @@ do
     return j
   end
   assert(x() == 55.0)
+  print("Test 11 OK")
 end
-print("Test 11 OK")
 
 -- test 12
 do
@@ -175,8 +175,8 @@ do
     return sum
   end
   assert(math.abs(pisum()-1.644834071848065) < 1e-12)
+  print("Test 12 OK")
 end
-print("Test 12 OK")
 
 -- test 13
 do
@@ -189,8 +189,8 @@ do
     return i+j
   end
   assert(math.abs(x(y) - 11.3) < 0.0001)
+  print("Test 13 OK")
 end
-print("Test 13 OK")
 
 -- test 14
 do
@@ -203,8 +203,8 @@ do
   end
   assert(tryme(1,2) == 1)
   assert(tryme(2,1) == 0)
+  print("Test 14 OK")
 end
-print("Test 14 OK")
 
 -- test 15
 do
@@ -213,8 +213,8 @@ do
   end
   assert(tryme(1,2))
   assert(not tryme(2,1))
+  print("Test 15 OK")
 end
-print("Test 15 OK")
 
 -- test 16
 do
@@ -223,8 +223,8 @@ do
     return x[1]
   end
   assert(tabtest({}) == 5)
+  print("Test 16 OK")
 end
-print("Test 16 OK")
 
 -- test 17
 do
@@ -234,8 +234,8 @@ do
     return c
   end
   assert(optest() == 5)
+  print("Test 17 OK")
 end
-print("Test 17 OK")
 
 -- test 18
 do
@@ -245,8 +245,8 @@ do
     return c
   end
   assert(optest() == 1)
+  print("Test 18 OK")
 end
-print("Test 18 OK")
 
 -- test 19
 do
@@ -258,8 +258,8 @@ do
     return a
   end
   assert(optest() == 5)
+  print("Test 19 OK")
 end
-print("Test 19 OK")
 
 -- test 20
 do
@@ -271,8 +271,8 @@ do
     return a
   end
   assert(optest() == 5)
+  print("Test 20 OK")
 end
-print("Test 20 OK")
 
 -- test 21
 do
@@ -288,8 +288,8 @@ do
     assert(@integer (#y) == 1)
   end
   z()
+  print("Test 21 OK")
 end
-print("Test 21 OK")
 
 -- test 22
 do
@@ -311,8 +311,8 @@ do
     assert(x() == "SundayMondayTuesdayWednesdayThursdayFridaySaturday")
   end
   z()
+  print("Test 22 OK")
 end
-print("Test 22 OK")
 
 -- test 23
 do
@@ -325,8 +325,8 @@ do
   assert(y(x()))
   assert(y(x(false)))
   assert(not y(x(true)))
+  print("Test 23 OK")
 end
-print("Test 23 OK")
 
 -- test 24
 do
@@ -338,8 +338,8 @@ do
     return t:name()
   end
   assert(z(t) == "ravi")
+  print("Test 24 OK")
 end
-print("Test 24 OK")
 
 -- test 25
 do
@@ -354,8 +354,8 @@ do
     return y
   end
   assert(f() == 6)
+  print("Test 25 OK")
 end
-print("Test 25 OK")
 
 -- test 26
 do
@@ -365,8 +365,8 @@ do
     return x[3]
   end
   assert(math.abs(f()-11.1) < 1e-12)
+  print("Test 26 OK")
 end
-print("Test 26 OK")
 
 -- test 27
 do
@@ -384,8 +384,8 @@ do
     return t
   end
   assert(x() == 28)
+  print("Test 27 OK")
 end
-print("Test 27 OK")
 
 -- test 28
 do
@@ -403,8 +403,8 @@ do
     return t
   end
   assert(x() == 28)
+  print("Test 28 OK")
 end
-print("Test 28 OK")
 
 -- test 29
 -- test creation of arrays and slice
@@ -428,8 +428,8 @@ do
     return ones[10] == 115
   end
   assert(x() == true)
+  print("Test 29 OK")
 end
-print("Test 29 OK")
 
 -- test 30
 do
@@ -474,8 +474,8 @@ do
   end
 
   assert(x() == 65)
+  print("Test 30 OK")
 end
-print("Test 30 OK")
 
 -- test 31
 do
@@ -486,8 +486,8 @@ do
   assert(testadd(1.5,1.6) == 3.1)
   assert(testadd("1.5",1.6) == 3.1)
   assert(testadd("1.5","1.6") == 3.1)
+  print("Test 31 OK")
 end
-print("Test 31 OK")
 
 -- test 32
 do
@@ -498,8 +498,8 @@ do
   assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-6)
   assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-6)
   assert(math.abs(testsub("1.5","1.6")-(-0.1)) < 1e-6)
+  print("Test 32 OK")
 end
-print("Test 32 OK")
 
 -- test 33
 do
@@ -510,8 +510,8 @@ do
   assert(math.abs(testmul(1.5,1.6)-2.4) < 1e-12)
   assert(math.abs(testmul("1.5",1.6)-2.4) < 1e-12)
   assert(math.abs(testmul("1.5","1.6")-2.4) < 1e-12)
+  print("Test 33 OK")
 end
-print("Test 33 OK")
 
 
 -- test 34
@@ -523,8 +523,8 @@ do
   assert(math.abs(testdiv(1.5,1.6)-0.9375) < 1e-12)
   assert(math.abs(testdiv("1.5",1.6)-0.9375) < 1e-12)
   assert(math.abs(testdiv("1.5","1.6")-0.9375) < 1e-12)
+  print("Test 34 OK")
 end
-print("Test 34 OK")
 
 
 -- test 35
@@ -548,8 +548,8 @@ do
   assert(t[2]() == 10)
   assert(t[1]() == 20)
   assert(t[2]() == 20)
+  print("Test 35 OK")
 end
-print("Test 35 OK")
 
 -- test 36
 do
@@ -565,8 +565,8 @@ do
   assert(f() == 1)
   x=5
   assert(f() == 5)
+  print("Test 36 OK")
 end
-print("Test 36 OK")
 
 -- test 37
 do
@@ -582,8 +582,8 @@ do
   assert(f() == 3)
   g=5
   assert(f() == 5)
+  print("Test 37 OK")
 end
-print("Test 37 OK")
 
 -- test 38
 do
@@ -598,8 +598,8 @@ do
   local f=x()
   assert(f() == 2)
   assert(f() == 3)
+  print("Test 38 OK")
 end
-print("Test 38 OK")
 
 -- test setupval, getupval
 do
@@ -611,8 +611,8 @@ do
   assert(y(2) == 2)
   assert(y(2) == 4)
   assert(y(3) == 7)
+  print('Test 39 OK')
 end
-print('Test 39 OK')
 
 -- test 40
 do
@@ -622,8 +622,8 @@ do
   -- When using 32-bit numbers we don't jit mod
   assert(x(5,2) == 1)
   assert(math.abs(x(5.1,2.1)-0.9) < 1e-6)
+  print("Test 40 OK")
 end
-print("Test 40 OK")
 
 -- test 41
 do
@@ -633,8 +633,8 @@ do
   -- When using 32-bit numbers we don't jit idiv
   assert(x(5,2) == 2)
   assert(math.abs(x(5.5,2.1)-2.0) < 1e-6)
+  print("Test 41 OK")
 end
-print("Test 41 OK")
 
 -- test 42
 --do
@@ -657,8 +657,8 @@ do
     return i+j
   end
   assert(x(1,5.5) == 6.5)
+  print'Test 43 OK'
 end
-print'Test 43 OK'
 
 do
   local x=function (a:number[], b:integer)
@@ -670,8 +670,8 @@ do
     return x(t, 1)
   end
   assert(y() == 4.2)
+  print'Test 44 OK'
 end
-print'Test 44 OK'
 
 -- test 45
 do
@@ -694,8 +694,8 @@ do
     ss = x(tt)
   end
   assert(not pcall(f))
+  print("Test 45 OK")
 end
-print("Test 45 OK")
 
 -- test 47
 do
@@ -716,8 +716,8 @@ do
     assert(s1 == s2)
   end
   test_idiv()
+  print'Test 47 (IDIV) OK'
 end
-print'Test 47 (IDIV) OK'
 
 do
   local function test_tableaccess()
@@ -750,8 +750,8 @@ do
     assert(b == 'london')
   end
   test_tableaccess()
+  print 'Test 48 OK'
 end
-print 'Test 48 OK'
 
 do
   local function test_self_s()
@@ -762,8 +762,8 @@ do
     return t:name()
   end
   assert(test_self_s() == 'dibyendu majumdar')
+  print 'Test 49 OK'
 end
-print 'Test 49 OK'
 
 -- issue #73
 do
@@ -797,8 +797,8 @@ do
     assert(t3[2] == 'majumdar') -- index event
   end
   bug_index_event()
+  print 'Test 50 OK'
 end
-print 'Test 50 OK'
 
 do
   local function event_test()
@@ -813,8 +813,8 @@ do
     assert(tostring(a) == "gororoba")
   end
   event_test();
+  print 'Test 51 OK'
 end
-print 'Test 51 OK'
 
 do
   local function test_intarray_as_table(t)
@@ -826,8 +826,8 @@ do
     test_intarray_as_table(iarray);
   end
   assert(not pcall(do_test_intarray_as_table))
+  print 'Test 52 OK'
 end
-print 'Test 52 OK'
 
 do
   local function test_numarray_meta()
@@ -840,8 +840,8 @@ do
     assert(tostring(farray) == '{1.1,2.2,3.3}')
   end
   assert(pcall(test_numarray_meta));
+  print 'Test 53 OK'
 end
-print 'Test 53 OK'
 
 if false then -- FIX disabled test
   local function test_longkey()
@@ -857,8 +857,11 @@ if false then -- FIX disabled test
     assert(t.s == nil)
   end
   assert(pcall(test_longkey));
+  print 'Test 54 OK'
+else
+  print 'Test 54 Skipped'
 end
-print 'Test 54 OK'
+
 
 if false then -- FIX disabled test
   local function test_yields_in_metamethods()
@@ -985,10 +988,12 @@ if false then -- FIX disabled test
            end, {"nidx", "idx"}) == print)
   end
   assert(pcall(test_yields_in_metamethods));
+  print 'Test 55 Ok'
+else
+  print 'Test 55 Skipped as Coroutines not supported'
 end
-print 'Test 55 OK'
 
-do
+if false then
   local function test_upvaluejoin()
     local debug = require'debug'
     local foo1, foo2, foo3, foo4
@@ -1034,8 +1039,10 @@ do
     assert(not pcall(debug.upvaluejoin, foo1, 1, print, 1))
   end
   assert(pcall(test_upvaluejoin));
+  print 'Test 56 Ok'
+else
+  print 'Test 56 Skipped as test uses constant upvalues that get removed'
 end
-print 'Test 56 OK'
 
 do
   local function test_idiv(y: integer)
@@ -1044,8 +1051,8 @@ do
     return era
   end
   assert(test_idiv(1900) == 4)
+  print 'Test 57 OK'
 end
-print 'Test 57 OK'
 
 do
   local function from_dmy1(y: integer, m: integer, d: integer)
@@ -1092,16 +1099,16 @@ do
   end
   assert(from_dmy1(1900, 1, 1) == -25567)
   assert(from_dmy1(1900, 1, 1) == from_dmy2(1900, 1, 1))
+  print 'Test 58 OK'
 end
-print 'Test 58 OK'
 
 do
   local function x(s1: string, s2: string)
     return @string( s1 .. s2 )
   end
   assert(x('a', 'b') == 'ab')
+  print 'Test 59 OK'
 end
-print 'Test 59 OK'
 
 do
   local function x(f: closure)
@@ -1116,8 +1123,8 @@ do
   assert(called == 1)
   x(y)
   assert(called == 2)
+  print 'Test 60 OK'
 end
-print 'Test 60 OK'
 
 do
   local mt = { __name='MyType'}
@@ -1130,8 +1137,8 @@ do
     assert(@MyType t == t)
   end
   x(t)
+  print 'Test 61 OK'
 end
-print 'Test 61 OK'
 
 do
   local mt = { __name='MyType'}
@@ -1146,8 +1153,8 @@ do
   assert(pcall(f, t)) -- t is of MyType so okay
   assert(pcall(f, nil)) -- nil is okay
   assert(not pcall(f, 'hello')) -- string not okay
+  print 'Test 62 OK'
 end
-print 'Test 62 OK'
 
 do
   local function x()
@@ -1158,8 +1165,8 @@ do
     return f
   end
   assert(x() == 'a')
+  print 'Test 63 OK'
 end
-print 'Test 63 OK'
 
 -- Codegen bug #issue 148
 do
@@ -1167,8 +1174,8 @@ do
     assert(({pcall(function() comp 'x for __result' end)})[2]
        :find'not contain __ prefix')
   end
+  print 'Test 64 OK'
 end
-print 'Test 64 OK'
 
 do
   local x = function()
@@ -1182,8 +1189,8 @@ do
     assert(n == 4.2)
   end
   x()
+  print 'Test 65 OK'
 end
-print 'Test 65 OK'
 
 do
   local function x()
@@ -1192,8 +1199,8 @@ do
     assert(c == a and b == d)
   end
   x()
+  print 'Test 66 OK'
 end
-print 'Test 66 OK'
 
 do
   g = { 1, 5.5 } -- global
@@ -1209,23 +1216,23 @@ do
   end
   local y,z = x()
   assert(y == 61 and math.abs(z - 19.9) < 1e-5)
+  print 'Test 67 OK'
 end
-print 'Test 67 OK'
 
 do
   local x=load 'local t: number[] = {}'
+  print 'Test 68 OK'
 end
-print 'Test 68 OK'
 
 do
   local x=load 'local t = @number[] {}'
+  print 'Test 69 OK'
 end
-print 'Test 69 OK'
 
 do
   local x=load 'local t: number[] = @number[] ( @number[] {} )'
+  print 'Test 70 OK'
 end
-print 'Test 70 OK'
 
 do
   local function x()
@@ -1234,24 +1241,24 @@ do
   local y = x()
   assert(ravitype(y[1]) == 'integer[]')
   assert(ravitype(y[2]) == 'number[]')
+  print 'Test 71 OK'
 end
-print 'Test 71 OK'
 
 do
   local function x()
     return @integer[] @integer[] @integer[]{1}
   end
   assert(ravitype(x()) == 'integer[]')
+  print 'Test 72 OK'
 end
-print 'Test 72 OK'
 
 do
   local function x()
     return nil or @integer[] {1}
   end
   assert(ravitype(x()) == 'integer[]')
+  print 'Test 73 OK'
 end
-print 'Test 73 OK'
 
 do
   local function x()
@@ -1259,8 +1266,8 @@ do
   end
   assert(ravitype(x()) == 'number[]')
   assert(x()[1] == 42.0)
+  print 'Test 74 OK'
 end
-print 'Test 74 OK'
 
 do
   local function x()
@@ -1269,8 +1276,8 @@ do
     assert(math.exp(math.log(2)) == ravi.exp(ravi.ln(2)))
   end
   x()
+  print 'Test 75 OK'
 end
-print 'Test 75 OK'
 
 -- Test that % of ints results in int
 do
@@ -1278,8 +1285,8 @@ do
     return a%b == 0
   end
   assert(x(10,5))
+  print 'Test 76 OK'
 end
-print 'Test 76 OK'
 
 -- Test that ^ applied to numbers results in a number
 do
@@ -1288,8 +1295,8 @@ do
     return c
   end
   assert(x(2,3) == 2^3)
+  print 'Test 77 OK'
 end
-print 'Test 77 OK'
 
 
 -- Create some slices and invoke GC
@@ -1342,8 +1349,10 @@ if false then -- FIXME disabled test
     assert(finalizer_called)
   end
   x()
+  print 'Test 83 Ok'
+else
+  print 'Test 83 Skipped'
 end
-print 'Test 83 OK'
 
 -- Test that ~ applied to non integer result in any type
 -- issue #209
@@ -1355,8 +1364,8 @@ do
   local function x(x:table)
     return (~x)+1
   end
+  print 'Test 84 OK'
 end
-print 'Test 84 OK'
 
 -- Test that #() applied to non integer type produces any type
 -- issue #210
@@ -1364,8 +1373,8 @@ do
   local function x(x:integer[])
     return #(x[1])+1
   end
+  print 'Test 85 OK'
 end
-print 'Test 85 OK'
 
 -- Test that #() applied to non integer type produces any type
 -- issue #210
@@ -1373,8 +1382,8 @@ do
   local function x(x:integer[])
     return #x[1]+1
   end
+  print 'Test 86 OK'
 end
-print 'Test 86 OK'
 
 -- An upvalue that is an array will yield a primitive value
 -- issue #211
@@ -1387,8 +1396,8 @@ do
     local a,b = f()
     assert(a == 5)
     assert(b == 6.4)
+    print 'Test 87 OK'
 end
-print 'Test 87 OK'
 
 do
  local function doit(a: integer, what)
@@ -1413,8 +1422,8 @@ do
  assert(math.abs(doit(16, '<<') - 32) < 1e-15)
  assert(math.abs(doit(16, '>>') - 8) < 1e-15)
  assert(math.abs(doit(16, '~') - ~16) < 1e-15)
+ print 'Test 88 OK'
 end
-print 'Test 88 OK'
 
 do
   local data = { "a", 5.5, false }
@@ -1425,8 +1434,8 @@ do
     end
     assert(not pcall(x))
   end
+  print 'Test 89 OK'
 end
-print 'Test 89 OK'
 
 --if false then -- FIXME disabled test
 --  local y = 56.0
@@ -1437,7 +1446,7 @@ print 'Test 89 OK'
 --  assert(_)
 --  assert(math.type(z) == 'integer')
 --end
---print 'Test 90 OK'
+print 'Test 90 Skipped'
 
 do
   local data = { "a", 5.5, false }
@@ -1448,8 +1457,8 @@ do
     end
     assert(not pcall(x))
   end
+  print 'Test 91 OK'
 end
-print 'Test 91 OK'
 
 if false then -- FIXME disabled test
   local function x(y: integer)
@@ -1458,8 +1467,8 @@ if false then -- FIXME disabled test
   local _,z = pcall(x, 56.0)
   assert(_)
   assert(math.type(z) == 'integer')
+  print 'Test 92 OK'
 end
-print 'Test 92 OK'
 
 
 do
@@ -1471,8 +1480,8 @@ do
     end
     assert(not pcall(x))
   end
+  print 'Test 93 OK'
 end
-print 'Test 93 OK'
 
 do
   local y = 56
@@ -1482,8 +1491,8 @@ do
   local _,z = pcall(x)
   assert(_)
   assert(math.type(z) == 'float')
+  print 'Test 94 OK'
 end
-print 'Test 94 OK'
 
 do
   local data = { "a", function() end, false }
@@ -1494,8 +1503,8 @@ do
     end
     assert(not pcall(x))
   end
+  print 'Test 95 OK'
 end
-print 'Test 95 OK'
 
 do
   local function x(y: number)
@@ -1504,8 +1513,8 @@ do
   local _,z = pcall(x, 56)
   assert(_)
   assert(math.type(z) == 'float')
+  print 'Test 96 OK'
 end
-print 'Test 96 OK'
 
 do
   local data = { 1, 1.5, function() end, false }
@@ -1516,8 +1525,8 @@ do
     end
     assert(not pcall(x))
   end
+  print 'Test 97 OK'
 end
-print 'Test 97 OK'
 
 do
   local data = { 1, 1.5, function() end, false }
@@ -1528,8 +1537,8 @@ do
     end
     assert(not pcall(x, y))
   end
+  print 'Test 98 OK'
 end
-print 'Test 98 OK'
 
 do
   local data = { 'hello' }
@@ -1540,8 +1549,8 @@ do
     end
     assert(pcall(x))
   end
+  print 'Test 99 OK'
 end
-print 'Test 99 OK'
 
 do
   local data = { 'hello' }
@@ -1552,8 +1561,8 @@ do
     end
     assert(pcall(x, y))
   end
+  print 'Test 100 OK'
 end
-print 'Test 100 OK'
 
 do
   local function x(a, b)
@@ -1565,8 +1574,8 @@ do
   assert(not pcall(x, '1.5', 2))
   assert(not pcall(x, false, 2))
   assert(not pcall(x, nil, 2))
+  print 'Test 101 OK'
 end
-print 'Test 101 OK'
 
 do
   local function x(a, b)
@@ -1577,8 +1586,8 @@ do
   assert(not pcall(x, '1.5', 2))
   assert(not pcall(x, false, 2))
   assert(not pcall(x, nil, 2))
+  print 'Test 102 OK'
 end
-print 'Test 102 OK'
 
 do
   local data = { 'hello', 0, false, 5.6 }
@@ -1589,8 +1598,8 @@ do
     end
     assert(not pcall(x))
   end
+  print 'Test 103 OK'
 end
-print 'Test 103 OK'
 
 do
   local data = { 'hello', 0, false, 5.6 }
@@ -1601,8 +1610,8 @@ do
     end
     assert(not pcall(x, y))
   end
+  print 'Test 104 OK'
 end
-print 'Test 104 OK'
 
 -- 
 do
@@ -1614,8 +1623,8 @@ do
   local a,b = x()
   assert(a == 20)
   assert(b == nil)
+  print 'Test 105 OK'
 end
-print 'Test 105 OK'
 
 
 print 'OK'
