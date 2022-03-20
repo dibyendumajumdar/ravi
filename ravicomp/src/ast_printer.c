@@ -107,6 +107,11 @@ static void printf_buf(TextBuffer *buf, const char *format, ...)
 			i = va_arg(ap, lua_Integer);
 			raviX_buffer_add_bool(buf, i != 0);
 			cp++;
+		} else if (cp[0] == '%' && cp[1] == 'P') { /* pointer */
+			void* p;
+			p = va_arg(ap, void *);
+			raviX_buffer_add_fstring(buf, "%p", p);
+			cp++;
 		} else {
 			raviX_buffer_add_char(buf, *cp);
 		}
@@ -150,8 +155,9 @@ static void print_symbol(TextBuffer *buf, LuaSymbol *sym, int level)
 		break;
 	}
 	case SYM_LOCAL: {
-		printf_buf(buf, "%p%t %c %s %s\n", level, sym->variable.var_name, "local symbol",
-			   raviX_get_type_name(sym->variable.value_type.type_code), get_as_str(sym->variable.value_type.type_name));
+		printf_buf(buf, "%p%t %c %s %s %s\n", level, sym->variable.var_name, "local symbol",
+			   raviX_get_type_name(sym->variable.value_type.type_code), get_as_str(sym->variable.value_type.type_name),
+			   (sym->variable.modified ? "" : " const"));
 		break;
 	}
 	case SYM_UPVALUE: {

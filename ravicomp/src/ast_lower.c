@@ -247,6 +247,10 @@ static void lower_for_in_statement(CompilerState *compiler_state, AstNode *node)
 	LuaSymbol *ssym = raviX_new_local_symbol(compiler_state, do_scope, raviX_create_string(compiler_state, s, sizeof s-1), RAVI_TANY, NULL);
 	LuaSymbol *varsym = raviX_new_local_symbol(compiler_state, do_scope, raviX_create_string(compiler_state, var, sizeof var-1), RAVI_TANY, NULL);
 
+	fsym->variable.modified = 1;
+	ssym->variable.modified = 1;
+	varsym->variable.modified = 1;
+
 	raviX_add_symbol(compiler_state, &local_stmt->local_stmt.var_list, fsym);
 	raviX_add_symbol(compiler_state, &do_scope->symbol_list, fsym);
 	raviX_add_symbol(compiler_state, &local_stmt->local_stmt.var_list, ssym);

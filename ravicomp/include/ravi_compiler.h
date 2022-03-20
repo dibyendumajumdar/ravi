@@ -248,6 +248,14 @@ RAVICOMP_EXPORT LinearizerState *raviX_init_linearizer(CompilerState *compiler_s
  * Returns 0 on success.
  */
 RAVICOMP_EXPORT int raviX_ast_linearize(LinearizerState *linearizer);
+
+/*
+ * Attempts to replace use of upvalues with constants where the upvalue
+ * points to a local that was initialized with a literal and the local
+ * has no other assignments.
+ */
+RAVICOMP_EXPORT void raviX_optimize_upvalues(LinearizerState *linearizer);
+
 /* Prints out the content of the linear IR */
 RAVICOMP_EXPORT void raviX_output_linearizer(LinearizerState *linearizer, FILE *fp);
 /* Cleanup the linearizer */

@@ -187,6 +187,8 @@ LuaSymbol *raviX_new_local_symbol(CompilerState *compiler_state, Scope *scope, c
 	symbol->variable.var_name = name;
 	symbol->variable.pseudo = NULL;
 	symbol->variable.escaped = 0;
+	symbol->variable.modified = 0;
+	symbol->variable.literal_initializer = NULL;
 	return symbol;
 }
 
@@ -1251,8 +1253,10 @@ static AstNode *parse_embedded_C(ParserState *parser, bool is_decl) {
 			const StringObject *varname = ls->t.seminfo.ts;
 			bool is_local = 0;
 			LuaSymbol *symbol = search_for_variable(parser, varname, &is_local);
-			if (symbol && is_local)
+			if (symbol && is_local) {
 				raviX_add_symbol(parser->compiler_state, &node->embedded_C_stmt.symbols, symbol);
+				symbol->variable.modified = 1; // assume local will be modified
+			}
 			else {
 				raviX_syntaxerror(ls, "Argument to C__unsafe() must be a local variable");
 			}
@@ -1260,8 +1264,11 @@ static AstNode *parse_embedded_C(ParserState *parser, bool is_decl) {
 			while (testnext(ls, ',')) {
 				varname = check_name_and_next(ls);
 				symbol = search_for_variable(parser, varname, &is_local);
-				if (symbol && is_local)
-					raviX_add_symbol(parser->compiler_state, &node->embedded_C_stmt.symbols, symbol);
+				if (symbol && is_local) {
+					raviX_add_symbol(parser->compiler_state, &node->embedded_C_stmt.symbols,
+							 symbol);
+					symbol->variable.modified = 1; // assume local will be modified
+				}
 				else {
 					raviX_syntaxerror(ls, "Argument to C__unsafe() must be a local variable");
 				}
@@ -1385,6 +1392,7 @@ static void parse_fornum_statement(ParserState *parser, AstNode *stmt,
 	LexerState *ls = parser->ls;
 	/* fornum -> NAME = exp1,exp1[,exp1] forbody */
 	LuaSymbol *local = new_local_symbol(parser, varname, RAVI_TANY, NULL);
+	local->variable.modified = 1;
 	raviX_add_symbol(parser->compiler_state, &stmt->for_stmt.symbols, local);
 	add_local_symbol_to_current_scope(parser, local);
 	checknext(ls, '=');
@@ -1407,10 +1415,12 @@ static void parse_for_list(ParserState *parser, AstNode *stmt, const StringObjec
 	int nvars = 4; /* gen, state, control, plus at least one declared var */
 	/* create declared variables */
 	LuaSymbol *local = new_local_symbol(parser, indexname, RAVI_TANY, NULL);
+	local->variable.modified = 1;
 	raviX_add_symbol(parser->compiler_state, &stmt->for_stmt.symbols, local);
 	add_local_symbol_to_current_scope(parser, local);
 	while (testnext(ls, ',')) {
 		local = new_local_symbol(parser, check_name_and_next(ls), RAVI_TANY, NULL);
+		local->variable.modified = 1;
 		raviX_add_symbol(parser->compiler_state, &stmt->for_stmt.symbols, local);
 		add_local_symbol_to_current_scope(parser, local);
 		nvars++;
@@ -1540,6 +1550,25 @@ static void limit_function_call_results(ParserState *parser, int num_lhs, AstNod
 	}
 }
 
+static inline int min_int(int a, int b) {
+	return a <= b ? a: b;
+}
+
+/**
+ * Marks locals that have an initializer with literal value
+ */
+static void detect_constant_assignments(LocalStatement *local_statement) {
+	int maxele = min_int(raviX_ptrlist_size((const PtrList *)local_statement->var_list), raviX_ptrlist_size((const PtrList *)local_statement->expr_list));
+	for (int i = 0; i < maxele; i++) {
+		LuaSymbol *symbol = (LuaSymbol *) raviX_ptrlist_nth_entry((PtrList *)local_statement->var_list, i);
+		AstNode *expr = (AstNode *) raviX_ptrlist_nth_entry((PtrList *)local_statement->expr_list, i);
+		if (expr->type == EXPR_LITERAL) {
+			assert(symbol->symbol_type == SYM_LOCAL);
+			symbol->variable.literal_initializer = expr;
+		}
+	}
+}
+
 static AstNode *parse_local_statement(ParserState *parser)
 {
 	LexerState *ls = parser->ls;
@@ -1562,7 +1591,9 @@ static AstNode *parse_local_statement(ParserState *parser)
 		/* nexps = 0; */
 		;
 	}
+
 	limit_function_call_results(parser, nvars, node->local_stmt.expr_list);
+	detect_constant_assignments(&node->local_stmt);
 	/* local symbols are only added to scope at the end of the local statement */
 	LuaSymbol *sym = NULL;
 	FOR_EACH_PTR(node->local_stmt.var_list, LuaSymbol, sym) { add_local_symbol_to_current_scope(parser, sym); }
@@ -1604,6 +1635,36 @@ static AstNode *parse_function_statement(ParserState *parser, int line)
 	return function_stmt;
 }
 
+static LuaSymbol *is_symbol_expression(AstNode *node) {
+	if (node->type == EXPR_SUFFIXED &&
+	    node->suffixed_expr.suffix_list == NULL &&
+	    node->suffixed_expr.primary_expr->type == EXPR_SYMBOL)
+		return node->suffixed_expr.primary_expr->symbol_expr.var;
+	if (node->type == EXPR_SYMBOL)
+		return node->symbol_expr.var;
+	return NULL;
+}
+
+static void set_local_modified_flag(LuaSymbol *symbol) {
+	if (symbol->symbol_type == SYM_UPVALUE)
+		symbol = symbol->upvalue.target_variable;
+	if (symbol->symbol_type != SYM_LOCAL)
+		return;
+	symbol->variable.modified = 1;
+}
+
+static void detect_local_updates(ExpressionStatement *expr_statement)
+{
+	int maxele = raviX_ptrlist_size((const PtrList *)expr_statement->var_expr_list);
+	for (int i = 0; i < maxele; i++) {
+		AstNode *var = (AstNode *)raviX_ptrlist_nth_entry((PtrList *)expr_statement->var_expr_list, i);
+		LuaSymbol *symbol = is_symbol_expression(var);
+		if (symbol) {
+			set_local_modified_flag(symbol);
+		}
+	}
+}
+
 /* parse function call with no returns or assignment statement */
 static AstNode *parse_expression_statement(ParserState *parser)
 {
@@ -1627,6 +1688,7 @@ static AstNode *parse_expression_statement(ParserState *parser)
 		    parser, raviX_ptrlist_size((const PtrList *)stmt->expression_stmt.var_expr_list), current_list);
 	}
 	stmt->expression_stmt.expr_list = current_list;
+	detect_local_updates(&stmt->expression_stmt);
 	// TODO Check that if not assignment then it is a function call
 	return stmt;
 }

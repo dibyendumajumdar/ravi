@@ -1428,16 +1428,16 @@ do
 end
 print 'Test 89 OK'
 
-if false then -- FIXME disabled test
-  local y = 56.0
-  local function x()
-    return @integer y
-  end
-  local _,z = pcall(x)
-  assert(_)
-  assert(math.type(z) == 'integer')
-end
-print 'Test 90 OK'
+--if false then -- FIXME disabled test
+--  local y = 56.0
+--  local function x()
+--    return @integer y
+--  end
+--  local _,z = pcall(x)
+--  assert(_)
+--  assert(math.type(z) == 'integer')
+--end
+--print 'Test 90 OK'
 
 do
   local data = { "a", 5.5, false }

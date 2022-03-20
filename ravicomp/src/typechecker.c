@@ -347,6 +347,26 @@ static void typecheck_var_assignment(CompilerState *compiler_state, VariableType
 	}
 }
 
+/**
+ * If the local symbol was initialized with a constant (literal) and if the
+ * variable is never subsequently modified then we can assign the type of the
+ * constant to the local symbol
+ */
+static void typecheck_local_symbol(LuaSymbol *sym) {
+	if (sym->symbol_type != SYM_LOCAL
+	    || !sym->variable.literal_initializer
+	    || sym->variable.modified)
+		return;
+	AstNode *litexpr = sym->variable.literal_initializer;
+	ravitype_t type_code = litexpr->common_expr.type.type_code;
+	if (type_code == RAVI_TNUMINT ||
+	       type_code == RAVI_TNUMFLT ||
+	       type_code == RAVI_TSTRING) {
+		if (sym->variable.value_type.type_code == RAVI_TANY)
+			sym->variable.value_type.type_code = type_code;
+	}
+}
+
 static void typecheck_local_statement(CompilerState *compiler_state, AstNode *function, AstNode *node)
 {
 	// The local vars should already be annotated
@@ -364,10 +384,10 @@ static void typecheck_local_statement(CompilerState *compiler_state, AstNode *fu
 	for (;;) {
 		if (!var || !expr)
 			break;
-
 		VariableType *var_type = &var->variable.value_type;
 		const StringObject *var_name = var->variable.var_name;
 
+		typecheck_local_symbol(var);
 		typecheck_var_assignment(compiler_state, var_type, expr, var_name);
 
 		NEXT_PTR_LIST(LuaSymbol, var);
