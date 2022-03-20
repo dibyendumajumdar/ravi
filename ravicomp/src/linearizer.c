@@ -99,7 +99,7 @@ enum {
 	MAXBIT = N_WORDS * ESIZE			      /* total bits */
 };
 
-static_assert(N_WORDS == 4, "Invalid computation of bitset size"); /* must be kept in sync with PseudoGeneraotor.bits */
+//static_assert(N_WORDS == 4, "Invalid computation of bitset size"); /* must be kept in sync with PseudoGeneraotor.bits */
 
 /* Identify the top most register allocated; this is useful when we need
  * to ensure that the next register goes to the top of the stack
