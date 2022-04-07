@@ -1391,7 +1391,7 @@ static void codebinexpval (FuncState *fs, OpCode op,
     }                                                                      \
     e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                   \
     if ((e1->ravi_type_map & (~(RAVI_TM_FLOAT | RAVI_TM_INTEGER))) == 0 && \
-        (e1->ravi_type_map & (~(RAVI_TM_FLOAT | RAVI_TM_INTEGER))) == 0) { \
+        (e2->ravi_type_map & (~(RAVI_TM_FLOAT | RAVI_TM_INTEGER))) == 0) { \
       if (e1->ravi_type_map & e2->ravi_type_map & RAVI_TM_INTEGER) {       \
         e1->ravi_type_map = RAVI_TM_FLOAT | ii;                            \
       }                                                                    \
