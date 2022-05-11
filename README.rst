@@ -125,7 +125,10 @@ History
        - Support for `LLVM backend <https://github.com/dibyendumajumdar/ravi/tree/llvm>`_ archived
 * 2021
        - Integrated AOT and JIT compilation support 
-       - `Embedded C syntax <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_   
+       - `Embedded C syntax <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_ 
+* 2022 (plan)
+       - Improve Embedded C support with more validation
+       - Improve tests and documentation overall
 
 License
 =======
