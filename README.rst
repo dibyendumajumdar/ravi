@@ -129,6 +129,7 @@ History
 * 2022 (plan)
        - Improve Embedded C support with more validation
        - Improve tests and documentation overall
+       - Ensure new compiler is production grade (i.e. always generates correct code)
 
 License
 =======
