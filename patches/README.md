@@ -9,3 +9,4 @@ I think this is fixed in Lua 5.4.3.
 
 The original patch for 5.4 is applicable to versions prior to 5.4.3.
 The 5.4.3 version has a new approach to the implementation of toclose values, hence a new patch had to be created.
+It seems that the 5.4.3 patch also works for 5.4.4.
