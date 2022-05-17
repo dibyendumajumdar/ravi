@@ -55,7 +55,7 @@ Lua Goodies
 * `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_.
 * A `patch for Lua 5.3 <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_for_Lua_5_3.patch>`_ implements the 'defer' statement.
 * A `patch for Lua 5.4.[0-2] <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_for_Lua_5_4.patch>`_ implements the 'defer' statement.
-* Updated `patch for Lua 5.4.3 <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_patch_for_Lua_5_4_3.patch>`_ implements the 'defer' statement.
+* Updated `patch for Lua 5.4.[3-4] <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_patch_for_Lua_5_4_3.patch>`_ implements the 'defer' statement.
 
 Lua 5.4 Position Statement
 ==========================
@@ -125,7 +125,11 @@ History
        - Support for `LLVM backend <https://github.com/dibyendumajumdar/ravi/tree/llvm>`_ archived
 * 2021
        - Integrated AOT and JIT compilation support 
-       - `Embedded C syntax <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_   
+       - `Embedded C syntax <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_
+* 2022 (plan)
+       - Improve Embedded C support with more validation
+       - Improve tests and documentation overall
+       - Ensure new compiler is production grade (i.e. always generates correct code)
 
 License
 =======
