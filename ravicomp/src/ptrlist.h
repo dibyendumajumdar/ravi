@@ -4,7 +4,6 @@
  * (C) Copyright Linus Torvalds 2003-2005
  */
 /*
- * This version is part of the dmr_c project.
  * Copyright (C) 2017-2022 Dibyendu Majumdar
  */
 
