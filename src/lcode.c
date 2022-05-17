@@ -5,7 +5,7 @@
 */
 
 /*
-** Portions Copyright (C) 2015-2021 Dibyendu Majumdar
+** Portions Copyright (C) 2015-2022 Dibyendu Majumdar
 */
 
 #define lcode_c
