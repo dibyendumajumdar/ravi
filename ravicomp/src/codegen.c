@@ -1320,7 +1320,7 @@ static int emit_op_cbr(Function *fn, Instruction *insn)
 		raviX_buffer_add_fstring(&fn->body, " != 0) goto L%d;", get_target(insn, 0)->block->index);
 		raviX_buffer_add_fstring(&fn->body, " else goto L%d; ", get_target(insn, 1)->block->index);
 		raviX_buffer_add_string(&fn->body, "}\n");
-	} else if (cond_pseudo->type == PSEUDO_TEMP_ANY || cond_pseudo->type == PSEUDO_SYMBOL) {
+	} else if (cond_pseudo->type == PSEUDO_TEMP_ANY || cond_pseudo->type == PSEUDO_SYMBOL || cond_pseudo->type == PSEUDO_RANGE_SELECT) {
 		raviX_buffer_add_string(&fn->body, "{\nconst TValue *src_reg = ");
 		emit_reg_accessor(fn, cond_pseudo, 0);
 		raviX_buffer_add_fstring(&fn->body, ";\nif (!l_isfalse(src_reg)) goto L%d;\n",

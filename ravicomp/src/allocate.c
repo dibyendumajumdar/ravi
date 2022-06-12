@@ -83,7 +83,7 @@ size_t raviX_del_array_element(void *a, size_t element_size, size_t array_size, 
 	assert(i + n <= array_size);
 	char *p = (char *)a;
 	char *dest = p + i * element_size;
-	char *src = p + (i + n) * element_size;
+	char const *src = p + (i + n) * element_size;
 	size_t count = element_size * (array_size - n - i);
 	memmove(dest, src, count);
 	size_t new_array_size = array_size - n;

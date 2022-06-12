@@ -64,6 +64,7 @@ runfile("inputs/54_embed_C.lua")
 runfile("inputs/55_embed_C.lua")
 runfile("inputs/56_embed_C.lua")
 runfile("inputs/57_embed_C.lua")
+runfile("inputs/58_cbr.lua")
 
 print 'SUCCESS'
 
