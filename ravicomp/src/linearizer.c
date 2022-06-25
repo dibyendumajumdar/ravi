@@ -1135,7 +1135,7 @@ static Pseudo *linearize_function_expr(Proc *proc, AstNode *expr)
 	linearize_function(proc->linearizer);
 	set_current_proc(proc->linearizer, curproc); // restore the proc
 	ravitype_t target_type = expr->function_expr.type.type_code;
-	Pseudo *target = allocate_temp_pseudo(proc, target_type, false);
+	Pseudo *target = allocate_temp_pseudo(proc, target_type, true);
 	Pseudo *operand = allocate_closure_pseudo(newproc);
 	Instruction *insn = allocate_instruction(proc, op_closure, expr->line_number);
 	Pseudo *tofree = add_instruction_operand(proc, insn, operand);
