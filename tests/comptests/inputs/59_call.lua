@@ -11,3 +11,5 @@ assert(b == 1)
 assert(c == 2)
 assert(d == 3)
 assert(e == 4)
+
+print '59 Ok'

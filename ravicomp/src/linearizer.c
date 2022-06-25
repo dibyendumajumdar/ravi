@@ -1453,6 +1453,16 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 							callsite_pseudo, RAVI_TSTRING, name_pseudo, RAVI_TANY, expr->line_number);
 	}
 
+	// Must move call site if necessary after all args etc are evaluated as
+	// the evaluations may use temp registers
+	// args are pushed to callsite stack by the codegen
+	// callsite needs to be at the top of the stack and also must be a temp
+	if (callsite_pseudo->type != PSEUDO_TEMP_ANY) {
+		Pseudo *temp = allocate_temp_pseudo(proc, RAVI_TANY, true);
+		instruct_move(proc, op_mov, temp, callsite_pseudo, expr->line_number);
+		callsite_pseudo = temp;
+	}
+
 	Pseudo *tofree1 = add_instruction_operand(proc, insn, callsite_pseudo);
 	Pseudo *tofree2 = NULL;
 	if (self_arg) {
@@ -1474,18 +1484,6 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 		tofreelist[argi++] = add_instruction_operand(proc, insn, arg_pseudo);
 	}
 	END_FOR_EACH_PTR(arg)
-
-	// Must move call site if necessary after all args etc are evaluated as
-	// the evaluations may use temp registers
-	// args are pushed to callsite stack by the codegen
-	// callsite needs to be at the top of the stack and also must be a temp
-	if (callsite_pseudo->type != PSEUDO_TEMP_ANY ||
-	    callsite_pseudo->type == PSEUDO_TEMP_ANY && !pseudo_gen_is_top(&proc->temp_pseudos, callsite_pseudo->regnum)) {
-		Pseudo *temp = allocate_temp_pseudo(proc, RAVI_TANY, true);
-		instruct_move(proc, op_mov, temp, callsite_pseudo, expr->line_number);
-		replace_instruction_operand(proc, insn, callsite_pseudo, temp);
-		callsite_pseudo = temp;
-	}
 
 	Pseudo *return_pseudo = allocate_range_pseudo(
 	    proc, callsite_pseudo); /* Base reg for function call - where return values will be placed */
