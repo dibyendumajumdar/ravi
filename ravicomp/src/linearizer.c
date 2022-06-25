@@ -1573,7 +1573,7 @@ static int linearize_indexed_assign(Proc *proc, Pseudo *table, ravitype_t table_
 static Pseudo *linearize_table_constructor(Proc *proc, AstNode *expr)
 {
 	/* constructor -> '{' [ field { sep field } [sep] ] '}' where sep -> ',' | ';' */
-	Pseudo *target = allocate_temp_pseudo(proc, expr->table_expr.type.type_code, false);
+	Pseudo *target = allocate_temp_pseudo(proc, expr->table_expr.type.type_code, true);
 	enum opcode op = op_newtable;
 	if (expr->table_expr.type.type_code == RAVI_TARRAYINT)
 		op = op_newiarray;
