@@ -1213,7 +1213,7 @@ static Pseudo *indexed_load_from_global(Proc *proc, Pseudo *index_pseudo)
 	assert(container_pseudo->type != PSEUDO_INDEXED);
 	assert(key_pseudo->type != PSEUDO_INDEXED);
 
-	Pseudo *target = allocate_temp_pseudo(proc, RAVI_TANY, false);
+	Pseudo *target = allocate_temp_pseudo(proc, RAVI_TANY, true);
 	Instruction *insn = allocate_instruction(proc, op_loadglobal, index_pseudo->index_info.line_number);
 
 	Pseudo *tofree1 = add_instruction_operand(proc, insn, container_pseudo);
