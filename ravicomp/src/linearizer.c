@@ -935,6 +935,11 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 		return linearize_bool(proc, node, false);
 	}
 
+	// TODO check the type is correct for BINOPR_NE
+	ravitype_t target_type = node->binary_expr.type.type_code;
+	Pseudo *not_target = op == BINOPR_NE ? allocate_temp_pseudo(proc, target_type, true) : NULL;
+	Pseudo *target = allocate_temp_pseudo(proc, target_type, true);
+
 	AstNode *e1 = node->binary_expr.expr_left;
 	AstNode *e2 = node->binary_expr.expr_right;
 	Pseudo *operand1 = linearize_expression(proc, e1);
@@ -1073,17 +1078,14 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 		break;
 	}
 
-	ravitype_t target_type = node->binary_expr.type.type_code;
 	free_temp_pseudo(proc, operand1, false);//CHECK
 	free_temp_pseudo(proc, operand2, false);//CHECK
-	Pseudo *target = allocate_temp_pseudo(proc, target_type, false);
 	create_binary_instruction(proc, (enum opcode) targetop, operand1, operand2, target, node->line_number);
 	if (op == BINOPR_NE) {
-		Pseudo *temp = target;
 		Instruction *not_insn = allocate_instruction(proc, op_not, node->line_number);
 		Pseudo *tofree = add_instruction_operand(proc, not_insn, target);
-		free_temp_pseudo(proc, temp, false);//CHECK
-		target = allocate_temp_pseudo(proc, target_type, false);
+		free_temp_pseudo(proc, target, false);//CHECK
+		target = not_target;
 		add_instruction_target(proc, not_insn, target);
 		add_instruction(proc, not_insn);
 		if (tofree)
