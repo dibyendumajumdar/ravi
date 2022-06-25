@@ -1418,16 +1418,16 @@ static Pseudo *instruct_indexed_load(Proc *proc, ravitype_t container_type,
 	default:
 		break;
 	}
-	Pseudo *target_pseudo = allocate_temp_pseudo(proc, target_type, false);
 	Instruction *insn = allocate_instruction(proc, (enum opcode)op, line_number);
 	Pseudo *tofree1 = add_instruction_operand(proc, insn, container_pseudo);
 	Pseudo *tofree2 = add_instruction_operand(proc, insn, key_pseudo);
-	add_instruction_target(proc, insn, target_pseudo);
-	add_instruction(proc, insn);
 	if (tofree1)
 		free_temp_pseudo(proc, tofree1, false);
 	if (tofree2)
 		free_temp_pseudo(proc, tofree2, false);
+	Pseudo *target_pseudo = allocate_temp_pseudo(proc, target_type, true);
+	add_instruction_target(proc, insn, target_pseudo);
+	add_instruction(proc, insn);
 	return target_pseudo;
 }
 
