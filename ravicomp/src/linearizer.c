@@ -890,7 +890,8 @@ static Pseudo *linearize_bool(Proc *proc, AstNode *node, bool is_and)
 	BasicBlock *first_block = create_block(proc);
 	BasicBlock *end_block = create_block(proc);
 
-	Pseudo *result = allocate_temp_pseudo(proc, RAVI_TANY, false);
+	// leave the result register on top of virtual stack
+	Pseudo *result = allocate_temp_pseudo(proc, RAVI_TANY, true);
 	Pseudo *operand1 = linearize_expression(proc, e1);
 	instruct_move(proc, op_mov, result, operand1, node->line_number);
 	free_temp_pseudo(proc, operand1, false);
@@ -906,7 +907,6 @@ static Pseudo *linearize_bool(Proc *proc, AstNode *node, bool is_and)
 	instruct_br(proc, allocate_block_pseudo(proc, end_block), node->line_number);
 
 	start_block(proc, end_block, node->line_number);
-
 	return result;
 }
 
