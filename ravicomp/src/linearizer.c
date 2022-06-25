@@ -1673,7 +1673,7 @@ static ravitype_t get_type(LuaSymbol *symbol) {
 
 static Pseudo *copy_to_temp_if_necessary(Proc *proc, Pseudo *original, unsigned line_number) {
 	if (original->type == PSEUDO_SYMBOL) {
-		Pseudo *copy = allocate_temp_pseudo(proc, get_type(original->symbol), false);
+		Pseudo *copy = allocate_temp_pseudo(proc, get_type(original->symbol), true);
 		instruct_move(proc, op_mov, copy, original, line_number);
 		// TODO we may need to set type more specifically
 		return copy;
@@ -1867,11 +1867,11 @@ static Pseudo *linearize_builtin_expression(Proc *proc, AstNode *expr)
 		handle_error(proc->linearizer->compiler_state, "feature not yet implemented");
 	}
 	Instruction *insn = allocate_instruction(proc, op_C__new, expr->line_number);
+	Pseudo *target = allocate_temp_pseudo(proc, RAVI_TUSERDATA, true);
 	const StringObject *type_name = astlist_get(expr->builtin_expr.arg_list, 0)->literal_expr.u.ts;
 	Pseudo *tofree1 = add_instruction_operand(proc, insn, allocate_constant_pseudo(proc, allocate_string_constant(proc, type_name)));
 	Pseudo *size_expr = linearize_expression(proc, astlist_get(expr->builtin_expr.arg_list, 1));
 	Pseudo *tofree2 = add_instruction_operand(proc, insn, size_expr);
-	Pseudo *target = allocate_temp_pseudo(proc, RAVI_TUSERDATA, false);
 	add_instruction_target(proc, insn, target);
 	add_instruction(proc, insn);
 	free_temp_pseudo(proc, size_expr, false);
