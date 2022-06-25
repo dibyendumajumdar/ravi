@@ -1205,49 +1205,6 @@ static Pseudo *linearize_symbol_expression(Proc *proc, AstNode *expr)
 	}
 }
 
-static Pseudo *instruct_indexed_load(Proc *proc, ravitype_t container_type,
-					    Pseudo *container_pseudo, ravitype_t key_type,
-					    Pseudo *key_pseudo, ravitype_t target_type, unsigned line_number)
-{
-	int op = op_get;
-	switch (container_type) {
-	case RAVI_TTABLE:
-		op = op_tget;
-		break;
-	case RAVI_TARRAYINT:
-		op = op_iaget;
-		break;
-	case RAVI_TARRAYFLT:
-		op = op_faget;
-		break;
-	default:
-		break;
-	}
-	/* Note we rely upon ordering of enums here */
-	switch (key_type) {
-	case RAVI_TNUMINT:
-		op++;
-		break;
-	case RAVI_TSTRING:
-		assert(container_type != RAVI_TARRAYINT && container_type != RAVI_TARRAYFLT);
-		op += 2;
-		break;
-	default:
-		break;
-	}
-	Pseudo *target_pseudo = allocate_temp_pseudo(proc, target_type, false);
-	Instruction *insn = allocate_instruction(proc, (enum opcode)op, line_number);
-	Pseudo *tofree1 = add_instruction_operand(proc, insn, container_pseudo);
-	Pseudo *tofree2 = add_instruction_operand(proc, insn, key_pseudo);
-	add_instruction_target(proc, insn, target_pseudo);
-	add_instruction(proc, insn);
-	if (tofree1)
-		free_temp_pseudo(proc, tofree1, false);
-	if (tofree2)
-		free_temp_pseudo(proc, tofree2, false);
-	return target_pseudo;
-}
-
 static Pseudo *indexed_load_from_global(Proc *proc, Pseudo *index_pseudo)
 {
 	Pseudo *container_pseudo = index_pseudo->index_info.container;
@@ -1429,6 +1386,49 @@ static void indexed_store(Proc *proc, Pseudo *index_pseudo, Pseudo *value_pseudo
 	add_instruction(proc, insn);
 	if (tofree)
 		free_temp_pseudo(proc, tofree, false);
+}
+
+static Pseudo *instruct_indexed_load(Proc *proc, ravitype_t container_type,
+				     Pseudo *container_pseudo, ravitype_t key_type,
+				     Pseudo *key_pseudo, ravitype_t target_type, unsigned line_number)
+{
+	int op = op_get;
+	switch (container_type) {
+	case RAVI_TTABLE:
+		op = op_tget;
+		break;
+	case RAVI_TARRAYINT:
+		op = op_iaget;
+		break;
+	case RAVI_TARRAYFLT:
+		op = op_faget;
+		break;
+	default:
+		break;
+	}
+	/* Note we rely upon ordering of enums here */
+	switch (key_type) {
+	case RAVI_TNUMINT:
+		op++;
+		break;
+	case RAVI_TSTRING:
+		assert(container_type != RAVI_TARRAYINT && container_type != RAVI_TARRAYFLT);
+		op += 2;
+		break;
+	default:
+		break;
+	}
+	Pseudo *target_pseudo = allocate_temp_pseudo(proc, target_type, false);
+	Instruction *insn = allocate_instruction(proc, (enum opcode)op, line_number);
+	Pseudo *tofree1 = add_instruction_operand(proc, insn, container_pseudo);
+	Pseudo *tofree2 = add_instruction_operand(proc, insn, key_pseudo);
+	add_instruction_target(proc, insn, target_pseudo);
+	add_instruction(proc, insn);
+	if (tofree1)
+		free_temp_pseudo(proc, tofree1, false);
+	if (tofree2)
+		free_temp_pseudo(proc, tofree2, false);
+	return target_pseudo;
 }
 
 /**
