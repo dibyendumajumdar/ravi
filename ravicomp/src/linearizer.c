@@ -202,6 +202,35 @@ static void pseudo_gen_check(PseudoGenerator *generator, AstNode *node, const ch
 	}
 }
 
+static void check_pseudo_is_top(Proc *proc, Pseudo *pseudo) {
+	PseudoGenerator *gen;
+	assert(!pseudo->freed);
+	switch (pseudo->type) {
+	case PSEUDO_TEMP_FLT:
+		gen = &proc->temp_flt_pseudos;
+		break;
+	case PSEUDO_TEMP_INT:
+	case PSEUDO_TEMP_BOOL:
+		gen = &proc->temp_int_pseudos;
+		break;
+	case PSEUDO_RANGE:
+	case PSEUDO_TEMP_ANY:
+		gen = &proc->temp_pseudos;
+		break;
+	default:
+		// Not a temp, so no need to do anything
+		return;
+	}
+	if (pseudo->temp_for_local)
+		return;
+	int top = top_reg(gen);
+	if (top < 0)
+		return;
+	if (top != pseudo->regnum) {
+		fprintf(stderr, "Top expected %u, found %u\n", top, pseudo->regnum);
+	}
+}
+
 
 /**
  * Allocates a register by reusing a free'd register if possible otherwise
@@ -714,8 +743,28 @@ static Pseudo *linearize_literal(Proc *proc, AstNode *expr)
 static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 {
 	UnaryOperatorType op = node->unary_expr.unary_op;
-	Pseudo *subexpr = linearize_expression(proc, node->unary_expr.expr);
 	ravitype_t subexpr_type = node->unary_expr.expr->common_expr.type.type_code;
+
+	Pseudo *reserved = NULL;
+	if (op == UNOPR_NOT || op == UNOPR_BNOT || op == UNOPR_MINUS || op == UNOPR_LEN ||
+	    op == UNOPR_TO_INTEGER && subexpr_type != RAVI_TNUMINT ||
+	    op == UNOPR_TO_NUMBER && subexpr_type != RAVI_TNUMFLT) {
+		if (op == UNOPR_NOT || op == UNOPR_BNOT) {
+			reserved = allocate_temp_pseudo(proc, RAVI_TANY, true);
+		}
+		else if (op == UNOPR_MINUS) {
+			reserved = allocate_temp_pseudo(proc, subexpr_type, true);
+		}
+		else if (op == UNOPR_LEN) {
+			reserved = allocate_temp_pseudo(proc, node->unary_expr.type.type_code, true);
+		}
+		else {
+			reserved = allocate_temp_pseudo(proc, op == UNOPR_TO_INTEGER ? RAVI_TNUMINT : RAVI_TNUMFLT, true);
+		}
+	}
+
+	Pseudo *subexpr = linearize_expression(proc, node->unary_expr.expr);
+
 	enum opcode targetop = op_nop;
 	switch (op) {
 	case UNOPR_MINUS:
@@ -784,11 +833,11 @@ static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 	} else if (op == UNOPR_NOT || op == UNOPR_BNOT) {
 		tofree1 = add_instruction_operand(proc, insn, target);
 		free_temp_pseudo(proc, target, false); //CHECK
-		target = allocate_temp_pseudo(proc, RAVI_TANY, false);
+		target = reserved;
 	} else if (op == UNOPR_MINUS || op == UNOPR_LEN) {
 		tofree1 = add_instruction_operand(proc, insn, target);
 		free_temp_pseudo(proc, target, false); //CHECK
-		target = allocate_temp_pseudo(proc, subexpr_type, false);
+		target = reserved;
 	}
 	/* unary ops set their operand in the target so we need to check here that the
 	 * operand is not in pending state.
@@ -806,7 +855,7 @@ static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 		insn = allocate_instruction(proc, op_mov, node->line_number);
 		tofree2 = add_instruction_operand(proc, insn, target);
 		free_temp_pseudo(proc, target, false); //CHECK
-		target = allocate_temp_pseudo(proc, targetop == op_toint ? RAVI_TNUMINT: RAVI_TNUMFLT, false);
+		target = reserved;
 		add_instruction_target(proc, insn, target);
 		add_instruction(proc, insn);
 		if (tofree2)
@@ -1926,6 +1975,7 @@ static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 		// Need to truncate the results to 1
 		return raviX_allocate_range_select_pseudo(proc, result, 0);
 	}
+	check_pseudo_is_top(proc, result);
 	return result;
 }
 
