@@ -99,7 +99,9 @@ enum {
 	MAXBIT = N_WORDS * ESIZE			      /* total bits */
 };
 
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L)
 static_assert(N_WORDS == 4, "Invalid computation of bitset size"); /* must be kept in sync with PseudoGeneraotor.bits */
+#endif
 
 /* Identify the top most register allocated; this is useful when we need
  * to ensure that the next register goes to the top of the stack
