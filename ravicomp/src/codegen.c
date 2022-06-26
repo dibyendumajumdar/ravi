@@ -1372,19 +1372,23 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 		Pseudo *last_operand = get_operand(insn, n - 1);
 		/* the last operand might be a range pseudo */
 		if (last_operand->type == PSEUDO_RANGE) {
-			raviX_buffer_add_string(&fn->body, " if (wanted == -1) {\n");
+			raviX_buffer_add_string(&fn->body, " int available = 0;\n");
+			raviX_buffer_add_string(&fn->body, " {\n");
 			raviX_buffer_add_string(&fn->body, "  TValue *start_vararg = ");
 			Pseudo tmp = {.type = PSEUDO_TEMP_ANY, .regnum = last_operand->regnum};
 			emit_reg_accessor(fn, &tmp, 0);
 			raviX_buffer_add_string(&fn->body, " ;\n");
-			raviX_buffer_add_fstring(&fn->body, "  wanted = (L->top - start_vararg) + %d;\n", n - 1);
+			raviX_buffer_add_fstring(&fn->body, "  available = (L->top - start_vararg) + %d;\n", n - 1);
 			raviX_buffer_add_string(&fn->body, " }\n");
 		} else {
-			raviX_buffer_add_fstring(&fn->body, " if (wanted == -1) wanted = %d;\n", n);
+			raviX_buffer_add_fstring(&fn->body, " int available = %d;\n", n);
 		}
 	} else {
-		raviX_buffer_add_string(&fn->body, " if (wanted == -1) wanted = 0;\n");
+		raviX_buffer_add_string(&fn->body, " int available = 0;\n");
 	}
+	raviX_buffer_add_string(&fn->body, " if (wanted == -1) wanted = available;\n");
+	//raviX_buffer_add_string(&fn->body, " printf(\"wanted %d available %d\\n\", wanted, available);\n");
+
 	Pseudo *pseudo;
 	int i = 0;
 	raviX_buffer_add_string(&fn->body, " int j = 0;\n");
@@ -1392,18 +1396,16 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 	{
 		if (pseudo->type != PSEUDO_RANGE) {
 			Pseudo dummy_dest = {.type = PSEUDO_LUASTACK, .stackidx = i}; /* will go to stackbase[i] */
-			raviX_buffer_add_fstring(&fn->body, " if (%d < wanted) {\n", i);
-			/* FIXME last argument might be a range pseudo */
+			raviX_buffer_add_fstring(&fn->body, " if (%d < available) {\n", i);
 			emit_move(fn, pseudo, &dummy_dest);
 			raviX_buffer_add_string(&fn->body, " }\n");
 			raviX_buffer_add_fstring(&fn->body, " j++;\n");
 			i++;
 		} else {
 			/* copy values starting at the range to L->top */
-			// raviX_buffer_add_fstring(&fn->body, " j = %d;\n", i);
 			raviX_buffer_add_fstring(&fn->body, " {\n int reg = %d;\n",
 						 compute_register_from_base(fn, pseudo));
-			raviX_buffer_add_string(&fn->body, "  while (j < wanted) {\n");
+			raviX_buffer_add_string(&fn->body, "  while (j < available) {\n");
 			raviX_buffer_add_string(&fn->body, "   TValue *dest_reg = S(j);\n");
 			raviX_buffer_add_string(&fn->body, "   TValue *src_reg = R(reg);\n");
 			raviX_buffer_add_string(
@@ -1417,6 +1419,7 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 	/* Set any excess results to nil */
 	raviX_buffer_add_string(&fn->body, " while (j < wanted) {\n");
 	{
+		//raviX_buffer_add_string(&fn->body, " printf(\"setting %d to nil\\n\", j);\n");
 		raviX_buffer_add_string(&fn->body, "  setnilvalue(S(j));\n");
 		raviX_buffer_add_string(&fn->body, "  j++;\n");
 	}
