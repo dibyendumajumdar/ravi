@@ -1612,6 +1612,11 @@ static int linearize_indexed_assign(Proc *proc, Pseudo *table, ravitype_t table_
 		index_type = RAVI_TNUMINT;
 	}
 	Pseudo *value_pseudo = linearize_expression(proc, expr->table_elem_assign_expr.value_expr);
+	if (value_pseudo->type == PSEUDO_RANGE) {
+		// FIXME we need to allow range in the last element
+		// But codegen can't handle that at the moment
+		convert_range_to_temp(value_pseudo);
+	}
 	ravitype_t value_type = expr->table_elem_assign_expr.value_expr->common_expr.type.type_code;
 	instruct_indexed_store(proc, table_type, table, index_pseudo, index_type, value_pseudo, value_type, expr->line_number);
 	free_temp_pseudo(proc, index_pseudo, false);
