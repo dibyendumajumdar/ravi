@@ -59,7 +59,7 @@ function runfile(file)
     f()
 end
 
-runfile("inputs/53_ravi_tests.lua")
+--runfile("inputs/53_ravi_tests.lua")
 runfile("inputs/54_embed_C.lua")
 runfile("inputs/55_embed_C.lua")
 runfile("inputs/56_embed_C.lua")
@@ -70,6 +70,10 @@ runfile("inputs/60_recurse.lua")
 runfile("inputs/61_calls.lua")
 runfile("inputs/62_calls.lua")
 runfile("inputs/63_calls.lua")
+runfile("inputs/64_calls.lua")
+runfile("inputs/65_calls.lua")
+runfile("inputs/66_calls.lua")
+runfile("inputs/67_calls.lua")
 
 print 'SUCCESS'
 
