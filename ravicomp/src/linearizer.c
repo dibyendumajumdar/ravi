@@ -202,6 +202,20 @@ static void pseudo_gen_check(PseudoGenerator *generator, AstNode *node, const ch
 	}
 }
 
+typedef struct SavedRegs {
+	int flt_top;
+	int int_top;
+	int temp_top;
+} SavedRegs;
+
+static SavedRegs save_regs(Proc *proc) {
+	SavedRegs regs;
+	regs.flt_top = top_reg(&proc->temp_flt_pseudos);
+	regs.int_top = top_reg(&proc->temp_int_pseudos);
+	regs.temp_top = top_reg(&proc->temp_pseudos);
+	return regs;
+} 
+
 static void check_pseudo_is_top(Proc *proc, Pseudo *pseudo) {
 	PseudoGenerator *gen;
 	assert(!pseudo->freed);
@@ -228,9 +242,15 @@ static void check_pseudo_is_top(Proc *proc, Pseudo *pseudo) {
 		return;
 	if (top != pseudo->regnum) {
 		fprintf(stderr, "Top expected %u, found %u\n", top, pseudo->regnum);
+		assert(false);
 	}
 }
 
+static void check_regs_restored(Proc *proc, SavedRegs *saved_regs) {
+	assert(saved_regs->flt_top == top_reg(&proc->temp_flt_pseudos));
+	assert(saved_regs->int_top == top_reg(&proc->temp_int_pseudos));
+	assert(saved_regs->temp_top == top_reg(&proc->temp_pseudos));
+}
 
 /**
  * Allocates a register by reusing a free'd register if possible otherwise
@@ -599,6 +619,9 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 	case PSEUDO_TEMP_ANY:
 		gen = &proc->temp_pseudos;
 		break;
+	case PSEUDO_INDEXED:
+		free_temp_pseudo(proc, pseudo->index_info.key, false);
+		free_temp_pseudo(proc, pseudo->index_info.container, false);
 	default:
 		// Not a temp, so no need to do anything
 		return;
@@ -1598,10 +1621,11 @@ static Pseudo *linearize_suffixedexpr(Proc *proc, AstNode *node)
 }
 
 static int linearize_indexed_assign(Proc *proc, Pseudo *table, ravitype_t table_type,
-				    AstNode *expr, int next)
+				    AstNode *expr, int next, bool is_last)
 {
 	Pseudo *index_pseudo;
 	ravitype_t index_type;
+	bool array = false;
 	if (expr->table_elem_assign_expr.key_expr) {
 		index_pseudo = linearize_expression(proc, expr->table_elem_assign_expr.key_expr);
 		index_type = expr->table_elem_assign_expr.key_expr->index_expr.expr->common_expr.type.type_code;
@@ -1610,10 +1634,11 @@ static int linearize_indexed_assign(Proc *proc, Pseudo *table, ravitype_t table_
 		const Constant *constant = allocate_integer_constant(proc, next++);
 		index_pseudo = allocate_constant_pseudo(proc, constant);
 		index_type = RAVI_TNUMINT;
+		array = true;
 	}
 	Pseudo *value_pseudo = linearize_expression(proc, expr->table_elem_assign_expr.value_expr);
-	if (value_pseudo->type == PSEUDO_RANGE) {
-		// FIXME we need to allow range in the last element
+	if (value_pseudo->type == PSEUDO_RANGE && (!array || !is_last)) {
+		// FIXME issue 81 we need to allow range in the last element
 		// But codegen can't handle that at the moment
 		convert_range_to_temp(value_pseudo);
 	}
@@ -1639,9 +1664,12 @@ static Pseudo *linearize_table_constructor(Proc *proc, AstNode *expr)
 
 	AstNode *ia;
 	int i = 1;
+	int num_expressions = raviX_ptrlist_size((const PtrList *) expr->table_expr.expr_list);
+	int j = 1;
 	FOR_EACH_PTR(expr->table_expr.expr_list, AstNode, ia)
 	{
-		i = linearize_indexed_assign(proc, target, expr->table_expr.type.type_code, ia, i);
+		i = linearize_indexed_assign(proc, target, expr->table_expr.type.type_code, ia, i, j==num_expressions);
+		j++;
 	}
 	END_FOR_EACH_PTR(ia)
 
@@ -1939,6 +1967,7 @@ static Pseudo *linearize_builtin_expression(Proc *proc, AstNode *expr)
 static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 {
 	Pseudo *result = NULL;
+	SavedRegs saved_regs = save_regs(proc);
 	switch (expr->type) {
 	case EXPR_LITERAL: {
 		result = linearize_literal(proc, expr);
@@ -1976,11 +2005,11 @@ static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 		break;
 	}
 	assert(result);
+	check_pseudo_is_top(proc, result);
 	if (result->type == PSEUDO_RANGE && expr->common_expr.truncate_results) {
 		// Need to truncate the results to 1
 		return raviX_allocate_range_select_pseudo(proc, result, 0);
 	}
-	check_pseudo_is_top(proc, result);
 	return result;
 }
 
@@ -2031,6 +2060,10 @@ static void linearize_test_cond(Proc *proc, AstNode *node, BasicBlock *true_bloc
 {
 	Pseudo *condition_pseudo = linearize_expression(proc, node->test_then_block.condition);
 	instruct_cbr(proc, condition_pseudo, true_block, false_block, node->line_number);
+	if (condition_pseudo->type == PSEUDO_RANGE_SELECT)
+		free_temp_pseudo(proc, condition_pseudo->range_pseudo, false);
+	else
+		free_temp_pseudo(proc, condition_pseudo, false);
 }
 
 /* linearize the 'else if' block */
@@ -2463,19 +2496,25 @@ static void linearize_for_num_statement_positivestep(Proc *proc, AstNode *node)
 	if (index_var_expr == NULL || limit_expr == NULL) {
 		handle_error(proc->linearizer->compiler_state, "A least index and limit must be supplied");
 	}
+
+	Pseudo *index_var_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
+	Pseudo *limit_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
+	Pseudo *step_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
+	Pseudo *stop_pseudo = allocate_temp_pseudo(proc, RAVI_TBOOLEAN, false);
+
 	Pseudo *t = linearize_expression(proc, index_var_expr);
 	if (t->type == PSEUDO_RANGE) {
 		convert_range_to_temp(t); // Only accept one result
 	}
-	Pseudo *index_var_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
 	instruct_move(proc, op_mov, index_var_pseudo, t, node->line_number);
+	free_temp_pseudo(proc, t, false);
 
 	t = linearize_expression(proc, limit_expr);
 	if (t->type == PSEUDO_RANGE) {
 		convert_range_to_temp(t); // Only accept one result
 	}
-	Pseudo *limit_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
 	instruct_move(proc, op_mov, limit_pseudo, t, node->line_number);
+	free_temp_pseudo(proc, t, false);
 
 	if (step_expr == NULL)
 		t = allocate_constant_pseudo(proc, allocate_integer_constant(proc, 1));
@@ -2485,10 +2524,9 @@ static void linearize_for_num_statement_positivestep(Proc *proc, AstNode *node)
 			convert_range_to_temp(t); // Only accept one result
 		}
 	}
-	Pseudo *step_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
 	instruct_move(proc, op_mov, step_pseudo, t, node->line_number);
+	free_temp_pseudo(proc, t, false);
 
-	Pseudo *stop_pseudo = allocate_temp_pseudo(proc, RAVI_TBOOLEAN, false);
 	create_binary_instruction(proc, op_subii, index_var_pseudo, step_pseudo, index_var_pseudo, node->line_number);
 
 	BasicBlock *L1 = create_block(proc);
@@ -2582,19 +2620,25 @@ static void linearize_for_num_statement(Proc *proc, AstNode *node)
 		handle_error(proc->linearizer->compiler_state, "A least index and limit must be supplied");
 	}
 
+	Pseudo *index_var_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
+	Pseudo *limit_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
+	Pseudo *step_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
+	Pseudo *step_positive = allocate_temp_pseudo(proc, RAVI_TBOOLEAN, false);
+	Pseudo *stop_pseudo = allocate_temp_pseudo(proc, RAVI_TBOOLEAN, false);
+
 	Pseudo *t = linearize_expression(proc, index_var_expr);
 	if (t->type == PSEUDO_RANGE) {
 		convert_range_to_temp(t); // Only accept one result
 	}
-	Pseudo *index_var_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
 	instruct_move(proc, op_mov, index_var_pseudo, t, node->line_number);
+	free_temp_pseudo(proc, t, false);
 
 	t = linearize_expression(proc, limit_expr);
 	if (t->type == PSEUDO_RANGE) {
 		convert_range_to_temp(t); // Only accept one result
 	}
-	Pseudo *limit_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
 	instruct_move(proc, op_mov, limit_pseudo, t, node->line_number);
+	free_temp_pseudo(proc, t, false);
 
 	if (step_expr == NULL)
 		t = allocate_constant_pseudo(proc, allocate_integer_constant(proc, 1));
@@ -2604,14 +2648,12 @@ static void linearize_for_num_statement(Proc *proc, AstNode *node)
 			convert_range_to_temp(t); // Only accept one result
 		}
 	}
-	Pseudo *step_pseudo = allocate_temp_pseudo(proc, RAVI_TNUMINT, false);
 	instruct_move(proc, op_mov, step_pseudo, t, node->line_number);
+	free_temp_pseudo(proc, t, false);
 
-	Pseudo *step_positive = allocate_temp_pseudo(proc, RAVI_TBOOLEAN, false);
 	create_binary_instruction(proc, op_ltii, allocate_constant_pseudo(proc, allocate_integer_constant(proc, 0)),
 				  step_pseudo, step_positive, node->line_number);
 
-	Pseudo *stop_pseudo = allocate_temp_pseudo(proc, RAVI_TBOOLEAN, false);
 	create_binary_instruction(proc, op_subii, index_var_pseudo, step_pseudo, index_var_pseudo, node->line_number);
 
 	BasicBlock *L1 = create_block(proc);
@@ -2792,6 +2834,7 @@ static void linearize_function_statement(Proc *proc, AstNode *node)
 
 static void linearize_statement(Proc *proc, AstNode *node)
 {
+	SavedRegs saved_regs = save_regs(proc);
 	switch (node->type) {
 	case AST_NONE: {
 		break;
@@ -2849,9 +2892,7 @@ static void linearize_statement(Proc *proc, AstNode *node)
 		handle_error(proc->linearizer->compiler_state, "unknown statement type");
 		break;
 	}
-//	pseudo_gen_check(&proc->temp_pseudos, node, "temp_pseudos");
-//	pseudo_gen_check(&proc->temp_flt_pseudos, node, "temp_flt_pseudos");
-//	pseudo_gen_check(&proc->temp_int_pseudos, node, "temp_int_pseudos");
+	check_regs_restored(proc, &saved_regs);
 }
 
 /**
