@@ -1169,9 +1169,10 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 		break;
 	}
 
+	create_binary_instruction(proc, (enum opcode) targetop, operand1, operand2, target, node->line_number);
 	free_temp_pseudo(proc, operand1, false);//CHECK
 	free_temp_pseudo(proc, operand2, false);//CHECK
-	create_binary_instruction(proc, (enum opcode) targetop, operand1, operand2, target, node->line_number);
+	
 	if (op == BINOPR_NE) {
 		Instruction *not_insn = allocate_instruction(proc, op_not, node->line_number);
 		Pseudo *tofree = add_instruction_operand(proc, not_insn, target);
