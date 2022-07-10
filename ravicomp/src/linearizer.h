@@ -204,9 +204,10 @@ struct Pseudo {
 		LuaSymbol *temp_for_local; /* PSEUDO_TEMP - if the temp represents a local */
 		Proc *proc;		   /* PSEUDO_PROC */
 		BasicBlock *block;	   /* PSEUDO_BLOCK */
+		unsigned range_in_use;  /* PSEUDO_RANGE */
 		Pseudo *range_pseudo;	   /* PSEUDO_RANGE_SELECT */
 		int stackidx;		   /* PSEUDO_LUASTACK */
-                PseudoIndexInfo index_info; /* PSEUDO_INDEXED */
+        PseudoIndexInfo index_info; /* PSEUDO_INDEXED */
 	};
 };
 

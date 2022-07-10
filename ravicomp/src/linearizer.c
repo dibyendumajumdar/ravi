@@ -202,12 +202,14 @@ static void pseudo_gen_check(PseudoGenerator *generator, AstNode *node, const ch
 	}
 }
 
+/* Debug support - structure to record the top of each register stack */
 typedef struct SavedRegs {
 	int flt_top;
 	int int_top;
 	int temp_top;
 } SavedRegs;
 
+/* Debug support - record the top of each register stack */
 static SavedRegs save_regs(Proc *proc) {
 	SavedRegs regs;
 	regs.flt_top = top_reg(&proc->temp_flt_pseudos);
@@ -216,6 +218,7 @@ static SavedRegs save_regs(Proc *proc) {
 	return regs;
 } 
 
+/* Debug support - verify that the given pseudo if temp register is at the top */
 static void check_pseudo_is_top(Proc *proc, Pseudo *pseudo) {
 	PseudoGenerator *gen;
 	assert(!pseudo->freed);
@@ -246,6 +249,7 @@ static void check_pseudo_is_top(Proc *proc, Pseudo *pseudo) {
 	}
 }
 
+/* Debug support - check that the proc's set of register stacks are restored to saved values */
 static void check_regs_restored(Proc *proc, SavedRegs *saved_regs) {
 	assert(saved_regs->flt_top == top_reg(&proc->temp_flt_pseudos));
 	assert(saved_regs->int_top == top_reg(&proc->temp_int_pseudos));
@@ -582,14 +586,19 @@ Pseudo *raviX_allocate_range_select_pseudo(Proc *proc, Pseudo *range_pseudo, int
 	assert(range_pseudo->type == PSEUDO_RANGE);
 	Pseudo *pseudo = (Pseudo *) allocator->calloc(allocator->arena, 1, sizeof(Pseudo));
 	pseudo->type = PSEUDO_RANGE_SELECT;
-	pseudo->regnum = range_pseudo->regnum + pick;
+	unsigned regnum = range_pseudo->regnum + pick;
+	unsigned regbit = (1u << regnum);
+	assert((range_pseudo->range_in_use & regbit) == 0);
+	pseudo->regnum = regnum;
 	pseudo->range_pseudo = range_pseudo;
+	range_pseudo->range_in_use |= regbit;
 	return pseudo;
 }
 
 static inline Pseudo *convert_range_to_temp(Pseudo *pseudo)
 {
 	assert(pseudo->type == PSEUDO_RANGE);
+	assert(pseudo->range_in_use == 0);
 	pseudo->type = PSEUDO_TEMP_ANY;
 	return pseudo;
 }
@@ -618,10 +627,20 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 	case PSEUDO_RANGE:
 	case PSEUDO_TEMP_ANY:
 		gen = &proc->temp_pseudos;
+		if (pseudo->type == PSEUDO_RANGE) {
+			assert(pseudo->range_in_use == 0);
+		}
 		break;
 	case PSEUDO_INDEXED:
 		free_temp_pseudo(proc, pseudo->index_info.key, false);
 		free_temp_pseudo(proc, pseudo->index_info.container, false);
+		return;
+	case PSEUDO_RANGE_SELECT: {
+		unsigned regbit = (1u << pseudo->regnum);
+		//assert((pseudo->range_pseudo->range_in_use & regbit) != 0);
+		pseudo->range_pseudo->range_in_use &= ~regbit;
+		return;
+	}
 	default:
 		// Not a temp, so no need to do anything
 		return;
@@ -1814,9 +1833,11 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 			// Went past ne
 			if (last_val_pseudo != NULL && last_val_pseudo->type == PSEUDO_RANGE) {
 				int pick = i - ne + 1;
+				Pseudo *range_select_pseudo = raviX_allocate_range_select_pseudo(proc, last_val_pseudo, pick);
 				linearize_store_var(proc, varinfo[i].vartype, varinfo[i].pseudo,
 						    valinfo[ne-1].vartype,
-				    raviX_allocate_range_select_pseudo(proc, last_val_pseudo, pick), line_number);
+				    range_select_pseudo, line_number);
+				free_temp_pseudo(proc, range_select_pseudo, false);
 			} else {
 				if (varinfo[i].vartype->type_code == RAVI_TTABLE ||
 				    varinfo[i].vartype->type_code == RAVI_TARRAYFLT ||
@@ -2060,8 +2081,10 @@ static void linearize_test_cond(Proc *proc, AstNode *node, BasicBlock *true_bloc
 {
 	Pseudo *condition_pseudo = linearize_expression(proc, node->test_then_block.condition);
 	instruct_cbr(proc, condition_pseudo, true_block, false_block, node->line_number);
-	if (condition_pseudo->type == PSEUDO_RANGE_SELECT)
+	if (condition_pseudo->type == PSEUDO_RANGE_SELECT) {
+		free_temp_pseudo(proc, condition_pseudo, false);
 		free_temp_pseudo(proc, condition_pseudo->range_pseudo, false);
+	}
 	else
 		free_temp_pseudo(proc, condition_pseudo, false);
 }
