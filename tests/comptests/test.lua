@@ -75,6 +75,8 @@ runfile("inputs/65_calls.lua")
 runfile("inputs/66_calls.lua")
 runfile("inputs/67_calls.lua")
 runfile("inputs/68_calls.lua")
+runfile("inputs/69_binexpr.lua")
+
 
 print 'SUCCESS'
 
