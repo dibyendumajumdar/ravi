@@ -533,6 +533,7 @@ static void add_line_numbers(C_Parser *tokenizer, C_Token *tok) {
   } while (*p++);
 }
 
+#if 0
 static C_Token *tokenize_string_literal(C_Parser *tokenizer, C_Token *tok, C_Type *basety) {
 	C_Token *t;
   if (basety->size == 2)
@@ -542,6 +543,7 @@ static C_Token *tokenize_string_literal(C_Parser *tokenizer, C_Token *tok, C_Typ
   t->next = tok->next;
   return t;
 }
+#endif
 
 // Tokenize a given string and returns new tokens.
 C_Token *C_tokenize(C_Parser *tokenizer, C_File *file) {

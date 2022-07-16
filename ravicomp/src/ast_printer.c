@@ -310,7 +310,7 @@ const char *raviX_get_binary_opr_str(BinaryOperatorType op)
 	}
 }
 
-void print_locals_in_scope(TextBuffer *buf, Scope *scope, int level)
+static void print_locals_in_scope(TextBuffer *buf, Scope *scope, int level)
 {
 	if (raviX_ptrlist_size((PtrList *)scope->symbol_list) == 0) {
 		return;

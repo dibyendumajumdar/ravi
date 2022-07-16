@@ -200,7 +200,7 @@ struct C_Obj {
 // Global variable can be initialized either by a constant expression
 // or a pointer to another global variable. This struct represents the
 // latter.
-typedef struct C_Relocation C_Relocation;
+
 struct C_Relocation {
   C_Relocation *next;
   int offset;

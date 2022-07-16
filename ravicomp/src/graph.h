@@ -46,7 +46,10 @@
  */
 
 /* nodeId_t is declared elsewhere */
+#ifndef RAVIX_GRAPH_DEFINED
+#define RAVIX_GRAPH_DEFINED
 typedef struct Graph Graph;
+#endif
 typedef struct GraphNode GraphNode;
 typedef struct GraphNodeList GraphNodeList;
 enum EdgeType {

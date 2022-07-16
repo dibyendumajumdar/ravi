@@ -109,6 +109,8 @@ bool C_is_compatible(C_Type *t1, C_Type *t2) {
       return false;
     return t1->array_len < 0 && t2->array_len < 0 &&
            t1->array_len == t2->array_len;
+  default:
+    break;
   }
   return false;
 }
@@ -329,5 +331,7 @@ void C_add_type(C_Parser *parser, C_Node *node) {
       C_error_tok(parser, node->cas_addr->tok, "pointer expected");
     node->ty = node->lhs->ty->base;
     return;
+  default:
+    break;
   }
 }

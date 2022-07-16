@@ -1764,7 +1764,7 @@ static C_Node *compound_stmt(C_Parser *parser, C_Token **rest, C_Token *tok) {
 
   enter_scope(parser);
 
-  while ((!parser->embedded_mode || parser->embedded_mode && tok->kind != TK_EOF) && !C_equal(tok, "}")) {
+  while ((!parser->embedded_mode || (parser->embedded_mode && tok->kind != TK_EOF)) && !C_equal(tok, "}")) {
     if (is_typename(parser, tok) && !C_equal(tok->next, ":")) {
       VarAttr attr = {0};
       C_Type *basety = declspec(parser, &tok, tok, &attr);
@@ -1922,9 +1922,12 @@ static int64_t eval2(C_Parser *parser, C_Node *node, char ***label) {
     return 0;
   case ND_NUM:
     return node->val;
+  default:
+    break;
   }
 
   C_error_tok(parser, node->tok, "not a compile-time constant");
+  return 0; // not reached
 }
 
 static int64_t eval_rval(C_Parser *parser, C_Node *node, char ***label) {
@@ -1938,9 +1941,12 @@ static int64_t eval_rval(C_Parser *parser, C_Node *node, char ***label) {
     return eval2(parser, node->lhs, label);
   case ND_MEMBER:
     return eval_rval(parser, node->lhs, label) + node->member->offset;
+  default:
+    break;
   }
 
   C_error_tok(parser, node->tok, "invalid initializer");
+  return 0; // not reached
 }
 
 static bool is_const_expr(C_Parser *parser, C_Node *node) {
@@ -1976,6 +1982,8 @@ static bool is_const_expr(C_Parser *parser, C_Node *node) {
     return is_const_expr(parser, node->lhs);
   case ND_NUM:
     return true;
+  default:
+    break;
   }
 
   return false;
@@ -2016,9 +2024,12 @@ static double eval_double(C_Parser *parser, C_Node *node) {
     return eval(parser, node->lhs);
   case ND_NUM:
     return node->fval;
+  default:
+    break;
   }
 
   C_error_tok(parser, node->tok, "not a compile-time constant");
+  return 0.0; // not reached
 }
 
 // Convert op= operators to expressions containing an assignment.

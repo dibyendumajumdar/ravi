@@ -40,7 +40,10 @@ typedef struct Instruction Instruction;
 typedef struct BasicBlock BasicBlock;
 typedef struct Proc Proc;
 typedef struct Constant Constant;
+#ifndef RAVIX_GRAPH_DEFINED
+#define RAVIX_GRAPH_DEFINED
 typedef struct Graph Graph;
+#endif
 
 DECLARE_PTR_LIST(InstructionList, Instruction);
 DECLARE_PTR_LIST(PseudoList, Pseudo);

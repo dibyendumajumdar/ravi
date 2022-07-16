@@ -2747,6 +2747,8 @@ static void walk_node(struct Ravi_CompilerInterface *api, C_Code_Analysis *analy
 		walk_node(api, analysis, node->lhs);
 		walk_node(api, analysis, node->rhs);
 		break;
+	default:
+		break;
 	}
 }
 

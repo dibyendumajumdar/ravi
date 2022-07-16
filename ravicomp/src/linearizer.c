@@ -125,17 +125,6 @@ static int top_reg(PseudoGenerator *generator)
 }
 
 /**
- * Is given register top of the stack of registers?
- */
-static int pseudo_gen_is_top(PseudoGenerator *generator, unsigned reg)
-{
-	int top = top_reg(generator);
-	if (top < 0)
-		return 0;
-	return top == reg;
-}
-
-/**
  * Free the given register
  */
 static void pseudo_gen_free(PseudoGenerator *generator, unsigned reg)
@@ -182,24 +171,6 @@ static unsigned pseudo_gen_alloc(PseudoGenerator *generator, bool top)
 	if (reg == generator->max_reg)
 		generator->max_reg += 1;
 	return reg;
-}
-
-static void pseudo_gen_check(PseudoGenerator *generator, AstNode *node, const char *desc) {
-	unsigned reg = 0;
-	for (int i = 0; i < N_WORDS; i++) {
-		uint64_t bit = generator->bits[i];
-		if (bit == 0ull) {
-			/* no bits set? skip */
-			reg += ESIZE;
-			continue;
-		}
-		for (int j = 0; j < ESIZE; j++) {
-			int is_set = (bit & (1ull << j)) != 0;
-			if (is_set)
-				fprintf(stderr, "%s: REG %u is in use, line #%d\n", desc, reg, node->line_number);
-			reg++;
-		}
-	}
 }
 
 /* Debug support - structure to record the top of each register stack */
@@ -416,11 +387,6 @@ static inline Pseudo *add_instruction_operand(Proc *proc, Instruction *insn, Pse
 	}
 	raviX_ptrlist_add((PtrList **)&insn->operands, pseudo, proc->linearizer->compiler_state->allocator);
 	return to_free;
-}
-
-static inline void replace_instruction_operand(Proc *proc, Instruction *insn, Pseudo *old_pseudo, Pseudo *new_pseudo)
-{
-	raviX_ptrlist_replace((PtrList **)&insn->operands, old_pseudo, new_pseudo, 1);
 }
 
 static inline void add_instruction_target(Proc *proc, Instruction *insn, Pseudo *pseudo)
@@ -789,8 +755,8 @@ static Pseudo *linearize_unary_operator(Proc *proc, AstNode *node)
 
 	Pseudo *reserved = NULL;
 	if (op == UNOPR_NOT || op == UNOPR_BNOT || op == UNOPR_MINUS || op == UNOPR_LEN ||
-	    op == UNOPR_TO_INTEGER && subexpr_type != RAVI_TNUMINT ||
-	    op == UNOPR_TO_NUMBER && subexpr_type != RAVI_TNUMFLT) {
+	    (op == UNOPR_TO_INTEGER && subexpr_type != RAVI_TNUMINT) ||
+	    (op == UNOPR_TO_NUMBER && subexpr_type != RAVI_TNUMFLT)) {
 		if (op == UNOPR_NOT || op == UNOPR_BNOT) {
 			reserved = allocate_temp_pseudo(proc, RAVI_TANY, true);
 		}
@@ -1989,7 +1955,6 @@ static Pseudo *linearize_builtin_expression(Proc *proc, AstNode *expr)
 static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 {
 	Pseudo *result = NULL;
-	SavedRegs saved_regs = save_regs(proc);
 	switch (expr->type) {
 	case EXPR_LITERAL: {
 		result = linearize_literal(proc, expr);
@@ -3141,7 +3106,6 @@ void raviX_output_pseudo(const Pseudo *pseudo, TextBuffer *mb)
 		break;
 	}
 	case PSEUDO_INDEXED: {
-		fprintf(stderr, mb->buf);
 		assert(false);
 		break;
 	}
