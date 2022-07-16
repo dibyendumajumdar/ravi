@@ -53,13 +53,6 @@ The final instruction of a block must always be a branch instruction.
 #include <malloc.h>
 #endif
 
-static void handle_error(CompilerState *compiler_state, const char *msg)
-{
-	// TODO source and line number
-	raviX_buffer_add_string(&compiler_state->error_message, msg);
-	longjmp(compiler_state->env, 1);
-}
-
 static Pseudo *linearize_expression(Proc *proc, AstNode *expr);
 static BasicBlock *create_block(Proc *proc);
 static void start_block(Proc *proc, BasicBlock *bb, unsigned line_number);
@@ -82,13 +75,22 @@ static AstNode* astlist_get(AstNodeList *list, unsigned int i)
 	return (AstNode*) raviX_ptrlist_nth_entry((struct PtrList *) list, i);
 }
 
+static void handle_error(CompilerState *compiler_state, const char *msg)
+{
+	// TODO source and line number
+	raviX_buffer_add_string(&compiler_state->error_message, msg);
+	longjmp(compiler_state->env, 1);
+}
+
 /*
  * A simple register assignment system that uses a bit set 256 bits long.
  * It is not the most efficient as we don't use hard-ware intrinsics to scan for
  * next available bit.
  */
 
+/* sizeof field f in struct t */
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+/* sizeof array element f[0] in struct t */
 #define FIELD_E_SIZEOF(t, f) (sizeof(((t*)0)->f[0]))
 
 enum {
@@ -378,6 +380,10 @@ static const Constant *allocate_string_constant(Proc *proc, const StringObject *
 	return add_constant(proc, &c);
 }
 
+/* adds an operand to the instruction - if th operand is an unresolved indexed load, then
+ * this is resolved and the resulting temp pseudo is returned, which must be handled by the
+ * caller.
+ */
 static inline Pseudo *add_instruction_operand(Proc *proc, Instruction *insn, Pseudo *pseudo)
 {
 	Pseudo *to_free = NULL;
@@ -594,6 +600,7 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 	case PSEUDO_TEMP_ANY:
 		gen = &proc->temp_pseudos;
 		if (pseudo->type == PSEUDO_RANGE) {
+			// all PSEUDO_RANGE_SELECT should have been freed
 			assert(pseudo->range_in_use == 0);
 		}
 		break;
@@ -604,6 +611,7 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 	case PSEUDO_RANGE_SELECT: {
 		unsigned regbit = (1u << pseudo->regnum);
 		//assert((pseudo->range_pseudo->range_in_use & regbit) != 0);
+		// mark the register as no longer used; its only 1 count not a proper ref count
 		pseudo->range_pseudo->range_in_use &= ~regbit;
 		return;
 	}
@@ -686,18 +694,14 @@ static void instruct_totype(Proc *proc, Pseudo *target, const VariableType *vtyp
 		return;
 	}
 	Instruction *insn = allocate_instruction(proc, targetop, line_number);
-	Pseudo *tofree = NULL;
 	if (targetop == op_totype) {
 		assert(vtype->type_name);
 		const Constant *tname_constant = allocate_string_constant(proc, vtype->type_name);
 		Pseudo *tname_pseudo = allocate_constant_pseudo(proc, tname_constant);
-		tofree = add_instruction_operand(proc, insn, tname_pseudo);
+		add_instruction_operand(proc, insn, tname_pseudo);
 	}
 	add_instruction_target(proc, insn, target);
 	add_instruction(proc, insn);
-	assert(!tofree);
-	if (tofree)
-		free_temp_pseudo(proc, tofree, false);
 }
 
 static void linearize_function_args(LinearizerState *linearizer)

@@ -50,6 +50,7 @@ DECLARE_PTR_LIST(PseudoList, Pseudo);
 DECLARE_PTR_LIST(ProcList, Proc);
 DECLARE_PTR_LIST(StringObjectList, StringObject);
 
+/* Op codes */
 /* order is important here ! */
 enum opcode {
 	op_nop,
@@ -170,13 +171,13 @@ enum PseudoType {
 	PSEUDO_FALSE,	  /* Literal */
 	PSEUDO_BLOCK,	  /* Points to a basic block, used as targets for jumps */
 	PSEUDO_RANGE,	  /* Represents a range of registers from a certain starting register on Lua stack relative to
-			     'base' */
+			     'base', until the top of stack */
 	PSEUDO_RANGE_SELECT, /* Picks a certain register from a range, resolves to register on Lua stack, relative to
 				'base' */
 	/* TODO we need a type for var args */
 	PSEUDO_LUASTACK, /* Specifies a Lua stack position - not used by linearizer - for use by codegen. This is
 			   relative to CI->func rather than 'base' */
-	PSEUDO_INDEXED    /* Index pseudo means that we have the key, the target but we don't know how this will be used,
+	PSEUDO_INDEXED    /* Index pseudo means that we have the key and container but we don't know how this will be used,
                              i.e. will it be a load or a store; all such pseudos should disappear by the time we get to
                              code generation */
 };
@@ -186,9 +187,9 @@ enum PseudoType {
  * Future note: we may support multi-dimensional indexing
  * */
 typedef struct PseudoIndexInfo {
-	ravitype_t container_type;
+	ravitype_t container_type; /* i.e. table or int array or num array or any */
 	ravitype_t key_type;
-	ravitype_t target_type;
+	ravitype_t target_type; /* output type */
 	unsigned is_global: 1, /* _ENV load or store */
 	    used: 1; /* has been used up */
 	unsigned line_number; /* Carry forward line number info */
@@ -207,7 +208,7 @@ struct Pseudo {
 		LuaSymbol *temp_for_local; /* PSEUDO_TEMP - if the temp represents a local */
 		Proc *proc;		   /* PSEUDO_PROC */
 		BasicBlock *block;	   /* PSEUDO_BLOCK */
-		unsigned range_in_use;  /* PSEUDO_RANGE */
+		unsigned range_in_use;  /* PSEUDO_RANGE - a bitset tracking the regs that are in use from the range, used mainly to assert */
 		Pseudo *range_pseudo;	   /* PSEUDO_RANGE_SELECT */
 		int stackidx;		   /* PSEUDO_LUASTACK */
         PseudoIndexInfo index_info; /* PSEUDO_INDEXED */
@@ -223,7 +224,7 @@ struct Instruction {
 	unsigned opcode : 8;
 	PseudoList *operands;
 	PseudoList *targets;
-	BasicBlock *block; /* owning block */
+	BasicBlock *block; /* owning block, TODO do we need this anymore? */
 	unsigned line_number; /* Carry forward line number info */
 };
 
@@ -237,10 +238,15 @@ struct BasicBlock {
 };
 DECLARE_PTR_LIST(BasicBlockList, BasicBlock);
 
+/* Utility to allocate virtual registers; we use a bitset to track
+ * registers in use.
+ * The max allocated register is tracked
+ */
 typedef struct PseudoGenerator {
 	uint64_t bits[4]; /* bitset of registers */
 	unsigned max_reg;
 } PseudoGenerator;
+/* return the max reg ever allocated by this generator */
 static inline unsigned raviX_max_reg(PseudoGenerator *generator) { return generator->max_reg; }
 
 struct Constant {
