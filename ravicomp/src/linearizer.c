@@ -380,7 +380,7 @@ static const Constant *allocate_string_constant(Proc *proc, const StringObject *
 	return add_constant(proc, &c);
 }
 
-/* adds an operand to the instruction - if th operand is an unresolved indexed load, then
+/* Adds an operand to the instruction - if the operand is an unresolved indexed load, then
  * this is resolved and the resulting temp pseudo is returned, which must be handled by the
  * caller.
  */
@@ -419,6 +419,7 @@ static void free_instruction_operand_pseudos(Proc *proc, Instruction *insn)
 		last = operand;
 	} END_FOR_EACH_PTR_REVERSE(operand)
 	if (last != NULL && last->type == PSEUDO_RANGE_SELECT) {
+		// free the underlying range pseudo used by range select
 		free_temp_pseudo(proc, last->range_pseudo, false);
 	}
 }
@@ -428,7 +429,7 @@ static inline void add_instruction(Proc *proc, Instruction *insn)
 {
 	assert(insn->block == NULL || insn->block == proc->current_bb);
 	raviX_ptrlist_add((PtrList **)&proc->current_bb->insns, insn, proc->linearizer->compiler_state->allocator);
-	insn->block = proc->current_bb;
+	insn->block = proc->current_bb; // TODO do we need this?
 }
 
 Instruction *raviX_last_instruction(BasicBlock *block)
@@ -438,6 +439,9 @@ Instruction *raviX_last_instruction(BasicBlock *block)
 	return (Instruction *)raviX_ptrlist_last((PtrList *)block->insns);
 }
 
+/* allocates a pseudo to represent a symbol, if the symbol is local variable then
+ * associates the pseudo to the symbol so that we can easily get to the pseudo
+ * if we have the symbol */
 static Pseudo *allocate_symbol_pseudo(Proc *proc, LuaSymbol *sym, unsigned reg)
 {
 	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
@@ -536,6 +540,9 @@ static Pseudo *allocate_temp_pseudo(Proc *proc, ravitype_t type, bool top)
 	return pseudo;
 }
 
+/* Creates a range pseudo from a temp pesudo - marking the original as
+ * freed
+ */
 static Pseudo *allocate_range_pseudo(Proc *proc, Pseudo *orig_pseudo)
 {
 	C_MemoryAllocator *allocator = proc->linearizer->compiler_state->allocator;
@@ -570,7 +577,7 @@ Pseudo *raviX_allocate_range_select_pseudo(Proc *proc, Pseudo *range_pseudo, int
 static inline Pseudo *convert_range_to_temp(Pseudo *pseudo)
 {
 	assert(pseudo->type == PSEUDO_RANGE);
-	assert(pseudo->range_in_use == 0);
+	assert(pseudo->range_in_use == 0); // check no picks active on this range
 	pseudo->type = PSEUDO_TEMP_ANY;
 	return pseudo;
 }
@@ -600,7 +607,7 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 	case PSEUDO_TEMP_ANY:
 		gen = &proc->temp_pseudos;
 		if (pseudo->type == PSEUDO_RANGE) {
-			// all PSEUDO_RANGE_SELECT should have been freed
+			// all PSEUDO_RANGE_SELECT should have been freed if the range is being freed
 			assert(pseudo->range_in_use == 0);
 		}
 		break;
@@ -610,8 +617,7 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 		return;
 	case PSEUDO_RANGE_SELECT: {
 		unsigned regbit = (1u << pseudo->regnum);
-		//assert((pseudo->range_pseudo->range_in_use & regbit) != 0);
-		// mark the register as no longer used; its only 1 count not a proper ref count
+		// mark the register as no longer used; its only 1 bit not a proper ref count
 		pseudo->range_pseudo->range_in_use &= ~regbit;
 		return;
 	}
@@ -1515,14 +1521,15 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 							callsite_pseudo, RAVI_TSTRING, name_pseudo, RAVI_TANY, expr->line_number);
 	}
 
-	// Must move call site if necessary after all args etc are evaluated as
-	// the evaluations may use temp registers
-	// args are pushed to callsite stack by the codegen
 	// callsite needs to be at the top of the stack and also must be a temp
 	if (callsite_pseudo->type != PSEUDO_TEMP_ANY) {
 		Pseudo *temp = allocate_temp_pseudo(proc, RAVI_TANY, true);
 		instruct_move(proc, op_mov, temp, callsite_pseudo, expr->line_number);
 		callsite_pseudo = temp;
+	}
+	else {
+		// assert that the pseudo is at the top
+		check_pseudo_is_top(proc, callsite_pseudo);
 	}
 
 	Pseudo *tofree1 = add_instruction_operand(proc, insn, callsite_pseudo);
@@ -1531,6 +1538,7 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 		tofree2 = add_instruction_operand(proc, insn, self_arg);
 	}
 
+	// add the args
 	AstNode *arg;
 	int argc = raviX_ptrlist_size((const PtrList *)expr->function_call_expr.arg_list);
 	Pseudo **tofreelist = (Pseudo **) alloca(argc * sizeof(Pseudo *));

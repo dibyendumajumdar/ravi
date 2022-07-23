@@ -208,7 +208,7 @@ struct Pseudo {
 		LuaSymbol *temp_for_local; /* PSEUDO_TEMP - if the temp represents a local */
 		Proc *proc;		   /* PSEUDO_PROC */
 		BasicBlock *block;	   /* PSEUDO_BLOCK */
-		unsigned range_in_use;  /* PSEUDO_RANGE - a bitset tracking the regs that are in use from the range, used mainly to assert */
+		unsigned range_in_use;  /* PSEUDO_RANGE - a bitset tracking the regs that are in use from the range, used mainly to assert, can do ref counting, as only 1 bit per pick */
 		Pseudo *range_pseudo;	   /* PSEUDO_RANGE_SELECT */
 		int stackidx;		   /* PSEUDO_LUASTACK */
         PseudoIndexInfo index_info; /* PSEUDO_INDEXED */
