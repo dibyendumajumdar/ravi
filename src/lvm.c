@@ -2860,6 +2860,60 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
   L->top = ci->top; /* correct top (in case of previous open call) */
 }
 
+void raviV_op_settable_totop(lua_State *L, CallInfo *ci, TValue *ra, TValue *first_val, int start) {
+  unsigned int last;
+  int n = cast_int(L->top - first_val);
+  last = start + n - 1;
+  if (ttisLtable(ra)) {
+    Table *h = hvalue(ra);
+    if (last > h->sizearray)        /* needs more space? */
+      luaH_resizearray(L, h, last); /* pre-allocate it at once */
+    for (; n > 0; n--) {
+      TValue *val = first_val + n - 1;
+      luaH_setint(L, h, last--, val);
+      luaC_barrierback(L, obj2gco(h), val);
+    }
+  }
+  else {
+    RaviArray *h = arrvalue(ra);
+    int i = start;
+    for (; i <= (int)last; i++) {
+      TValue *val = first_val + i - 1;
+      unsigned int u = (unsigned int)(i);
+      if ((h->flags & RAVI_ARRAY_ISFLOAT) == 0) {
+        if (ttisinteger(val)) {
+          raviH_set_int_inline(L, h, u, ivalue(val));
+        }
+        else {
+          lua_Integer i = 0;
+          if (tointegerns(val, &i)) {
+            raviH_set_int_inline(L, h, u, i);
+          }
+          else
+            luaG_runerror(L, "value cannot be converted to integer");
+        }
+      }
+      else {
+        if (ttisfloat(val)) {
+          raviH_set_float_inline(L, h, u, fltvalue(val));
+        }
+        else if (ttisinteger(val)) {
+          raviH_set_float_inline(L, h, u, (lua_Number)(ivalue(val)));
+        }
+        else {
+          lua_Number d = 0.0;
+          if (tonumberns(val, d)) {
+            raviH_set_float_inline(L, h, u, d);
+          }
+          else
+            luaG_runerror(L, "value cannot be converted to number");
+        }
+      }
+    }
+  }
+  //L->top = ci->top; /* correct top (in case of previous open call) */
+}
+
 void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c) {
   StkId rb, ra;
   StkId base = ci->u.l.base;

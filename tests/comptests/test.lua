@@ -78,6 +78,8 @@ runfile("inputs/68_calls.lua")
 runfile("inputs/69_binexpr.lua")
 runfile("inputs/70_gaussian2.lua")
 runfile("inputs/71_indexedload.lua")
+runfile("inputs/72_table_construct.lua")
+--runfile("inputs/73_table_construct.lua")
 
 
 print 'SUCCESS'

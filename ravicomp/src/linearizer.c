@@ -2007,7 +2007,7 @@ static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 	check_pseudo_is_top(proc, result);
 	if (result->type == PSEUDO_RANGE && expr->common_expr.truncate_results) {
 		// Need to truncate the results to 1
-		return raviX_allocate_range_select_pseudo(proc, result, 0);
+		return convert_range_to_temp(result);
 	}
 	return result;
 }

@@ -28,10 +28,9 @@ a,b,c,d = ret2(f()), ret2(f())
 assert(a==1 and b==1 and c==2 and d==nil)
 a,b,c,d = unlpack(pack(ret2(f()), ret2(f())))
 assert(a==1 and b==1 and c==2 and d==nil)
--- a,b,c,d = unlpack(pack(ret2(f()), (ret2(f()))))
--- assert(a==1 and b==1 and c==nil and d==nil)
---
--- a = ret2{ unlpack{1,2,3}, unlpack{3,2,1}, unlpack{"a", "b"}}
--- assert(a[1] == 1 and a[2] == 3 and a[3] == "a" and a[4] == "b")
+a,b,c,d = unlpack(pack(ret2(f()), (ret2(f()))))
+assert(a==1 and b==1 and c==nil and d==nil)
+a = ret2{ unlpack{1,2,3}, unlpack{3,2,1}, unlpack{"a", "b"}}
+assert(a[1] == 1 and a[2] == 3 and a[3] == "a" and a[4] == "b")
 
 print '68 Ok'

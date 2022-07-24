@@ -662,6 +662,7 @@ static const char Lua_header[] =
     "extern void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
     "extern void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
     "extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
+    "extern void raviV_op_settable_totop(lua_State *L, CallInfo *ci, TValue *ra, TValue *first_val, int start);\n"
 #ifdef RAVI_DEFER_STATEMENT
     "extern void raviV_op_defer(lua_State *L, TValue *ra);\n"
 #endif
@@ -1462,20 +1463,39 @@ static int emit_op_load_table(Function *fn, Instruction *insn)
 	return 0;
 }
 
+static int emit_store_range_to_table(Function *fn, Instruction *insn) {
+	Pseudo *t = get_target(insn, 0);
+	Pseudo *k = get_target(insn, 1);
+	Pseudo *v = get_operand(insn, 0);
+	assert(v->type == PSEUDO_RANGE);
+	assert(k->type == PSEUDO_CONSTANT && k->constant->type == RAVI_TNUMINT);
+	raviX_buffer_add_string(&fn->body, "{\n");
+	raviX_buffer_add_string(&fn->body, " TValue *tab = ");
+	emit_reg_accessor(fn, t, 0);
+	raviX_buffer_add_string(&fn->body, ";\n TValue *src = ");
+	emit_reg_accessor(fn, v, 1);
+	raviX_buffer_add_fstring(&fn->body, ";\n raviV_op_settable_totop(L, ci, tab, src, %lld);\n ", (long long)k->constant->i);
+	raviX_buffer_add_string(&fn->body, "}\n");
+	return 0;
+}
+
 /* Emit code for a variety of store table operations */
 static int emit_op_store_table(Function *fn, Instruction *insn)
 {
 	// FIXME what happens if key and value are both constants
 	// Our pseudo reg will break I think
+	Pseudo *src = get_operand(insn, 0);
 	const char *fname = "luaV_settable";
 	if (insn->opcode == op_tput_ikey) {
+		if (src->type == PSEUDO_RANGE) {
+			return emit_store_range_to_table(fn, insn);
+		}
 		fname = "raviV_settable_i";
 	} else if (insn->opcode == op_tput_skey) {
 		fname = "raviV_settable_sskey";
 	}
 	Pseudo *env = get_target(insn, 0);
 	Pseudo *varname = get_target(insn, 1);
-	Pseudo *src = get_operand(insn, 0);
 	if (varname->type == PSEUDO_CONSTANT && varname->constant->type == RAVI_TSTRING) {
 		if (varname->constant->s->len < 40) {
 			fname = "raviV_settable_sskey";
@@ -1920,6 +1940,11 @@ static int emit_op_arrayput_val(Function *fn, Instruction *insn)
 	Pseudo *arr = get_target(insn, 0);
 	Pseudo *key = get_target(insn, 1);
 	Pseudo *src = get_operand(insn, 0);
+
+	if (src->type == PSEUDO_RANGE) {
+		return emit_store_range_to_table(fn, insn);
+	}
+
 	raviX_buffer_add_string(&fn->body, "{\n");
 	raviX_buffer_add_string(&fn->body, " RaviArray *arr = arrvalue(");
 	emit_reg_accessor(fn, arr, 0);
