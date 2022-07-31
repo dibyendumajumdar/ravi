@@ -222,6 +222,7 @@ static void lower_for_in_statement(CompilerState *compiler_state, AstNode *node)
 {
 	ForStatement *for_stmt = &node->for_stmt;
 	AstNode *function = for_stmt->for_scope->function;
+	Scope *for_body_scope = for_stmt->for_body;
 
 	// FIXME - the for variables must be removed from parent scope
 
@@ -316,6 +317,11 @@ static void lower_for_in_statement(CompilerState *compiler_state, AstNode *node)
 		add_ast_node(compiler_state, &while_stmt->while_or_repeat_stmt.loop_statement_list, n2);
 	}
 	END_FOR_EACH_PTR(n2)
+
+	LuaSymbol *sym;
+	FOR_EACH_PTR(for_body_scope->symbol_list, LuaSymbol, sym) {
+		raviX_add_symbol(compiler_state, &while_scope->symbol_list, sym);
+	} END_FOR_EACH_PTR(sym)
 
 	// Replace the original generic for ast with the new do block
 	*node = *do_stmt;
