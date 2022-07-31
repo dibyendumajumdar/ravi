@@ -218,7 +218,7 @@ Note the following:
     assign them to other variables before breaking or exiting the loop.
 */
 // clang-format on
-static void lower_for_in_statement(CompilerState *compiler_state, AstNode *node)
+static AstNode * lower_for_in_statement(CompilerState *compiler_state, AstNode *node)
 {
 	ForStatement *for_stmt = &node->for_stmt;
 	AstNode *function = for_stmt->for_scope->function;
@@ -325,6 +325,7 @@ static void lower_for_in_statement(CompilerState *compiler_state, AstNode *node)
 
 	// Replace the original generic for ast with the new do block
 	*node = *do_stmt;
+	return node;
 }
 
 static void process_statement(CompilerState *compiler_state, AstNode *node)
@@ -379,7 +380,9 @@ static void process_statement(CompilerState *compiler_state, AstNode *node)
 		process_statement_list(compiler_state, node->for_stmt.for_statement_list);
 		break;
 	case STMT_FOR_IN:
-		lower_for_in_statement(compiler_state, node);
+		node = lower_for_in_statement(compiler_state, node);
+		assert(node->type == STMT_DO);
+		process_statement_list(compiler_state, node->do_stmt.do_statement_list);
 		break;
 	case STMT_EMBEDDED_C:
 		break;
