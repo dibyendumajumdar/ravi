@@ -2860,6 +2860,11 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
   L->top = ci->top; /* correct top (in case of previous open call) */
 }
 
+/* a specialized version used by the new compiler */
+/* ra - table */
+/* start_val - the first value on stack that should be copied */
+/* start - starting index for data to be copied to */
+/* Copies data from first_val to L->top to table from start position */
 void raviV_op_settable_totop(lua_State *L, CallInfo *ci, TValue *ra, TValue *first_val, int start) {
   unsigned int last;
   int n = cast_int(L->top - first_val);
