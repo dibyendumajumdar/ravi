@@ -225,6 +225,9 @@ static void check_pseudo_is_top(Proc *proc, Pseudo *pseudo) {
 /* Debug support - check that the proc's set of register stacks are restored to saved values */
 static void check_regs_restored(Proc *proc, SavedRegs *saved_regs) {
 	assert(saved_regs->flt_top == top_reg(&proc->temp_flt_pseudos));
+//	if (saved_regs->int_top != top_reg(&proc->temp_int_pseudos)) {
+//		fprintf(stderr, "temp_int_pseudos leak\n");
+//	}
 	assert(saved_regs->int_top == top_reg(&proc->temp_int_pseudos));
 	assert(saved_regs->temp_top == top_reg(&proc->temp_pseudos));
 }
@@ -537,6 +540,9 @@ static Pseudo *allocate_temp_pseudo(Proc *proc, ravitype_t type, bool top)
 	pseudo->type = pseudo_type;
 	pseudo->regnum = reg;
 	pseudo->temp_for_local = NULL;
+//	if (gen == &proc->temp_int_pseudos) {
+//		fprintf(stderr, "Allocating reg %u\n", pseudo->regnum);
+//	}
 	return pseudo;
 }
 
@@ -628,6 +634,9 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 	if (!free_local && pseudo->type != PSEUDO_RANGE && pseudo->temp_for_local) {
 		return;
 	}
+//	if (gen == &proc->temp_int_pseudos) {
+//		fprintf(stderr, "Freeing reg %u\n", pseudo->regnum);
+//	}
 	free_register(proc, gen, pseudo->regnum);
 }
 

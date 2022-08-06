@@ -222,7 +222,14 @@ static AstNode * lower_for_in_statement(CompilerState *compiler_state, AstNode *
 {
 	ForStatement *for_stmt = &node->for_stmt;
 	AstNode *function = for_stmt->for_scope->function;
+	Scope *for_scope = for_stmt->for_scope;
 	Scope *for_body_scope = for_stmt->for_body;
+
+//	fprintf(stderr, "for parent scope = %p\n", for_scope->parent);
+//	fprintf(stderr, "for scope = %p\n", for_scope);
+//	fprintf(stderr, "for body scope = %p\n", for_body_scope);
+//	fprintf(stderr, "for body parent scope = %p\n", for_body_scope->parent);
+
 
 	// FIXME - the for variables must be removed from parent scope
 
@@ -232,7 +239,7 @@ static AstNode * lower_for_in_statement(CompilerState *compiler_state, AstNode *
 
 	// The do block will get a new scope
 	// The original for block scope will go into the child while statement block
-	Scope *do_scope = raviX_allocate_scope(compiler_state, function, for_stmt->for_scope->parent);
+	Scope *do_scope = raviX_allocate_scope(compiler_state, function, for_scope->parent);
 	do_stmt->do_stmt.scope = do_scope;
 
 	// do block has 3 hidden locals
@@ -264,7 +271,7 @@ static AstNode * lower_for_in_statement(CompilerState *compiler_state, AstNode *
 	// Create while block
 
 	AstNode *while_stmt = raviX_allocate_ast_node_at_line(compiler_state, STMT_WHILE, node->line_number);
-	Scope *while_scope = for_stmt->for_scope; // Original scope of the generic for statement
+	Scope *while_scope = for_scope; // Original scope of the generic for statement
 	while_scope->parent = do_scope; // change the original scope's parent to be the do block
 	while_stmt->while_or_repeat_stmt.loop_scope = while_scope;
 	while_stmt->while_or_repeat_stmt.loop_statement_list = NULL;
@@ -311,17 +318,26 @@ static AstNode * lower_for_in_statement(CompilerState *compiler_state, AstNode *
 	add_ast_node(compiler_state, &while_stmt->while_or_repeat_stmt.loop_statement_list, assignstmt);
 
 	// Copy the original block in for
+	// Create do block
+	AstNode *while_do_stmt = raviX_allocate_ast_node_at_line(compiler_state, STMT_DO, node->line_number);
+	while_do_stmt->do_stmt.do_statement_list = NULL;
+	while_do_stmt->do_stmt.scope = for_body_scope;
+	add_ast_node(compiler_state, &while_stmt->while_or_repeat_stmt.loop_statement_list, while_do_stmt);
 
-	AstNode *n2;
-	FOR_EACH_PTR(for_stmt->for_statement_list, AstNode, n2) {
-		add_ast_node(compiler_state, &while_stmt->while_or_repeat_stmt.loop_statement_list, n2);
-	}
-	END_FOR_EACH_PTR(n2)
+	while_do_stmt->do_stmt.do_statement_list = for_stmt->for_statement_list;
+	for_stmt->for_statement_list = NULL;
+	for_stmt->for_body = NULL;
+	for_stmt->for_scope = NULL;
 
-	LuaSymbol *sym;
-	FOR_EACH_PTR(for_body_scope->symbol_list, LuaSymbol, sym) {
-		raviX_add_symbol(compiler_state, &while_scope->symbol_list, sym);
-	} END_FOR_EACH_PTR(sym)
+//	fprintf(stderr, "do parent scope = %p\n", do_scope->parent);
+//	fprintf(stderr, "do scope = %p\n", do_scope);
+//	fprintf(stderr, "while scope = %p\n", while_scope);
+//	fprintf(stderr, "while parent scope = %p\n", while_scope->parent);
+//	fprintf(stderr, "if scope = %p\n", if_scope);
+//	fprintf(stderr, "if parent scope = %p\n", if_scope->parent);
+//	fprintf(stderr, "while do scope = %p\n", for_body_scope);
+//	fprintf(stderr, "while do scope parent = %p\n", for_body_scope->parent);
+
 
 	// Replace the original generic for ast with the new do block
 	*node = *do_stmt;
