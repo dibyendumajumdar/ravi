@@ -11,7 +11,7 @@
 
 #define PARANOIA 1
 
-#include <ptrlist.h>
+#include "ptrlist.h"
 
 #include <stdio.h>
 #include <stdlib.h>

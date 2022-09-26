@@ -23,7 +23,7 @@
 /* Portions Copyright (C) 1994-2019 Lua.org, PUC-Rio.*/
 /* Replace constant expressions with constants, and simply any other expressions if possible */
 
-#include <parser.h>
+#include "parser.h"
 
 #include <math.h>
 #include <string.h>

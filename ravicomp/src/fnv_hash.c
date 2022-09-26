@@ -31,7 +31,7 @@
  * to be quite good, and it may beat FNV.  But FNV has the advantage that it
  * involves almost no code.
  */
-#include <fnv_hash.h>
+#include "fnv_hash.h"
 
 #include <string.h>
 

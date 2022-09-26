@@ -10,7 +10,7 @@
 #ifndef ravicomp_PTRLIST_H
 #define ravicomp_PTRLIST_H
 
-#include <allocate.h>
+#include "allocate.h"
 
 #include <assert.h>
 #include <stdint.h>

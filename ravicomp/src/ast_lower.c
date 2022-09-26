@@ -22,7 +22,7 @@
  ******************************************************************************/
 /* Portions Copyright (C) 1994-2019 Lua.org, PUC-Rio.*/
 
-#include <parser.h>
+#include "parser.h"
 
 #include <math.h>
 #include <string.h>

@@ -30,7 +30,7 @@
  * The data structures defined here are private.
  */
 
-#include "ravi_compiler.h"
+#include <ravi_compiler.h>
 
 #include "allocate.h"
 #include "membuf.h"
@@ -458,6 +458,7 @@ typedef struct ParserState {
 } ParserState;
 
 void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level); /* output the AST structure recursively */
+void raviX_dump_ast_node(TextBuffer *buf, AstNode *node, int level);
 const char *raviX_get_type_name(ravitype_t tt);
 
 int raviX_ast_simplify(CompilerState* compiler_state);

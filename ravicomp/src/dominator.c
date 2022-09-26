@@ -22,9 +22,9 @@
  ******************************************************************************/
 
 #include "dominator.h"
-
 #include "graph.h"
-#include "ravi_compiler.h"
+
+#include <ravi_compiler.h>
 
 #include <assert.h>
 

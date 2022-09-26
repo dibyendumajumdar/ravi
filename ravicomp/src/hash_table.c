@@ -32,11 +32,13 @@
  *    Keith Packard <keithp@keithp.com>
  */
 
+
+#include "hash_table.h"
+#include "allocate.h"
+
 #include <assert.h>
 #include <stdlib.h>
 
-#include <hash_table.h>
-#include <allocate.h>
 
 #define ARRAY_SIZE(array) ((int)(sizeof(array) / sizeof(array[0])))
 

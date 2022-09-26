@@ -34,7 +34,7 @@ Generic for loops are transformed to while loops in ast_lower.c
 */
 
 #include "fnv_hash.h"
-#include <parser.h>
+#include "parser.h"
 
 /* forward declarations */
 static AstNode *parse_expression(ParserState *);
@@ -1210,7 +1210,9 @@ static Scope *parse_block(ParserState *parser, AstNodeList **statement_list)
 static AstNode *parse_condition(ParserState *parser)
 {
 	/* cond -> exp */
-	return parse_expression(parser); /* read condition */
+	AstNode *node = parse_expression(parser); /* read condition */
+	node->common_expr.truncate_results = 1;
+	return node;
 }
 
 static AstNode *parse_goto_statment(ParserState *parser)
@@ -1472,7 +1474,7 @@ static AstNode *parse_if_cond_then_block(ParserState *parser)
 	raviX_next(ls); /* skip IF or ELSEIF */
 	AstNode *test_then_block =
 	    raviX_allocate_ast_node(parser, STMT_TEST_THEN);			       // This is not an AST node on its own
-	test_then_block->test_then_block.condition = parse_expression(parser); /* read condition */
+	test_then_block->test_then_block.condition = parse_condition(parser); /* read condition */
 	test_then_block->test_then_block.test_then_scope = NULL;
 	test_then_block->test_then_block.test_then_statement_list = NULL;
 	checknext(ls, TOK_then);

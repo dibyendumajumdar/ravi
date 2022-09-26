@@ -36,8 +36,8 @@
 #include <limits.h>
 #include <stdbool.h>
 
-#include <allocate.h>
-#include <bitset.h>
+#include "allocate.h"
+#include "bitset.h"
 
 #if !defined(BITMAP_ENABLE_CHECKING) && !defined(NDEBUG)
 #define BITMAP_ENABLE_CHECKING

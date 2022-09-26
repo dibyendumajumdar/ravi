@@ -231,6 +231,7 @@ RAVICOMP_EXPORT int raviX_parse(CompilerState *compiler_state, const char *buffe
 				const char *source_name);
 /* Prints out the AST to the file */
 RAVICOMP_EXPORT void raviX_output_ast(CompilerState *compiler_state, FILE *fp);
+void raviX_dump_ast(CompilerState *compiler_state, FILE *fp);
 /* Performs type checks on the AST and annotates types of expressions nad variables where possible.
  * As a result the AST will be modified.
  *

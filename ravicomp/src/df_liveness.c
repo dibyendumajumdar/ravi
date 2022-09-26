@@ -31,7 +31,7 @@
 #include "bitset.h"
 #include "dataflow_framework.h"
 #include "linearizer.h"
-#include <allocate.h>
+#include "allocate.h"
 
 struct liveness_info {
 	nodeId_t node_id;

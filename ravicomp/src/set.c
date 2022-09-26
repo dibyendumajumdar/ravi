@@ -33,10 +33,10 @@
  */
 
 #include "set.h"
+#include "allocate.h"
 
 #include <assert.h>
 #include <stdlib.h>
-#include <allocate.h>
 
 
 #define ARRAY_SIZE(array) ((int)(sizeof(array) / sizeof(array[0])))

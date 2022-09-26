@@ -24,7 +24,7 @@
 #ifndef ravicomp_MEMBUF_H
 #define ravicomp_MEMBUF_H
 
-#include "ravi_compiler.h"
+#include <ravi_compiler.h>
 
 #include <assert.h>
 #include <stdarg.h>

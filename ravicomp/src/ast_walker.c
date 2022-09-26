@@ -22,7 +22,7 @@
  ******************************************************************************/
 #include <ravi_compiler.h>
 
-#include <parser.h>
+#include "parser.h"
 
 const FunctionExpression *raviX_ast_get_main_function(const CompilerState *compiler_state)
 {

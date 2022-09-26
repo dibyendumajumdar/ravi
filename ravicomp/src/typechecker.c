@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#include <parser.h>
+#include "parser.h"
 
 /*
 The Type checker walks through the AST and annotates nodes with type information.

@@ -3,7 +3,7 @@
  * Copyright (C) 2017-2022 Dibyendu Majumdar
  */
 
-#include <allocate.h>
+#include "allocate.h"
 
 #include <assert.h>
 #include <stdio.h>

@@ -24,7 +24,7 @@
 #ifndef ravicomp_LINEARIZER_H
 #define ravicomp_LINEARIZER_H
 
-#include "ravi_compiler.h"
+#include <ravi_compiler.h>
 
 #include "allocate.h"
 #include "common.h"

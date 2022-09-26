@@ -23,8 +23,8 @@
 
 /* This will contain Lua bindings */
 
-#include "ravi_api.h"
-#include "ravi_compiler.h"
+#include <ravi_api.h>
+#include <ravi_compiler.h>
 
 #include "cfg.h"
 #include "codegen.h"
