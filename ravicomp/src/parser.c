@@ -95,6 +95,15 @@ static AstNode *allocate_expr_ast_node(ParserState *parser, enum AstNodeType typ
 	return node;
 }
 
+AstNode *raviX_cast_to_integer(CompilerState *compiler_state, AstNode *subexpr) {
+	AstNode *expr = raviX_allocate_ast_node_at_line(compiler_state, EXPR_UNARY, subexpr->line_number);
+	expr->unary_expr.expr = subexpr;
+	expr->unary_expr.unary_op = UNOPR_TO_INTEGER;
+	subexpr->common_expr.truncate_results = 1;
+	set_typecode(&expr->common_expr.type, RAVI_TNUMINT);
+	return expr;
+}
+
 static void error_expected(LexerState *ls, int token)
 {
 	raviX_token2str(token, &ls->compiler_state->error_message);

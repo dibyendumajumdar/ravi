@@ -451,7 +451,7 @@ static void typecheck_for_num_statment(CompilerState *compiler_state, AstNode *f
 		if ((index_type & A) != 0)
 			break;
 	}
-	END_FOR_EACH_PTR(expr);
+	END_FOR_EACH_PTR(expr)
 	if ((index_type & A) == 0) { /* not any */
 		/* for I+F we use F */
 		ravitype_t symbol_type = index_type == I ? RAVI_TNUMINT : RAVI_TNUMFLT;
@@ -466,7 +466,17 @@ static void typecheck_for_num_statment(CompilerState *compiler_state, AstNode *f
 				assert(0); /* cannot happen */
 			}
 		}
-		END_FOR_EACH_PTR(sym);
+		END_FOR_EACH_PTR(sym)
+	}
+	else {
+		FOR_EACH_PTR(node->for_stmt.expr_list, AstNode, expr)
+		{
+			if (expr->common_expr.type.type_code != RAVI_TNUMINT) {
+				AstNode *cast_to_int_expr = raviX_cast_to_integer(compiler_state, expr);
+				REPLACE_CURRENT_PTR(AstNode, expr, cast_to_int_expr);
+			}
+		}
+		END_FOR_EACH_PTR(expr)
 	}
 	typecheck_ast_list(compiler_state, function, node->for_stmt.for_statement_list);
 }
@@ -479,7 +489,7 @@ static void typecheck_if_statement(CompilerState *compiler_state, AstNode *funct
 		typecheck_ast_node(compiler_state, function, test_then_block->test_then_block.condition);
 		typecheck_ast_list(compiler_state, function, test_then_block->test_then_block.test_then_statement_list);
 	}
-	END_FOR_EACH_PTR(node);
+	END_FOR_EACH_PTR(node)
 	if (node->if_stmt.else_statement_list) {
 		typecheck_ast_list(compiler_state, function, node->if_stmt.else_statement_list);
 	}

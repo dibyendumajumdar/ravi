@@ -460,6 +460,7 @@ typedef struct ParserState {
 void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level); /* output the AST structure recursively */
 void raviX_dump_ast_node(TextBuffer *buf, AstNode *node, int level);
 const char *raviX_get_type_name(ravitype_t tt);
+AstNode *raviX_cast_to_integer(CompilerState *compiler_state, AstNode *subexpr);
 
 int raviX_ast_simplify(CompilerState* compiler_state);
 int raviX_ast_lower(CompilerState *compiler_state);
