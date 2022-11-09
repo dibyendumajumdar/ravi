@@ -1001,6 +1001,17 @@ static void create_binary_instruction(Proc *proc, enum opcode targetop, Pseudo *
 		free_temp_pseudo(proc, tofree2, false);
 }
 
+static Pseudo *linearize_negate_condition(Proc *proc, int line_number, Pseudo *pseudo, Pseudo *not_pseudo) {
+	Instruction *not_insn = allocate_instruction(proc, op_not, line_number);
+	Pseudo *tofree = add_instruction_operand(proc, not_insn, pseudo);
+	free_temp_pseudo(proc, pseudo, false);//CHECK
+	add_instruction_target(proc, not_insn, not_pseudo);
+	add_instruction(proc, not_insn);
+	if (tofree)
+		free_temp_pseudo(proc, tofree, false);
+	return not_pseudo;
+}
+
 static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 {
 	BinaryOperatorType op = node->binary_expr.binary_op;
@@ -1159,14 +1170,7 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 	free_temp_pseudo(proc, operand2, false);//CHECK
 	
 	if (op == BINOPR_NE) {
-		Instruction *not_insn = allocate_instruction(proc, op_not, node->line_number);
-		Pseudo *tofree = add_instruction_operand(proc, not_insn, target);
-		free_temp_pseudo(proc, target, false);//CHECK
-		target = not_target;
-		add_instruction_target(proc, not_insn, target);
-		add_instruction(proc, not_insn);
-		if (tofree)
-			free_temp_pseudo(proc, tofree, false);
+		target = linearize_negate_condition(proc, node->line_number, target, not_target);
 	}
 	return target;
 }
@@ -2728,15 +2732,25 @@ static void linearize_while_statment(Proc *proc, AstNode *node)
 
 	if (node->type == STMT_REPEAT) {
 		instruct_br(proc, allocate_block_pseudo(proc, body_block), node->line_number);
+		start_scope(proc->linearizer, proc, node->while_or_repeat_stmt.loop_scope);
 	}
 
 	start_block(proc, test_block, node->line_number);
+	Pseudo *neg_condition_pseudo = NULL;
+	if (node->type == STMT_REPEAT) {
+		neg_condition_pseudo = allocate_temp_pseudo(proc, RAVI_TBOOLEAN, true);
+	}
 	Pseudo *condition_pseudo = linearize_expression(proc, node->while_or_repeat_stmt.condition);
+	if (node->type == STMT_REPEAT) {
+		condition_pseudo = linearize_negate_condition(proc, node->line_number, condition_pseudo, neg_condition_pseudo);
+	}
 	instruct_cbr(proc, condition_pseudo, body_block, end_block, node->line_number);
 	free_temp_pseudo(proc, condition_pseudo, false);
 
 	start_block(proc, body_block, node->line_number);
-	start_scope(proc->linearizer, proc, node->while_or_repeat_stmt.loop_scope);
+	if (node->type != STMT_REPEAT) {
+		start_scope(proc->linearizer, proc, node->while_or_repeat_stmt.loop_scope);
+	}
 	linearize_statement_list(proc, node->while_or_repeat_stmt.loop_statement_list);
 	end_scope(proc->linearizer, proc, node->line_number);
 

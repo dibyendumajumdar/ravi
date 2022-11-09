@@ -29,23 +29,23 @@ L<https://www.lua.org/manual/5.4/manual.html#3.3.5>
 
 print("1..36")
 
-for i = 1.0, 3.0, 0.5 do
-    print("ok " .. tostring(2*i-1) .. " - for 1.0, 3.0, 0.5")
-end
+--for i = 1.0, 3.0, 0.5 do
+--    print("ok " .. tostring(2*i-1) .. " - for 1.0, 3.0, 0.5")
+--end
 
-for i = 1.0, 3.0, 0.5 do
-    local function f ()
-        print("ok " .. tostring(2*i+4) .. " - for 1.0, 3.0, 0.5 lex")
-    end
-    f()
-end
+--for i = 1.0, 3.0, 0.5 do
+--    local function f ()
+--        print("ok " .. tostring(2*i+4) .. " - for 1.0, 3.0, 0.5 lex")
+--    end
+--    f()
+--end
 
 local function f (i)
     print("ok " .. tostring(2*i+9) .. " - for 1.0, 3.0, 0.5 !lex")
 end
-for i = 1.0, 3.0, 0.5 do
-    f(i)
-end
+--for i = 1.0, 3.0, 0.5 do
+--    f(i)
+--end
 
 for i = 3, 5 do
     print("ok " .. tostring(13+i) .. " - for 3, 5")
