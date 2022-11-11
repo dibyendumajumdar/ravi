@@ -120,7 +120,7 @@ do --[[ permutations ]]
         if n <= 1 then      -- nothing to change?
             coroutine.yield(a)
         else
-            for i=1,(@integer n) do
+            for i=1,n do
                 -- put i-th element as the last one
                 a[n], a[i] = a[i], a[n]
                 -- generate all permutations of the other elements
@@ -152,7 +152,7 @@ do --[[ permutations with wrap ]]
         if n <= 1 then      -- nothing to change?
             coroutine.yield(a)
         else
-            for i=1,(@integer n) do
+            for i=1,n do
                 -- put i-th element as the last one
                 a[n], a[i] = a[i], a[n]
                 -- generate all permutations of the other elements

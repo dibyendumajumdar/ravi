@@ -45,7 +45,7 @@ local function local_factorial (n)
 end
 equals(local_factorial(7), 5040, "factorial (recursive)")
 
-local function loop_factorial (n: integer)
+local function loop_factorial (n)
     local a = 1
     for i = 1, n, 1 do
         a = a*i
