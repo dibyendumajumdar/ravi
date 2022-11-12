@@ -653,7 +653,12 @@ void raviX_dump_ast(CompilerState *compiler_state, FILE *fp)
 {
 	TextBuffer mbuf;
 	raviX_buffer_init(&mbuf, 1024);
-	raviX_dump_ast_node(&mbuf, compiler_state->main_function, 0);
+	raviX_dump_ast_to_buffer(compiler_state, &mbuf);
 	fputs(mbuf.buf, fp);
 	raviX_buffer_free(&mbuf);
+}
+
+void raviX_dump_ast_to_buffer(CompilerState *compiler_state, TextBuffer *mbuf)
+{
+	raviX_dump_ast_node(mbuf, compiler_state->main_function, 0);
 }

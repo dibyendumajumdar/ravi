@@ -34,8 +34,10 @@ int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 {
 	int rc = 0;
 	int dump_ir = 0;
+	int dump_ast = 0;
 	if (compiler_interface->compiler_options != NULL) {
 		dump_ir = strstr(compiler_interface->compiler_options, "--dump-ir") != NULL;
+		dump_ast = strstr(compiler_interface->compiler_options, "--dump-ast") != NULL;
 	}
 	compiler_interface->generated_code = NULL;
 	CompilerState *compiler_state = raviX_init_compiler(compiler_interface->memory_allocator);
@@ -44,6 +46,13 @@ int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 			 compiler_interface->source_name);
 	if (rc != 0) {
 		compiler_interface->error_message(compiler_interface->context, raviX_get_last_error(compiler_state));
+		goto L_exit;
+	}
+	if (dump_ast) {
+		TextBuffer mbuf;
+		raviX_buffer_init(&mbuf, 1024);
+		raviX_dump_ast_to_buffer(compiler_state, &mbuf);
+		compiler_interface->generated_code = mbuf.buf;
 		goto L_exit;
 	}
 	rc = raviX_ast_lower(compiler_state);

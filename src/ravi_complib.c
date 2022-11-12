@@ -198,7 +198,7 @@ static int load_and_compile_file(lua_State* L) {
   }
   // FIXME we should use pcall here
   int rc = load_and_compile_internal(L, s, options);
-  free((void *)s);
+  free((void*)s);
   if (rc == 0) {
     luaL_error(L, "Failed to compile");
   }
@@ -254,8 +254,60 @@ static int generate(lua_State* L) {
   }
 }
 
-static const luaL_Reg ravilib[] = {
-    {"load", load_and_compile}, {"loadfile", load_and_compile_file}, {"compile", generate}, {NULL, NULL}};
+/* Compile given chunk of code and generate C code, optional arg specifies name of main function */
+static int parse(lua_State* L) {
+  const char* s = luaL_checkstring(L, 1);
+  const char* mainfunc = NULL;
+  if (lua_isstring(L, 2)) {
+    mainfunc = luaL_checkstring(L, 2);
+  }
+  struct CompilerContext ccontext = {.L = L, .jit = G(L)->ravi_state};
+  C_MemoryAllocator allocator = {.arena = create_mspace(0, 0),
+                                 .create_arena = create_mspace,
+                                 .destroy_arena = destroy_mspace,
+                                 .calloc = mspace_calloc,
+                                 .realloc = mspace_realloc,
+                                 .free = mspace_free};
+  struct Ravi_CompilerInterface ravicomp_interface = {.source = s,
+                                                      .source_len = strlen(s),
+                                                      .source_name = "input",
+                                                      .generated_code = NULL,
+                                                      .context = &ccontext,
+                                                      .compiler_options = "--dump-ast",
+                                                      .memory_allocator = &allocator,
+                                                      .debug_message = debug_message,
+                                                      .error_message = error_message};
+  if (mainfunc) {
+    snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "%s", mainfunc);
+  }
+  else {
+#ifdef USE_MIRJIT
+    snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "__luachunk_%lld",
+             ccontext.jit->id++);
+#else
+    snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "mymain");
+#endif
+  }
+  int rc = raviX_compile(&ravicomp_interface);
+  if (rc == 0) {
+    lua_pushstring(L, ravicomp_interface.generated_code);
+    raviX_release(&ravicomp_interface);
+    destroy_mspace(allocator.arena);
+    return 1;
+  }
+  else {
+    raviX_release(&ravicomp_interface);
+    destroy_mspace(allocator.arena);
+    lua_error(L);
+    return 0;
+  }
+}
+
+static const luaL_Reg ravilib[] = {{"load", load_and_compile},
+                                   {"loadfile", load_and_compile_file},
+                                   {"compile", generate},
+                                   {"parse", parse},
+                                   {NULL, NULL}};
 
 int(raviopen_compiler)(lua_State* L) {
   luaL_newlib(L, ravilib);
