@@ -160,8 +160,7 @@ end
 report"gc.lua"
 local f = assert(loadfile('gc.lua'))
 f()
-if not ravi or not ravi.auto() or ravi.tracehook() then
-  -- in JIT mode we need tracehook enabled
+if not ravi or not ravi.auto() then
   dofile('db.lua')
 end
 assert(dofile('calls.lua') == deep and deep)
@@ -188,8 +187,7 @@ dofile('vararg.lua')
 dofile('closure.lua')
 dofile('coroutine.lua')
 dofile('goto.lua', true)
-if not ravi or not ravi.auto() or ravi.tracehook() then
-  -- in JIT mode we need tracehook enabled
+if not ravi or not ravi.auto() then
   dofile('errors.lua')
 end
 dofile('math.lua')

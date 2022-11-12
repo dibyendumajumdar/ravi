@@ -837,7 +837,7 @@ print'+'
 
 
 -- testing changing hooks during hooks
-if not ravi or not ravi.auto() or ravi.tracehook() then
+if not ravi or not ravi.auto() then
 _G.t = {}
 T.sethook([[
   # set a line hook after 3 count hooks

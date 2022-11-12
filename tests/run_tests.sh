@@ -60,13 +60,4 @@ run_ravi_tests performance sieve.ravi "ravi.auto(true,1)"
 run_ravi_tests performance pisum.ravi "ravi.auto(true,1)"
 run_ravi_tests performance md5test.lua "ravi.auto(true,1)"
 run_ravi_tests comptests test.lua "ravi.jit(false)"
-
-if [ "$RUN_TRACEHOOK_TESTS" = "" ]
-then
-  exit 0
-fi
-
-# The following tests require JIT code to execute a hook at each instruction
-# and are only supported by the LLVM backend
-run_lua53_tests "_port=true ravi.tracehook(true) ravi.auto(true)" "Lua53 tracehook test failed"
-run_lua53_tests "_port=true ravi.tracehook(true) ravi.auto(true,1)" "Lua53 tracehook test failed"
+exit 0
