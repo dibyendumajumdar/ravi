@@ -132,7 +132,12 @@ static int load_and_compile_internal(lua_State* L, const char* s, const char* op
 }
 
 const char* read_file(const char* filename, char* error_message, size_t message_size) {
+  /* We need to use binary read on Windows to get file size correctly */
+#ifdef _WIN32
+  FILE* fp = fopen(filename, "rb");
+#else
   FILE* fp = fopen(filename, "r");
+#endif
   if (fp == NULL) {
     snprintf(error_message, message_size, "Failed to open file %s", filename);
     return NULL;
