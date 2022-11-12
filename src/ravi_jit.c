@@ -133,19 +133,6 @@ static int ravi_dump_ir(lua_State *L) {
   return 0;
 }
 
-// Dump LLVM ASM of the supplied function
-// if it has been compiled
-static int ravi_dump_asm(lua_State *L) {
-  int n = lua_gettop(L);
-  luaL_argcheck(L, n == 1, 1, "1 argument expected");
-  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
-                "argument must be a Lua function");
-  void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = (LClosure *)(p);
-  raviV_dumpASM(L, l->p);
-  return 0;
-}
-
 // Turn on/off auto JIT compilation
 static int ravi_auto(lua_State *L) {
   int n = lua_gettop(L);
@@ -184,18 +171,6 @@ static int ravi_optlevel(lua_State *L) {
   return 1;
 }
 
-// Set JIT code size level
-static int ravi_sizelevel(lua_State *L) {
-  int n = lua_gettop(L);
-  int oldvalue = raviV_getsizelevel(L);
-  if (n == 1) {
-    int value = lua_tointeger(L, 1);
-    raviV_setsizelevel(L, value);
-  }
-  lua_pushinteger(L, oldvalue);
-  return 1;
-}
-
 // Set validation when JIT compiling
 static int ravi_validation(lua_State *L) {
   int n = lua_gettop(L);
@@ -208,18 +183,6 @@ static int ravi_validation(lua_State *L) {
   return 1;
 }
 
-// Turn on/off the trace hook
-static int ravi_traceenable(lua_State *L) {
-  int n = lua_gettop(L);
-  int oldvalue = raviV_gettraceenabled(L);
-  if (n == 1) {
-    int value = lua_toboolean(L, 1);
-    raviV_settraceenabled(L, value);
-  }
-  lua_pushboolean(L, oldvalue != 0);
-  return 1;
-}
-  
 // Set verbosity
 static int ravi_verbosity(lua_State *L) {
   int n = lua_gettop(L);
@@ -253,17 +216,12 @@ static int ravi_get_options(lua_State *L) {
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"compile", ravi_compile_n},
                                    {"dumplua", ravi_dump_luacode},
-                                   {"dumpllvm", ravi_dump_ir},
                                    {"dumpir", ravi_dump_ir},
-                                   {"dumpllvmasm", ravi_dump_asm},
-                                   {"dumpasm", ravi_dump_asm},
                                    {"auto", ravi_auto},
                                    {"jit", ravi_jitenable},
                                    {"optlevel", ravi_optlevel},
-                                   {"sizelevel", ravi_sizelevel},
                                    {"verbosity", ravi_verbosity},
                                    {"validation", ravi_validation},
-                                   {"tracehook", ravi_traceenable},
                                    {"listcode", ravi_listcode},
                                    {"limits", ravi_get_limits},
                                    {"jitname", ravi_get_jit_id},

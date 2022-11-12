@@ -211,12 +211,6 @@ void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
 	membuff_free(&buf);
 }
 
-// Dump the LLVM ASM
-void raviV_dumpASM(struct lua_State *L, struct Proto *p) {
-  (void)L;
-  (void)p;
-}
-
 void raviV_setminexeccount(lua_State *L, int value) {
   global_State *G = G(L);
   if (!G->ravi_state) return;
@@ -273,15 +267,6 @@ int raviV_getoptlevel(lua_State *L) {
   return G->ravi_state->opt_level_;
 }
 
-void raviV_setsizelevel(lua_State *L, int value) {
-  (void)L;
-  (void)value;
-}
-int raviV_getsizelevel(lua_State *L) {
-  (void)L;
-  return 0;
-}
-
 void raviV_setvalidation(lua_State *L, int value) {
   global_State *G = G(L);
   if (!G->ravi_state) return;
@@ -302,16 +287,6 @@ int raviV_getverbosity(lua_State *L) {
   global_State *G = G(L);
   if (!G->ravi_state) return 0;
   return G->ravi_state->verbosity_;
-}
-
-// Turn on/off the JIT compiler
-void raviV_settraceenabled(lua_State *L, int value) {
-  (void)L;
-  (void)value;
-}
-int raviV_gettraceenabled(lua_State *L) {
-  (void)L;
-  return 0;
 }
 
 int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
