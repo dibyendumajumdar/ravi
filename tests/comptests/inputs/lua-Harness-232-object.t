@@ -151,7 +151,7 @@ end
 do --[[ multiple inheritance ]]
     -- look up for 'k' in list of tables 'plist'
     local function search (k, plist)
-        for i=1, (@integer #plist) do
+        for i=1, #plist do
             local v = plist[i][k]  -- try 'i'-th superclass
             if v then return v end
         end
@@ -208,7 +208,7 @@ end
 do --[[ multiple inheritance (patched) ]]
     -- look up for 'k' in list of tables 'plist'
     local function search (k, plist)
-        for i=1, (@integer #plist) do
+        for i=1, #plist do
             local v = plist[i][k]  -- try 'i'-th superclass
             if v then return v end
         end
