@@ -42,6 +42,11 @@ Features
 * `AOT Compilation to shared library <https://github.com/dibyendumajumdar/ravi/tree/master/aot-examples>`_.
 * Preview feature: Ability to `embed C code snippets <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_.
 
+Articles about Ravi
+===================
+* `Ravi - Lua Dialect <https://medium.com/@dibyendumajumdar/ravi-a-lua-dialect-690f3844d4cd>_`.
+* `Embedding C code in Ravi <https://medium.com/@dibyendumajumdar/embedding-c-code-in-ravi-a-lua-dialect-1777c8be8819>_`.
+
 Documentation
 =============
 * For the Lua extensions in Ravi see the `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
@@ -125,7 +130,7 @@ History
        - Support for `LLVM backend <https://github.com/dibyendumajumdar/ravi/tree/llvm>`_ archived
 * 2021
        - Integrated AOT and JIT compilation support 
-       - `Embedded C syntax <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_
+       - `Embedded C syntax <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_ 
 * 2022 (plan)
        - Improve Embedded C support with more validation
        - Improve tests and documentation overall
