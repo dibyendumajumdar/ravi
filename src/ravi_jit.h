@@ -51,10 +51,6 @@ int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
 /* Free the JIT structures associated with the prototype */
 void raviV_freeproto(struct lua_State *L, struct Proto *p);
 
-/* Set the code size preference */
-void raviV_setsizelevel(struct lua_State *L, int sizelevel);
-int raviV_getsizelevel(struct lua_State *L);
-
 /* Set optimizer level */
 void raviV_setoptlevel(struct lua_State *L, int optlevel);
 int raviV_getoptlevel(struct lua_State *L);
@@ -83,15 +79,8 @@ int raviV_getminexeccount(struct lua_State *L);
 void raviV_setvalidation(struct lua_State *L, int enabled);
 int raviV_getvalidation(struct lua_State *L);
 
-/* Enable or disable trace hook */
-void raviV_settraceenabled(struct lua_State *L, int enabled);
-int raviV_gettraceenabled(struct lua_State *L);
-
 /* Dumps the IR if available */
 void raviV_dumpIR(struct lua_State *L, struct Proto *p);
-
-/* Dump the compiled assembly code if available */
-void raviV_dumpASM(struct lua_State *L, struct Proto *p);
 
 /* Return JIT backend identifier */
 const char *raviV_jit_id(struct lua_State *L);
