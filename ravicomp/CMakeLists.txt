@@ -38,6 +38,7 @@ set(SRCS
         src/lexer.c
         src/parser.c
         src/ast_printer.c
+        src/ast_printer_n.c
         src/typechecker.c
         src/linearizer.c
         src/opt_unusedcode.c
