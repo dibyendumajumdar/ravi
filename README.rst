@@ -44,8 +44,8 @@ Features
 
 Articles about Ravi
 ===================
-* `Ravi - Lua Dialect <https://medium.com/@dibyendumajumdar/ravi-a-lua-dialect-690f3844d4cd>_`.
-* `Embedding C code in Ravi <https://medium.com/@dibyendumajumdar/embedding-c-code-in-ravi-a-lua-dialect-1777c8be8819>_`.
+* `Ravi - Lua Dialect <https://medium.com/@dibyendumajumdar/ravi-a-lua-dialect-690f3844d4cd>`_.
+* `Embedding C code in Ravi <https://medium.com/@dibyendumajumdar/embedding-c-code-in-ravi-a-lua-dialect-1777c8be8819>`_.
 
 Documentation
 =============
