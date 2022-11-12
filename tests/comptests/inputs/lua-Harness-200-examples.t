@@ -22,7 +22,7 @@ First tests in order to check infrastructure.
 =cut
 
 --]]
-
+print '200-examples'
 require'test_assertion'
 
 plan(5)

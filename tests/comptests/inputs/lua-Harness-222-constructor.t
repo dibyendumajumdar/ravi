@@ -28,7 +28,7 @@ See section "Table Constructors" in "Programming in Lua".
 =cut
 
 --]]
-
+print '222-constructor'
 require'test_assertion'
 
 plan(16)

@@ -26,7 +26,7 @@ L<https://www.lua.org/manual/5.4/manual.html#3.3.4>
 =cut
 
 ]]
-
+print '012-repeat'
 print("1..8")
 
 do

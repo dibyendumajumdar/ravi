@@ -26,7 +26,7 @@ L<https://www.lua.org/manual/5.4/manual.html#3.3.5>
 =cut
 
 --]]
-
+print '014-fornum'
 print("1..36")
 
 --for i = 1.0, 3.0, 0.5 do

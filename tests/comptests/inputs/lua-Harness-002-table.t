@@ -22,7 +22,7 @@ See section "Tables" in "Programming in Lua".
 =cut
 
 ]]
-
+print '002-table'
 print("1..8")
 
 a = {"ok 1", "ok 2", "ok 3"}

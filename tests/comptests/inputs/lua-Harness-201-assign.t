@@ -26,7 +26,7 @@ L<https://www.lua.org/manual/5.4/manual.html#3.3.3>
 =cut
 
 --]]
-
+print '201-assign'
 require'test_assertion'
 local has_env = _VERSION >= 'Lua 5.2'
 

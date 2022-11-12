@@ -22,7 +22,7 @@ See section "Object-Oriented Programming" in "Programming in Lua".
 =cut
 
 --]]
-
+print '232-object'
 require'test_assertion'
 
 plan(18)

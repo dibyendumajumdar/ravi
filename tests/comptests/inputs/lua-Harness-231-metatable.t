@@ -28,7 +28,7 @@ See section "Metatables and Metamethods" in "Programming in Lua".
 =cut
 
 --]]
-
+print '231-metatable'
 require'test_assertion'
 local profile = require'profile'
 local has_metamethod52 = _VERSION >= 'Lua 5.2' or profile.luajit_compat52
@@ -49,14 +49,14 @@ do
     equals(getmetatable(t), t1)
     equals(setmetatable(t, nil), t)
     error_matches(function () setmetatable(t, true) end,
-            "^.*: bad argument #2 to 'setmetatable' %(nil or table expected")
+            "bad argument #2 to '%?' %(nil or table expected")
 
     local mt = {}
     mt.__metatable = "not your business"
     setmetatable(t, mt)
     equals(getmetatable(t), "not your business", "protected metatable")
     error_matches(function () setmetatable(t, {}) end,
-            "^.*: cannot change a protected metatable")
+            "cannot change a protected metatable")
 
     equals(getmetatable('').__index, string, "metatable for string")
 
@@ -81,11 +81,11 @@ do
     setmetatable(t, mt)
     if has_metamethod_tostring53 then
         error_matches(function () tostring(t) end,
-                "^.*: '__tostring' must return a string")
+                "'__tostring' must return a string")
         equals(a, "return nothing")
         if has_metamethod_tostring54 then
             error_matches(function () print(t) end,
-                    "^.*: '__tostring' must return a string")
+                    "'__tostring' must return a string")
         else
             error_equals(function () print(t) end,
                     "'__tostring' must return a string")
@@ -550,7 +550,7 @@ do --[[ read-only table ]]
     equals(days[1], 'Sunday', "read-only tables")
 
     error_matches(function () days[2] = 'Noday' end,
-            "^.*: attempt to update a read%-only table")
+            "attempt to update a read%-only table")
 end
 
 do --[[ declare global ]]
@@ -568,7 +568,7 @@ do --[[ declare global ]]
     })
 
     error_matches(function () new_a = 1 end,
-            "^.*: attempt to write to undeclared variable new_a",
+            "attempt to write to undeclared variable new_a",
             "declaring global variables")
 
     declare 'new_a'

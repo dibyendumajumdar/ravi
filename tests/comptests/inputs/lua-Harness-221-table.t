@@ -22,7 +22,7 @@ See section "Tables" in "Programming in Lua".
 =cut
 
 --]]
-
+print '221-table'
 require'test_assertion'
 
 plan(25)

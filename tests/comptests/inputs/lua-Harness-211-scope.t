@@ -28,7 +28,7 @@ See section "Local Variables and Blocks" in "Programming in Lua".
 =cut
 
 --]]
-
+print '211-scope'
 require'test_assertion'
 
 plan(10)

@@ -20,7 +20,7 @@
 =cut
 
 --]]
-
+print '105-string'
 require'test_assertion'
 local profile = require'profile'
 local has_op53 = _VERSION >= 'Lua 5.3'

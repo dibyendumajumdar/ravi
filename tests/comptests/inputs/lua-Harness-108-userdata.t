@@ -20,7 +20,7 @@
 =cut
 
 --]]
-
+print '108-userdata'
 require'test_assertion'
 local has_op53 = _VERSION >= 'Lua 5.3'
 

@@ -23,7 +23,7 @@ section "Coroutines as Iterators" in "Programming in Lua".
 =cut
 
 --]]
-
+print '223-iterator'
 require'test_assertion'
 
 plan(8)

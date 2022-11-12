@@ -22,7 +22,7 @@ See section "Closures" in "Programming in Lua".
 =cut
 
 --]]
-
+print '213-closure'
 require'test_assertion'
 
 plan(15)

@@ -28,7 +28,7 @@ See section "Functions" in "Programming in Lua".
 =cut
 
 --]]
-
+print '212-function'
 require'test_assertion'
 local loadstring = loadstring or load
 
