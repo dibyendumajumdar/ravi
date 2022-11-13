@@ -337,6 +337,114 @@ inspired by the similar statement in the Go language. The implementation is base
 
 Note that the ``defer`` statement should be considered a beta feature not yet ready for production use as it is undergoing testing.
 
+----------
+Embedded C
+----------
+
+This feature is only available when using the new Complier framework JIT described later in this manual.
+It is not available in the interpreter or in the ByteCode JIT compiler.
+
+New keywords
+------------
+
+New keywords ``C__decl``, ``C__unsafe``, ``C__new`` have been added to the language.
+
+``C__decl`` 
+  allows C type declarations via a string argument. A restriction is imposed that the declared types contain no pointers or unions. 
+  All type declarations in a chunk of Ravi code are amalgamated in the generated code, hence duplicate declarations will result in errors.
+  Struct declarations can have a flexible array member. The size of this flexible array member is determined when creating a new object using ``C__new()``.
+``C__unsafe`` 
+  takes a list of symbols and a C code in string argument. The C code may not make function calls or attempt to return or goto.
+``C__new`` 
+  allows a userdata type of given struct type to be created. The struct type should have been declared before. A size argument is required; 
+  when the struct type has a flexible array member, the size specifies the dimension of this array member, otherwise the size defines whether 
+  a single object will be created or an array.
+
+Example Usage
+-------------
+
+Following example illustrates several features of the new syntax::
+
+  C__decl [[
+    typedef struct {
+      int m,n;
+      double data[];
+    } Matrix;
+  ]] 
+  
+  MatrixFunctions = {}
+  function MatrixFunctions.new(m: integer, n: integer)
+    local M = C__new('Matrix', m*n)
+    C__unsafe(m,n,M) [[
+        Matrix *matrix = (Matrix *)M.ptr;
+        matrix->m = m;
+        matrix->n = n;
+        for (int i = 0; i < m*n; i++)
+            matrix->data[i] = 0.0;
+    ]]
+    return M
+  end
+  
+  function MatrixFunctions.dim(M)
+    local m: integer
+    local n: integer
+    C__unsafe(m,n,M) [[
+        Matrix *matrix = (Matrix *)M.ptr;
+        m = matrix->m;
+        n = matrix->n;
+    ]]
+    return m, n
+  end
+  
+  local M = MatrixFunctions.new(10,11)
+  local m, n = MatrixFunctions.dim(M)
+  assert(m == 10)
+  assert(n == 11)
+
+Type Mapping
+------------
+
+When accessing userdata, string or Ravi array types, following implicit types are used::
+
+  // For userdata and string types
+  typedef struct {
+     char *ptr;
+    unsigned int len;
+  } Ravi_StringOrUserData;// For integer[]
+  typedef struct {
+    lua_Integer *ptr;
+    unsigned int len;
+  } Ravi_IntegerArray;// For number[]  
+  typedef struct {
+    lua_Number *ptr;
+    unsigned int len;
+  } Ravi_NumberArray;
+
+Each symbol argument to ``C__unsafe`` is made available in the C code.
+
+* Primitive integer or floating point values have the types ``lua_Integer`` and ``lua_Number`` respectively.
+* Userdata or string types are made available as ``Ravi_StringOrUserData`` structure.
+* ``integer[]`` and ``number[]`` arrays are made available as ``Ravi_IntegerArray`` and ``Ravi_NumberArray`` respectively.
+
+Values assigned to primitive types are made visible in Ravi code. The other supported types are reference types, hence any updates become 
+visible in Ravi code, however, making changes to Lua strings is not permitted (although this is not yet enforced).
+
+For string, full userdata, ``integer[]`` and ``number[]`` array types, a len attribute is populated. For lightweight userdata, the len attribute 
+will be set to 0.
+
+C Parser
+--------
+
+This feature uses a custom version of the chibicc project to parse and validate the C code snippets. 
+The goal is to perform a sanity check of the C code snippet before merging it into the generated code.
+
+The parser enforces some constraints:
+
+* There is no pre-processor support; this is deliberate
+* The parser prevents function calls; this rule may be relaxed in future to allow calls to simple C standard library functions
+* The parser enforces that the interaction between Ravi and C is limited to userdata types, primitive types (number and integer), 
+  primitive arrays (integer[] and number[]) and strings. Access to Lua tables is not supported.
+
 -------------------------------
 JIT and AOT Compilation Support
 -------------------------------
