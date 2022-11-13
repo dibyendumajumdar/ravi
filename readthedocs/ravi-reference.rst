@@ -341,7 +341,7 @@ Note that the ``defer`` statement should be considered a beta feature not yet re
 Embedded C
 ----------
 
-This feature is only available when using the new Complier framework JIT described later in this manual.
+This feature is only available when using the new Compiler framework JIT described later in this manual.
 It is not available in the interpreter or in the ByteCode JIT compiler.
 
 New keywords
@@ -410,11 +410,15 @@ When accessing userdata, string or Ravi array types, following implicit types ar
   typedef struct {
      char *ptr;
     unsigned int len;
-  } Ravi_StringOrUserData;// For integer[]
+  } Ravi_StringOrUserData;
+  
+  // For integer[]
   typedef struct {
     lua_Integer *ptr;
     unsigned int len;
-  } Ravi_IntegerArray;// For number[]  
+  } Ravi_IntegerArray;
+  
+  // For number[]  
   typedef struct {
     lua_Number *ptr;
     unsigned int len;
@@ -435,7 +439,7 @@ will be set to 0.
 C Parser
 --------
 
-This feature uses a custom version of the chibicc project to parse and validate the C code snippets. 
+This feature uses a custom version of the `chibicc <https://github.com/rui314/chibicc>`_ project to parse and validate the C code snippets. 
 The goal is to perform a sanity check of the C code snippet before merging it into the generated code.
 
 The parser enforces some constraints:
