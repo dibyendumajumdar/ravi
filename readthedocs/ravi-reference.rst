@@ -485,6 +485,9 @@ Compiler framework JIT
 ----------------
 ByteCode JIT API
 ----------------
+This JIT pipelines works by translating Ravi Interpreter bytecodes to machine code via intermediate C code compiled using MIR.
+The JIT can be used in two modes:
+
 auto mode
   in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - 
   any Lua function call is checked to see if the bytecodes contained in it can be compiled. If this is true then 
@@ -528,14 +531,9 @@ A ByteCode JIT api is described below:
 Compiler framework JIT
 ----------------------
 
-A new Compiler framework in Ravi is now available as a preview feature.
+This compiler framework translates Ravi source code to machine code as follows:
 
-The new framework allows both JIT and AOT compilation of Lua/Ravi code.
-A large subset of the language is supported.
-
-The new compiler differs from the standard Lua/Ravi compiler in following ways:
-
-* Unlike the standard compiler, the new compiler generates Abstract Syntax Trees (ASTs) in the parsing phase.
+* The compiler generates Abstract Syntax Trees (ASTs) in the parsing phase.
 * A `new linear Intermediate Representation (IR) <https://github.com/dibyendumajumdar/ravi-compiler/blob/master/docs/linear-ir.md>`_ is produced from the AST.
 * Finally the IR is translated to C code, which can be JITed using the MIR backend or compiled ahead-of-time using a standard C compiler such as gcc, clang or MSVC.
 * Since the compiler generates C intermediate code, it is possible to embed snippets of C code via special language extensions. For details see `Embedding C <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_.
@@ -543,6 +541,13 @@ The new compiler differs from the standard Lua/Ravi compiler in following ways:
 Additional details regarding the new implementation can be found at the `compiler project site <https://github.com/dibyendumajumdar/ravi-compiler>`_.
 
 The new compiler can be invoked in the following ways.
+
+Generate Parse Tree
+-------------------
+
+``compiler.parse(code: string)``
+  Generates a parse tree for the input Ravi source code. The parse tree is formatted such that it can be executed in Lua/Ravi code by providing suitable function 
+  definitions.
 
 JIT Compilation
 ---------------
