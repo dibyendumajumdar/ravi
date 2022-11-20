@@ -35,12 +35,12 @@ Features
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * Generational GC from Lua 5.4
 * ``defer`` statement for releasing resources
-* Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_.
-* A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
-* A `Visual Studio Code debugger extension <https://marketplace.visualstudio.com/items?itemName=ravilang.ravi-debug>`_ - interpreted mode debugger.
-* A new compiler framework for `JIT and AOT compilation <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-compiler.html>`_.
-* `AOT Compilation to shared library <https://github.com/dibyendumajumdar/ravi/tree/master/aot-examples>`_.
-* Preview feature: Ability to `embed C code snippets <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_.
+* Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_
+* A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_
+* A `Visual Studio Code debugger extension <https://marketplace.visualstudio.com/items?itemName=ravilang.ravi-debug>`_ - interpreted mode debugger
+* A new compiler framework for `JIT and AOT compilation <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-compiler.html>`_
+* `AOT Compilation to shared library <https://github.com/dibyendumajumdar/ravi/tree/master/aot-examples>`_
+* Preview feature: Ability to `embed C code snippets <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_
 
 Articles about Ravi
 ===================
