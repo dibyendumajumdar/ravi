@@ -1,8 +1,8 @@
 =========================
 Ravi Programming Language
 =========================
-.. image:: https://travis-ci.org/dibyendumajumdar/ravi.svg?branch=master
-    :target: https://travis-ci.org/dibyendumajumdar/ravi
+.. image:: https://github.com/dibyendumajumdar/ravi/workflows/build/badge.svg
+    :target: https://github.com/dibyendumajumdar/ravi
 
 Ravi is a dialect of `Lua <http://www.lua.org/>`_ with limited optional static typing and 
 features a JIT compiler powered by `MIR <https://github.com/vnmakarov/mir>`_ as well as experimental support for AOT compilation to native code.
