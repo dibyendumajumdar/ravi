@@ -5,7 +5,7 @@ Ravi Programming Language
     :target: https://github.com/dibyendumajumdar/ravi
 
 Ravi is a dialect of `Lua <http://www.lua.org/>`_ with limited optional static typing and 
-features a JIT compiler powered by `MIR <https://github.com/vnmakarov/mir>`_ as well as experimental support for AOT compilation to native code.
+features a JIT compiler powered by `MIR <https://github.com/vnmakarov/mir>`_ as well as support for AOT compilation to native code.
 The name Ravi comes from the Sanskrit word for the Sun. 
 Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for 
 static types; Sol means the Sun in Portugese.
@@ -30,7 +30,7 @@ over maximum performance. For more detailed comparison please refer to the docum
 
 Features
 ========
-* Optional static typing - for details `see the reference manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
+* Optional static typing
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * Generational GC from Lua 5.4
@@ -49,10 +49,10 @@ Articles about Ravi
 
 Documentation
 =============
-* For the Lua extensions in Ravi see the `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
+* `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
 * `MIR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-mir-instructions.html>`_.
-* Also see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
-* and the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
+* `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
+* `Lua 2022 Workshop <https://www.lua.org/wshop22.html<`_.
 
 Lua Goodies
 ===========
