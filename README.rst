@@ -52,7 +52,7 @@ Documentation
 * `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
 * `MIR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-mir-instructions.html>`_.
 * `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
-* `Lua 2022 Workshop <https://www.lua.org/wshop22.html<`_.
+* `Lua 2022 Workshop <https://www.lua.org/wshop22.html>`_.
 
 Lua Goodies
 ===========
