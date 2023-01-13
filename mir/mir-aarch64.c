@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018-2021 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 /* x31 - sp; x30 - link reg; x29 - fp; x0-x7, v0-v7 - arg/result regs;
@@ -480,7 +480,7 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
 #if defined(__APPLE__)
     0x910023e3, /* add x3, sp, 8 # results arg */
 #else
-    0x910043e3, /* add x3, sp, 16 # results arg */
+    0x910043e3,                                      /* add x3, sp, 16 # results arg */
 #endif
     0xaa0303f3, /* mov x19, x3 # results */
     0xf90003fe, /* str x30, [sp] # save lr */
@@ -569,7 +569,8 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
       } else if (n_xregs < 8) { /* str xreg, sp_offset[sp]  */
         pat = st_pat | ((sp_offset >> scale) << 10) | n_xregs++ | (sp << 5);
       } else { /* ldr t, stack_arg_offset[x9]; st t, sp_offset[sp]: */
-        pat = (ld_pat & base_reg_mask) | stack_arg_sp_offset | temp_reg | (9 << 5);
+        pat
+          = (ld_pat & base_reg_mask) | ((stack_arg_sp_offset >> scale) << 10) | temp_reg | (9 << 5);
         push_insns (code, &pat, sizeof (pat));
         pat = st_pat | ((sp_offset >> scale) << 10) | temp_reg | (sp << 5);
         stack_arg_sp_offset += 8;

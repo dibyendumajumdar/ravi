@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018-2021 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 #include "mir.h"
@@ -415,7 +415,7 @@ typedef struct func_regs {
   VARR (reg_desc_t) * reg_descs;
   HTAB (size_t) * name2rdn_tab;
   HTAB (size_t) * reg2rdn_tab;
-} * func_regs_t;
+} *func_regs_t;
 
 static int name2rdn_eq (size_t rdn1, size_t rdn2, void *arg) {
   func_regs_t func_regs = arg;
@@ -2014,7 +2014,7 @@ static MIR_insn_t create_label (MIR_context_t ctx, int64_t label_num) {
 
 MIR_insn_t MIR_new_label (MIR_context_t ctx) { return create_label (ctx, ++curr_label_num); }
 
-MIR_reg_t _MIR_new_temp_reg (MIR_context_t ctx, MIR_type_t type, MIR_func_t func) {
+static MIR_reg_t new_temp_reg (MIR_context_t ctx, MIR_type_t type, MIR_func_t func) {
   char reg_name[30];
 
   if (type != MIR_T_I64 && type != MIR_T_F && type != MIR_T_D && type != MIR_T_LD)
@@ -2026,9 +2026,22 @@ MIR_reg_t _MIR_new_temp_reg (MIR_context_t ctx, MIR_type_t type, MIR_func_t func
     if (func->last_temp_num == 0)
       MIR_get_error_func (ctx) (MIR_unique_reg_error, "out of unique regs");
     sprintf (reg_name, "%s%d", TEMP_REG_NAME_PREFIX, func->last_temp_num);
+
     if (find_rd_by_name (ctx, reg_name, func) == NULL)
       return MIR_new_func_reg (ctx, func, type, reg_name);
   }
+}
+
+MIR_reg_t _MIR_new_temp_reg (MIR_context_t ctx, MIR_type_t type, MIR_func_t func) {
+  MIR_reg_t temp;
+
+  /* It can be used by generator in parallel from different processed
+     funcs in the same ctx and uses data, e.g. string tab, common for
+     ctx.  So it should be thread safe.  */
+  if (mir_mutex_lock (&ctx_mutex)) parallel_error (ctx, "error in mutex lock");
+  temp = new_temp_reg (ctx, type, func);
+  if (mir_mutex_unlock (&ctx_mutex)) parallel_error (ctx, "error in mutex unlock");
+  return temp;
 }
 
 static reg_desc_t *get_func_rd_by_name (MIR_context_t ctx, const char *reg_name, MIR_func_t func) {
@@ -2784,7 +2797,7 @@ static MIR_reg_t vn_add_val (MIR_context_t ctx, MIR_func_t func, MIR_type_t type
   val.op1 = op1;
   val.op2 = op2;
   if (HTAB_DO (val_t, val_tab, val, HTAB_FIND, tab_val)) return tab_val.reg;
-  val.reg = _MIR_new_temp_reg (ctx, type, func);
+  val.reg = new_temp_reg (ctx, type, func);
   HTAB_DO (val_t, val_tab, val, HTAB_INSERT, tab_val);
   return val.reg;
 }
@@ -3027,7 +3040,7 @@ static void make_one_ret (MIR_context_t ctx, MIR_item_t func_item) {
                   : res_types[i] == MIR_T_D  ? MIR_DMOV
                   : res_types[i] == MIR_T_LD ? MIR_LDMOV
                                              : MIR_MOV);
-      ret_reg = _MIR_new_temp_reg (ctx, mov_code == MIR_MOV ? MIR_T_I64 : res_types[i], func);
+      ret_reg = new_temp_reg (ctx, mov_code == MIR_MOV ? MIR_T_I64 : res_types[i], func);
       ret_reg_op = MIR_new_reg_op (ctx, ret_reg);
       VARR_PUSH (MIR_op_t, ret_ops, ret_reg_op);
     }
@@ -3183,12 +3196,12 @@ static int simplify_func (MIR_context_t ctx, MIR_item_t func_item, int mem_float
 
     if ((code == MIR_MOV || code == MIR_FMOV || code == MIR_DMOV || code == MIR_LDMOV)
         && insn->ops[0].mode == MIR_OP_MEM && insn->ops[1].mode == MIR_OP_MEM) {
-      temp_op = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx,
-                                                        code == MIR_MOV    ? MIR_T_I64
-                                                        : code == MIR_FMOV ? MIR_T_F
-                                                        : code == MIR_DMOV ? MIR_T_D
-                                                                           : MIR_T_LD,
-                                                        func));
+      temp_op = MIR_new_reg_op (ctx, new_temp_reg (ctx,
+                                                   code == MIR_MOV    ? MIR_T_I64
+                                                   : code == MIR_FMOV ? MIR_T_F
+                                                   : code == MIR_DMOV ? MIR_T_D
+                                                                      : MIR_T_LD,
+                                                   func));
       MIR_insert_insn_after (ctx, func_item, insn, MIR_new_insn (ctx, code, insn->ops[0], temp_op));
       insn->ops[0] = temp_op;
     }
@@ -3361,18 +3374,18 @@ static long add_blk_move (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t be
   MIR_func_t func = func_item->u.func;
   size_t blk_size = (src_size + 7) / 8 * 8;
   MIR_insn_t insn;
-  MIR_op_t size = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
+  MIR_op_t size = MIR_new_reg_op (ctx, new_temp_reg (ctx, MIR_T_I64, func));
 
   insn = MIR_new_insn (ctx, MIR_MOV, size, MIR_new_int_op (ctx, blk_size));
   MIR_insert_insn_before (ctx, func_item, before, insn);
   insn = MIR_new_insn (ctx, MIR_ALLOCA, dest, size);
   MIR_insert_insn_before (ctx, func_item, before, insn);
   if (blk_size != 0) {
-    MIR_reg_t addr_reg = _MIR_new_temp_reg (ctx, MIR_T_I64, func);
+    MIR_reg_t addr_reg = new_temp_reg (ctx, MIR_T_I64, func);
     MIR_op_t addr = MIR_new_reg_op (ctx, addr_reg);
-    MIR_op_t disp = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
-    MIR_op_t step = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
-    MIR_op_t temp = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx, MIR_T_I64, func));
+    MIR_op_t disp = MIR_new_reg_op (ctx, new_temp_reg (ctx, MIR_T_I64, func));
+    MIR_op_t step = MIR_new_reg_op (ctx, new_temp_reg (ctx, MIR_T_I64, func));
+    MIR_op_t temp = MIR_new_reg_op (ctx, new_temp_reg (ctx, MIR_T_I64, func));
     MIR_label_t loop = create_label (ctx, label_num++), skip = create_label (ctx, label_num++);
 
     insn = MIR_new_insn (ctx, MIR_MOV, disp, MIR_new_int_op (ctx, 0));
@@ -3403,13 +3416,13 @@ static long add_blk_move (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t be
    extensions and one return.  */
 static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
   int non_top_alloca_p;
-  int64_t alloca_size, alloca_align, max_func_top_alloca_align;
+  int64_t alloca_size = 0, alloca_align, max_func_top_alloca_align;
   int64_t init_func_top_alloca_size, curr_func_top_alloca_size, max_func_top_alloca_size;
   size_t i, actual_nops, nargs, nvars;
   MIR_type_t type, *res_types;
   MIR_var_t var;
   MIR_reg_t ret_reg, old_reg, new_reg, temp_reg;
-  MIR_insn_t func_top_alloca, called_func_top_alloca, new_called_func_top_alloca;
+  MIR_insn_t func_top_alloca, called_func_top_alloca, new_called_func_top_alloca = NULL;
   MIR_insn_t func_insn, head_func_insn, next_func_insn;
   MIR_insn_t call, insn, prev_insn, new_insn, ret_insn, anchor;
   MIR_item_t called_func_item;
@@ -3570,7 +3583,7 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
     }
     redirect_duplicated_labels (ctx, labels, temp_insns);
     if (non_top_alloca_p) {
-      temp_reg = _MIR_new_temp_reg (ctx, MIR_T_I64, func);
+      temp_reg = new_temp_reg (ctx, MIR_T_I64, func);
       new_insn = MIR_new_insn (ctx, MIR_BSTART, MIR_new_reg_op (ctx, temp_reg));
       MIR_insert_insn_after (ctx, func_item, call, new_insn);
       new_insn = MIR_new_insn (ctx, MIR_BEND, MIR_new_reg_op (ctx, temp_reg));
@@ -3579,7 +3592,7 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
     if (called_func_top_alloca != NULL) {
       // ???? at the ret: curr_func_top_alloca_size -= alloca_size;
       if (func_top_alloca == NULL) {
-        temp_reg = _MIR_new_temp_reg (ctx, MIR_T_I64, func);
+        temp_reg = new_temp_reg (ctx, MIR_T_I64, func);
         func_top_alloca = MIR_new_insn (ctx, MIR_ALLOCA, new_called_func_top_alloca->ops[0],
                                         MIR_new_reg_op (ctx, temp_reg));
         if (head_func_insn->code != MIR_LABEL)
@@ -3591,7 +3604,7 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
           = MIR_new_insn (ctx, MIR_MOV, MIR_new_reg_op (ctx, temp_reg), MIR_new_int_op (ctx, 0));
         MIR_insert_insn_before (ctx, func_item, func_top_alloca, new_insn);
       }
-      temp_reg = _MIR_new_temp_reg (ctx, MIR_T_I64, func);
+      temp_reg = new_temp_reg (ctx, MIR_T_I64, func);
       new_insn
         = MIR_new_insn (ctx, MIR_PTR32 ? MIR_ADDS : MIR_ADD, new_called_func_top_alloca->ops[0],
                         func_top_alloca->ops[0], MIR_new_reg_op (ctx, temp_reg));
@@ -3606,7 +3619,7 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
                                         : DLIST_NEXT (MIR_insn_t, prev_insn));
   }
   if (func_top_alloca != NULL && max_func_top_alloca_size != init_func_top_alloca_size) {
-    temp_reg = _MIR_new_temp_reg (ctx, MIR_T_I64, func);
+    temp_reg = new_temp_reg (ctx, MIR_T_I64, func);
     new_insn = MIR_new_insn (ctx, MIR_MOV, MIR_new_reg_op (ctx, temp_reg),
                              MIR_new_int_op (ctx, max_func_top_alloca_size));
     func_top_alloca->ops[1] = MIR_new_reg_op (ctx, temp_reg);
@@ -4476,7 +4489,8 @@ static size_t reduce_writer (const void *start, size_t len, void *aux_data) {
 
 void MIR_write_module_with_func (MIR_context_t ctx, int (*const writer) (MIR_context_t, uint8_t),
                                  MIR_module_t module) {
-  size_t len, str_len;
+  size_t MIR_UNUSED len;
+  size_t str_len;
 
   io_writer = writer;
 #ifndef MIR_NO_BIN_COMPRESSION
@@ -4986,7 +5000,6 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
         MIR_new_expr_data (ctx, name, item);
       } else if (strcmp (name, "ndata") == 0 || strcmp (name, "data") == 0) {
         MIR_type_t type;
-        size_t nel;
         union {
           uint8_t u8;
           uint16_t u16;
@@ -5007,7 +5020,7 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
           MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong data type tag %d", tag);
         type = tag_type (tag);
         VARR_TRUNC (uint8_t, temp_data, 0);
-        for (nel = 0;; nel++) {
+        for (;;) {
           tag = read_token (ctx, &attr);
           if (tag == TAG_EOI) break;
           switch (tag) {

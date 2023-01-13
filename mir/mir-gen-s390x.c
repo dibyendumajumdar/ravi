@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2020-2021 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2020-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 // ??? More patterns (ult, ugt, ule, uge w/o branches, multi-insn combining).
@@ -316,7 +316,7 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
   if (param_save_area_size < param_mem_size) param_save_area_size = param_mem_size;
   if (blk_ld_value_save_area_size < call_blk_ld_value_area_size)
     blk_ld_value_save_area_size = call_blk_ld_value_area_size;
-  blk_ld_value_disp = param_mem_size;
+  blk_ld_value_disp = param_save_area_size;
   param_mem_size = n_fregs = n_iregs = 0;
   for (size_t i = 2; i < nops; i++) { /* process args and ???long double results: */
     arg_op = call_insn->ops[i];

@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2020-2021 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2020-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 static char s390x_mirc[]
@@ -108,6 +108,15 @@ static char s390x_mirc[]
     "#define unix 1\n"
     "#define __unix 1\n"
     "#define __unix__ 1\n"
+#ifndef __GNU_LIBRARY__
+    "typedef struct {\n"
+    "  long __gpr, __fpr;\n"
+    "  void *__overflow_arg_area;\n"
+    "  void *__reg_save_area;\n"
+    "} __builtin_va_list[1];\n"
+    "typedef __builtin_va_list va_list;\n"
+    "#define __DEFINED_va_list\n"
+#endif
 #endif
     "\n"
     "void *alloca (unsigned long);\n";

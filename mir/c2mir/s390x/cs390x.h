@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2020-2021 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2020-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 #include <stdint.h>
@@ -53,3 +53,5 @@ typedef int64_t mir_ptrdiff_t;
 typedef uint64_t mir_size_t;
 
 #define MIR_SIZE_MAX UINT64_MAX
+
+#define MIR_LDOUBLE_ALIGN 8
