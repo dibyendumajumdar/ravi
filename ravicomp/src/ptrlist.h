@@ -4,7 +4,7 @@
  * (C) Copyright Linus Torvalds 2003-2005
  */
 /*
- * Copyright (C) 2017-2022 Dibyendu Majumdar
+ * Copyright (C) 2017-2023 Dibyendu Majumdar
  */
 
 #ifndef ravicomp_PTRLIST_H

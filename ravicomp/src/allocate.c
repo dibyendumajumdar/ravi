@@ -1,6 +1,6 @@
 /*
  * This version is part of the Ravi Compiler project.
- * Copyright (C) 2017-2022 Dibyendu Majumdar
+ * Copyright (C) 2017-2023 Dibyendu Majumdar
  */
 
 #include "allocate.h"
