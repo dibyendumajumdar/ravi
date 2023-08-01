@@ -131,7 +131,7 @@ History
 * 2021
        - Integrated AOT and JIT compilation support 
        - `Embedded C syntax <https://github.com/dibyendumajumdar/ravi-compiler/wiki/Embedding-C>`_ 
-* 2022 (plan)
+* 2022-2023
        - Improve Embedded C support with more validation
        - Improve tests and documentation overall
        - Ensure new compiler is production grade (i.e. always generates correct code)
