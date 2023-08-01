@@ -1019,6 +1019,7 @@ static C_Member *struct_designator(C_Parser *parser, C_Token **rest, C_Token *to
   }
 
   C_error_tok(parser, tok, "struct has no such member");
+  return NULL;
 }
 
 // designation = ("[" const-expr "]" | "." ident)* "="? initializer
@@ -1398,6 +1399,7 @@ static uint64_t read_buf(C_Parser *parser, char *buf, int sz) {
   if (sz == 8)
     return *(uint64_t *)buf;
   unreachable(parser);
+  return 0;
 }
 
 static void write_buf(C_Parser *parser, char *buf, uint64_t val, int sz) {
@@ -2421,6 +2423,7 @@ static C_Node *new_sub(C_Parser *parser, C_Node *lhs, C_Node *rhs, C_Token *tok)
   }
 
   C_error_tok(parser, tok, "invalid operands");
+  return NULL;
 }
 
 // add = mul ("+" mul | "-" mul)*
@@ -3136,6 +3139,7 @@ static C_Node *primary(C_Parser *parser, C_Token **rest, C_Token *tok) {
   }
 
   C_error_tok(parser, tok, "expected an expression");
+  return NULL;
 }
 
 static C_Token *parse_typedef(C_Parser *parser, C_Token *tok, C_Type *basety) {

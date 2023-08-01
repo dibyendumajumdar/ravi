@@ -1,3 +1,4 @@
+// clang-format off
 /*
   This is a version (aka dlmalloc) of malloc/free/realloc written by
   Doug Lea and released to the public domain, as explained at
@@ -783,7 +784,9 @@ struct mallinfo {
   Try to persuade compilers to inline. The most critical functions for
   inlining are defined as macros, so these aren't used for them.
 */
-
+#ifdef __MINGW32__
+#undef FORCEINLINE
+#endif
 #ifndef FORCEINLINE
   #if defined(__GNUC__)
 #define FORCEINLINE __inline __attribute__ ((always_inline))
@@ -6281,3 +6284,4 @@ History:
          structure of old version,  but most details differ.)
 
 */
+// clang-format on
