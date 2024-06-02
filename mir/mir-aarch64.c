@@ -1,6 +1,8 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2024 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
+
+#include "mir-aarch64.h"
 
 /* x31 - sp; x30 - link reg; x29 - fp; x0-x7, v0-v7 - arg/result regs;
    x19-x29, v8-v15 - callee-saved (only bottom 64-bits are saved for v8-v15);
@@ -98,7 +100,7 @@ void *va_arg_builtin (void *p, uint64_t t) {
   return a;
 }
 
-void va_block_arg_builtin (void *res, void *p, size_t s, uint64_t ncase) {
+void va_block_arg_builtin (void *res, void *p, size_t s, uint64_t ncase MIR_UNUSED) {
   struct aarch64_va_list *va = p;
 #if defined(__APPLE__)
   void *a = (void *) va->arg_area;
@@ -108,7 +110,7 @@ void va_block_arg_builtin (void *res, void *p, size_t s, uint64_t ncase) {
     a = *(void **) a;
     va->arg_area++;
   }
-  memcpy (res, a, s);
+  if (res != NULL) memcpy (res, a, s);
 #else
   void *a;
   long size = (s + 7) / 8 * 8;
@@ -117,7 +119,7 @@ void va_block_arg_builtin (void *res, void *p, size_t s, uint64_t ncase) {
     a = va->__stack;
     va->__stack = (char *) va->__stack + size;
     va->__gr_offs += size;
-    memcpy (res, a, s);
+    if (res != NULL) memcpy (res, a, s);
     return;
   }
   if (size > 2 * 8) size = 8;
@@ -129,11 +131,11 @@ void va_block_arg_builtin (void *res, void *p, size_t s, uint64_t ncase) {
     va->__stack = (char *) va->__stack + size;
   }
   if (s > 2 * 8) a = *(void **) a; /* address */
-  memcpy (res, a, s);
+  if (res != NULL) memcpy (res, a, s);
 #endif
 }
 
-void va_start_interp_builtin (MIR_context_t ctx, void *p, void *a) {
+void va_start_interp_builtin (MIR_context_t ctx MIR_UNUSED, void *p, void *a) {
   struct aarch64_va_list *va = p;
   va_list *vap = a;
 
@@ -141,7 +143,7 @@ void va_start_interp_builtin (MIR_context_t ctx, void *p, void *a) {
   *va = *(struct aarch64_va_list *) vap;
 }
 
-void va_end_interp_builtin (MIR_context_t ctx, void *p) {}
+void va_end_interp_builtin (MIR_context_t ctx MIR_UNUSED, void *p MIR_UNUSED) {}
 
 static int setup_imm64_insns (uint32_t *to, int reg, uint64_t imm64) {
   /* xd=imm64 */
@@ -198,10 +200,9 @@ static void gen_call_addr (VARR (uint8_t) * insn_varr, void *base_addr, int temp
   push_insns (insn_varr, &insn, sizeof (insn));
 }
 
-#define NOP 0xd503201f
-
 void *_MIR_get_thunk (MIR_context_t ctx) {
-  int pat[5] = {NOP, NOP, NOP, NOP, NOP}; /* maximal size thunk -- see _MIR_redirect_thunk */
+  /* maximal size thunk -- see _MIR_redirect_thunk */
+  int pat[4] = {TARGET_NOP, TARGET_NOP, TARGET_NOP, TARGET_NOP};
 
   return _MIR_publish_code (ctx, (uint8_t *) pat, sizeof (pat));
 }
@@ -210,19 +211,30 @@ void _MIR_redirect_thunk (MIR_context_t ctx, void *thunk, void *to) {
   static const uint32_t branch_pat1 = 0xd61f0120; /* br x9 */
   static const uint32_t branch_pat2 = 0x14000000; /* b x */
   int64_t offset = (uint32_t *) to - (uint32_t *) thunk;
-  uint32_t code[5];
+  uint32_t code[4];
 
   mir_assert (((uint64_t) thunk & 0x3) == 0 && ((uint64_t) to & 0x3) == 0); /* alignment */
   if (-(int64_t) MAX_BR_OFFSET <= offset && offset < (int64_t) MAX_BR_OFFSET) {
     code[0] = branch_pat2 | ((uint32_t) offset & BR_OFFSET_MASK);
     _MIR_change_code (ctx, thunk, (uint8_t *) &code[0], sizeof (code[0]));
   } else {
-    int n = setup_imm64_insns (code, 9, (uint64_t) to);
-
-    mir_assert (n == 4);
-    code[4] = branch_pat1;
+    code[0] = 0x58000049; /* ldr x9,8 (pc-relative) */
+    code[1] = branch_pat1;
+    *(void **) &code[2] = to;
     _MIR_change_code (ctx, thunk, (uint8_t *) code, sizeof (code));
   }
+}
+
+void *_MIR_get_thunk_addr (MIR_context_t ctx MIR_UNUSED, void *thunk) {
+  void *addr;
+  int short_p = (*(uint32_t *) thunk >> BR_OFFSET_BITS) == 0x5;
+  if (short_p) {
+    int32_t offset = *(uint32_t *) thunk & BR_OFFSET_MASK;
+    addr = (uint8_t *) thunk + ((offset << (32 - BR_OFFSET_BITS)) >> (30 - BR_OFFSET_BITS));
+  } else {
+    addr = *(void **) ((char *) thunk + 8);
+  }
+  return addr;
 }
 
 static void gen_blk_mov (VARR (uint8_t) * insn_varr, uint32_t offset, uint32_t addr_offset,
@@ -300,7 +312,7 @@ static const uint32_t stld_pat = 0x3d800000; /* str q, [xn|sp], offset */
    x10=mem[x19,<offset>]; res_reg=mem[x10]; ...
    pop x19, x30; ret x30. */
 void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, size_t nargs,
-                        _MIR_arg_desc_t *arg_descs, size_t arg_vars_num) {
+                        _MIR_arg_desc_t *arg_descs, size_t arg_vars_num MIR_UNUSED) {
   static const uint32_t prolog[] = {
     0xa9bf7bf3, /* stp x19,x30,[sp, -16]! */
     0xd10003ff, /* sub sp,sp,<sp_offset> */
@@ -359,12 +371,12 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
         pat = ld_pat | offset_imm | addr_reg;
         push_insns (code, &pat, sizeof (pat));
         if (n_xregs + qwords <= 8) {
-          for (int n = 0; n < qwords; n++) {
+          for (uint32_t n = 0; n < qwords; n++) {
             pat = gen_ld_pat | (((n * 8) >> scale) << 10) | (n_xregs + n) | (addr_reg << 5);
             push_insns (code, &pat, sizeof (pat));
           }
         } else {
-          for (int n = 0; n < qwords; n++) {
+          for (uint32_t n = 0; n < qwords; n++) {
             pat = gen_ld_pat | (((n * 8) >> scale) << 10) | temp_reg | (addr_reg << 5);
             push_insns (code, &pat, sizeof (pat));
             pat = st_pat | ((sp_offset >> scale) << 10) | temp_reg | (sp << 5);
@@ -450,7 +462,7 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
   res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
 #if 0
   if (getenv ("MIR_code_dump") != NULL)
-    _MIR_dump_code ("ffi:", 0, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+    _MIR_dump_code ("ffi:", VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
 #endif
   VARR_DESTROY (uint8_t, code);
   return res;
@@ -542,7 +554,7 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
       /* passing by one or two qwords */
       if (n_xregs + qwords
           <= 8) { /* passed by hard regs: str xreg, offset[sp]; str xreg, offset+8[sp] */
-        for (int n = 0; n < qwords; n++) {
+        for (uint32_t n = 0; n < qwords; n++) {
           pat = st_pat | ((sp_offset >> scale) << 10) | n_xregs++ | (sp << 5);
           sp_offset += 8;
           push_insns (code, &pat, sizeof (pat));
@@ -656,44 +668,172 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
   res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
 #if 0
   if (getenv ("MIR_code_dump") != NULL)
-    _MIR_dump_code (func->name, 0, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+    _MIR_dump_code (func->name, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
 #endif
   VARR_DESTROY (uint8_t, code);
   return res;
 }
 
-/* Save regs x8, x0-x7, q0-q7; x9 = call hook_address (ctx, called_func); restore regs; br x9 */
+/* Save x0,x1; x0=ctx; x1=called_func; x10=hook_address;goto wrap_end. */
 void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_address) {
-  static const uint32_t jmp_insn = 0xd61f0120;     /* br x9 */
-  static const uint32_t move_insn = 0xaa0003e9;    /* mov x9, x0 */
-  static const uint32_t save_fplr = 0xa9bf7bfd;    /* stp R29, R30, [SP, #-16]! */
-  static const uint32_t restore_fplr = 0xa8c17bfd; /* ldp R29, R30, SP, #16 */
+  static const uint32_t save_insn = 0xa9bf07e0; /* stp R0, R1, [SP, #-16]! */
+  static const uint32_t jmp_pat = 0x14000000;   /* jmp */
+  uint32_t insn;
   uint8_t *base_addr, *curr_addr, *res_code = NULL;
-  size_t len = sizeof (save_insns) + sizeof (restore_insns); /* initial code length */
+  size_t len = 5 * 4; /* initial len */
   VARR (uint8_t) * code;
 
-  mir_mutex_lock (&code_mutex);
   VARR_CREATE (uint8_t, code, 128);
-  for (;;) { /* dealing with moving code to another page */
+  for (;;) { /* dealing with moving code to another page as the immediate call is pc relative */
     curr_addr = base_addr = _MIR_get_new_code_addr (ctx, len);
     if (curr_addr == NULL) break;
     VARR_TRUNC (uint8_t, code, 0);
-    push_insns (code, &save_fplr, sizeof (save_fplr));
+    push_insns (code, &save_insn, sizeof (save_insn));
     curr_addr += 4;
-    push_insns (code, save_insns, sizeof (save_insns));
-    curr_addr += sizeof (save_insns);
-    curr_addr += gen_mov_addr (code, 0, ctx);          /*mov x0,ctx  	   */
-    curr_addr += gen_mov_addr (code, 1, called_func);  /*mov x1,called_func */
-    gen_call_addr (code, curr_addr, 10, hook_address); /*call <hook_address>, use x10 as temp   */
-    push_insns (code, &move_insn, sizeof (move_insn));
-    push_insns (code, restore_insns, sizeof (restore_insns));
-    push_insns (code, &restore_fplr, sizeof (restore_fplr));
-    push_insns (code, &jmp_insn, sizeof (jmp_insn));
+    curr_addr += gen_mov_addr (code, 0, ctx);           /*mov x0,ctx  	   */
+    curr_addr += gen_mov_addr (code, 1, called_func);   /*mov x1,called_func */
+    curr_addr += gen_mov_addr (code, 10, hook_address); /*mov x10,hook_address */
+    int64_t offset = (uint32_t *) wrapper_end_addr - (uint32_t *) curr_addr;
+    mir_assert (-(int64_t) MAX_BR_OFFSET <= offset && offset < (int64_t) MAX_BR_OFFSET);
+    insn = jmp_pat | ((uint32_t) offset & BR_OFFSET_MASK);
+    push_insns (code, &insn, sizeof (insn));
     len = VARR_LENGTH (uint8_t, code);
     res_code = _MIR_publish_code_by_addr (ctx, base_addr, VARR_ADDR (uint8_t, code), len);
     if (res_code != NULL) break;
   }
   VARR_DESTROY (uint8_t, code);
-  mir_mutex_unlock (&code_mutex);
   return res_code;
+}
+
+void *_MIR_get_wrapper_end (MIR_context_t ctx) {
+  static const uint32_t wrap_end[] = {
+    0xa9bf7bfd, /* stp R29, R30, [SP, #-16]! */
+    0xa9bf1fe6, /* stp R6, R7, [SP, #-16]! */
+    0xa9bf17e4, /* stp R4, R5, [SP, #-16]! */
+    0xa9bf0fe2, /* stp R2, R3, [SP, #-16]! */
+    0xd10043ff, /* sub SP, SP, #16 */
+    0xf90007e8, /* str x8, [SP, #8] */
+    0xadbf1fe6, /* stp Q6, Q7, [SP, #-32]! */
+    0xadbf17e4, /* stp Q4, Q5, [SP, #-32]! */
+    0xadbf0fe2, /* stp Q2, Q3, [SP, #-32]! */
+    0xadbf07e0, /* stp Q0, Q1, [SP, #-32]! */
+    0xd63f0140, /* call *x10 */
+    0xaa0003e9, /* mov x9, x0 */
+    0xacc107e0, /* ldp Q0, Q1, SP, #32 */
+    0xacc10fe2, /* ldp Q2, Q3, SP, #32 */
+    0xacc117e4, /* ldp Q4, Q5, SP, #32 */
+    0xacc11fe6, /* ldp Q6, Q7, SP, #32 */
+    0xf94007e8, /* ldr x8, [SP, #8] */
+    0x910043ff, /* add SP, SP, #16 */
+    0xa8c10fe2, /* ldp R2, R3, SP, #16 */
+    0xa8c117e4, /* ldp R4, R5, SP, #16 */
+    0xa8c11fe6, /* ldp R6, R7, SP, #16 */
+    0xa8c17bfd, /* ldp R29, R30, SP, #16 */
+    0xa8c107e0, /* ldp R0, R1, SP, #16 */
+    0xd61f0120, /* br x9 */
+  };
+  uint8_t *res_code = NULL;
+  VARR (uint8_t) * code;
+  size_t len;
+
+  VARR_CREATE (uint8_t, code, 128);
+  push_insns (code, wrap_end, sizeof (wrap_end));
+  len = VARR_LENGTH (uint8_t, code);
+  res_code = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), len);
+  VARR_DESTROY (uint8_t, code);
+  return res_code;
+}
+
+/* r9=<bb_version>; (b|br) handler  ??? mutex free */
+void *_MIR_get_bb_thunk (MIR_context_t ctx, void *bb_version, void *handler) {
+  /* maximal size thunk -- see _MIR_redirect_thunk */
+  uint32_t pat[5] = {TARGET_NOP, TARGET_NOP, TARGET_NOP, TARGET_NOP, TARGET_NOP};
+  void *res;
+  size_t offset;
+  VARR (uint8_t) * code;
+
+  VARR_CREATE (uint8_t, code, 64);
+  offset = gen_mov_addr (code, 9, bb_version); /* x9 = bb_version */
+  push_insns (code, pat, sizeof (pat));
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  _MIR_redirect_thunk (ctx, (uint8_t *) res + offset, handler);
+#if 0
+  if (getenv ("MIR_code_dump") != NULL)
+    _MIR_dump_code ("bb thunk:", res, VARR_LENGTH (uint8_t, code));
+#endif
+  VARR_DESTROY (uint8_t, code);
+  return res;
+}
+
+/* change to (b|br) to */
+void _MIR_replace_bb_thunk (MIR_context_t ctx, void *thunk, void *to) {
+  _MIR_redirect_thunk (ctx, thunk, to);
+}
+
+static const uint32_t save_fplr = 0xa9bf7bfd;    /* stp R29, R30, [SP, #-16]! */
+static const uint32_t restore_fplr = 0xa8c17bfd; /* ldp R29, R30, SP, #16 */
+
+static const uint32_t save_insns2[] = {
+  /* save r10-r18,v16-v31: should be used only right after save_insn */
+  0xf90043ea, /* str R10, [SP, #128]  */
+  0xa9bf4bf1, /* stp R17, R18, [SP, #-16]! */
+  0xa9bf43ef, /* stp R15, R16, [SP, #-16]! */
+  0xa9bf3bed, /* stp R13, R14, [SP, #-16]! */
+  0xa9bf33eb, /* stp R11, R12, [SP, #-16]! */
+  0xadbf7ffe, /* stp Q30, Q31, [SP, #-32]! */
+  0xadbf77fc, /* stp Q28, Q29, [SP, #-32]! */
+  0xadbf6ffa, /* stp Q26, Q27, [SP, #-32]! */
+  0xadbf67f8, /* stp Q24, Q25, [SP, #-32]! */
+  0xadbf5ff6, /* stp Q22, Q23, [SP, #-32]! */
+  0xadbf57f4, /* stp Q20, Q21, [SP, #-32]! */
+  0xadbf4ff2, /* stp Q18, Q19, [SP, #-32]! */
+  0xadbf47f0, /* stp Q16, Q17, [SP, #-32]! */
+};
+static const uint32_t restore_insns2[] = {
+  /* restore r10-r18,v16-v32: should be used only right before restore_insns */
+  0xacc147f0, /* ldp Q16, Q17, SP, #32 */
+  0xacc14ff2, /* ldp Q18, Q19, SP, #32 */
+  0xacc157f4, /* ldp Q20, Q21, SP, #32 */
+  0xacc15ff6, /* ldp Q22, Q23, SP, #32 */
+  0xacc167f8, /* ldp Q24, Q25, SP, #32 */
+  0xacc16ffa, /* ldp Q26, Q27, SP, #32 */
+  0xacc177fc, /* ldp Q28, Q29, SP, #32 */
+  0xacc17ffe, /* ldp Q30, Q31, SP, #32 */
+  0xa8c133eb, /* ldp R11, R12, SP, #16 */
+  0xa8c13bed, /* ldp R13, R14, SP, #16 */
+  0xa8c143ef, /* ldp R15, R16, SP, #16 */
+  0xa8c14bf1, /* ldp R17, R18, SP, #16 */
+  0xf94043ea, /* ldr R10, [SP, #128]  */
+};
+
+/* save all clobbered regs but 9; r9 = call hook_address (data, r9); restore regs; br r9
+   r9 is a generator temp reg which is not used across bb borders. */
+void *_MIR_get_bb_wrapper (MIR_context_t ctx, void *data, void *hook_address) {
+  static const uint32_t wrap_end = 0xd61f0120; /* br   x9			   */
+  static const uint32_t call_pat[] = {
+    0xaa0903e1, /* mov x1,x9 */
+    0xd63f0140, /* blr  x10 */
+    0xaa0003e9, /* mov x9,x0 */
+  };
+  void *res;
+  VARR (uint8_t) * code;
+
+  VARR_CREATE (uint8_t, code, 128);
+  push_insns (code, &save_fplr, sizeof (save_fplr));
+  push_insns (code, save_insns, sizeof (save_insns));
+  push_insns (code, save_insns2, sizeof (save_insns2));
+  gen_mov_addr (code, 10, hook_address); /* x10 = hook_address */
+  gen_mov_addr (code, 0, data);          /* x0 = data */
+  push_insns (code, call_pat, sizeof (call_pat));
+  push_insns (code, restore_insns2, sizeof (restore_insns2));
+  push_insns (code, restore_insns, sizeof (restore_insns));
+  push_insns (code, &restore_fplr, sizeof (restore_fplr));
+  push_insns (code, &wrap_end, sizeof (wrap_end));
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+#if 0
+  if (getenv ("MIR_code_dump") != NULL)
+    _MIR_dump_code ("bb wrapper:", VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+#endif
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }

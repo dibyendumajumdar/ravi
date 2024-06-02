@@ -8,7 +8,7 @@ option(NO_JIT "Controls whether JIT should be disabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
-option(ASAN "Controls whether address sanitizer should be enabled" OFF)
+option(ASAN "Controls whether address sanitizer should be enabled" ON)
 option(RAVICOMP "Controls whether to link in RaviComp" ON)
 
 # By we enable MIR JIT
