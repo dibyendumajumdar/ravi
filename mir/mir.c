@@ -5863,13 +5863,13 @@ static void io_finish (MIR_context_t ctx) {
 #endif /* if !MIR_NO_IO */
 
 /* New Page */
+
+/* Reading MIR text file */
+
 int _MIR_name_char_p (MIR_context_t ctx MIR_UNUSED, int ch, int first_p) {
   if (isalpha (ch) || ch == '_' || ch == '$' || ch == '%' || ch == '.') return TRUE;
   return !first_p && isdigit (ch);
 }
-
-
-/* Reading MIR text file */
 
 #if !MIR_NO_SCAN
 
@@ -6906,7 +6906,7 @@ void _MIR_dump_code (const char *name, uint8_t *code, size_t code_len) {
 #endif
 #else
   sprintf (bfname, "_mir_%lu.bin", (unsigned long) getpid ());
-  if ((bf = fopen (bfname, "w")) == NULL) return;
+  if ((bf = fopen (bfname, "wb")) == NULL) return;
   fprintf (f, "void code (void) {}\n");
   for (i = 0; i < code_len; i++) fputc (code[i], bf);
   fclose (f);
