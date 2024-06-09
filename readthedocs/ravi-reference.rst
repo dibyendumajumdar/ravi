@@ -546,16 +546,20 @@ Generate Parse Tree
 -------------------
 
 ``compiler.parse(code: string)``
-  Generates a parse tree for the input Ravi source code. The parse tree is formatted such that it can be executed in Lua/Ravi code by providing suitable function 
-  definitions.
+  Generates a parse tree for the input Ravi source code. The parse tree format is intended to be executable in Lua/Ravi code by providing suitable function
+  definitions - however this has not been tested.
 
 JIT Compilation
 ---------------
 
 ``compiler.load(code: string [, options: string])``
   JIT compiles a chunk of code and returns a closure on the stack representing the compiled output.
-  Options available are `--dump-ir` to display the intermediate code in the output.
-  `--verbose` will dump out the generated C code.
+  Available options are:
+  `--verbose` will display the generated C code.
+  Additionally `--dump-ir` will display the compiler intermediate code in the output.
+  The optimization level can be set with `-O0`, `-O1`, `-O2` or `-O3`. The default
+  optimization level uses the global setting `ravi.optlevel(n)`. If unchanged, this is `-O2`.
+  The optimization level does not affect the generation of the C code, it is passed on to the backend JIT compiler.
 ``compiler.loadfile(filename: string [, options: string])``
   Opens the named file and JIT compiles its content as a Lua chunk. Returns a closure on the stack representing the compiled output.
   The available options are the same as with `compiler.load()`.
