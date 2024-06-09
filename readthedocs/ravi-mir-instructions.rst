@@ -16,3 +16,16 @@ For Windows, assuming you have Visual Studio 2019 installed, you can build as fo
    cd build
    cmake -DCMAKE_INSTALL_PREFIX=/Software/ravi -DCMAKE_BUILD_TYPE=Release ..
    cmake --build . --config Release
+
+Note that the JIT compiler does not work correctly on Windows. This is due to the lack of stack unwinding
+requirements of Windows.
+
+Build Options
+-------------
+
+* `-DNO_JIT=ON` disables MIR JIT, `OFF` by default.
+* `-DASAN=ON` enables ASAN, `OFF` by default.
+* `-DRAVICOMP=OFF` disables the new `compiler` module, enabled by default.
+* `-DLTESTS=OFF` disables internal validation tests on debug builds, enabled by default.
+* `-DCMAKE_BUILD_TYPE=Debug` enables debug build.
+* `-DCMAKE_BUILD_TYPE=Release` enables release build.
