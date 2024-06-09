@@ -17,8 +17,8 @@ For Windows, assuming you have Visual Studio 2019 installed, you can build as fo
    cmake -DCMAKE_INSTALL_PREFIX=/Software/ravi -DCMAKE_BUILD_TYPE=Release ..
    cmake --build . --config Release
 
-Note that the JIT compiler does not work correctly on Windows. This is due to the lack of stack unwinding
-requirements of Windows.
+Note that the JIT compiler does not work correctly on Windows. This is due to the lack of support for stack unwinding
+requirements of Windows in the JIT backend.
 
 Build Options
 -------------
