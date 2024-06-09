@@ -552,11 +552,14 @@ Generate Parse Tree
 JIT Compilation
 ---------------
 
-``compiler.load(code: string)``
+``compiler.load(code: string [, options: string])``
   JIT compiles a chunk of code and returns a closure on the stack representing the compiled output.
-``compiler.loadfile(filename: string)``
+  Options available are `--dump-ir` to display the intermediate code in the output.
+  `--verbose` will dump out the generated C code.
+``compiler.loadfile(filename: string [, options: string])``
   Opens the named file and JIT compiles its content as a Lua chunk. Returns a closure on the stack representing the compiled output.
- 
+  The available options are the same as with `compiler.load()`.
+
 AOT Compilation
 ---------------
   
@@ -584,7 +587,7 @@ JIT Examples
 
 Here is an example of a simple JIT compile session::
 
-  f = compiler.load("print 'hello'")
+  f = compiler.load("print 'hello'", '--verbose --dump-ir')
   assert(f and type(f) == 'function')
   f()
   
