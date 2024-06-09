@@ -44,6 +44,9 @@ static const char *funcnamefromcode (lua_State *L, CallInfo *ci,
 
 static int currentpc (CallInfo *ci) {
   lua_assert(isLua(ci));
+  /* If this function was compiled using the source to JIT then no code available */
+  if (ci_func(ci)->p->code == NULL)
+    return 0;
   return pcRel(ci->u.l.savedpc, ci_func(ci)->p);
 }
 
