@@ -119,6 +119,7 @@ set_property(TARGET ${LIBRAVI_NAME} PROPERTY C_STANDARD 99)
 # Main Ravi executable
 add_executable(ravi ${LUA_CMD_SRCS})
 target_link_libraries(ravi ${LIBRAVI_NAME})
+target_link_options(ravi PRIVATE /STACK:16777216)
 set_property(TARGET ravi PROPERTY C_STANDARD 99)
 
 # Sources that are needed for a static NOJIT basic library
