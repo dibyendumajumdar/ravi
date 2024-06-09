@@ -167,13 +167,13 @@ LUALIB_API void (luaL_requiref) (lua_State *L, const char *modname,
 ** =======================================================
 */
 
-typedef struct luaL_Buffer {
+struct luaL_Buffer {
   char *b;  /* buffer address */
   size_t size;  /* buffer size */
   size_t n;  /* number of characters in buffer */
   lua_State *L;
   char initb[LUAL_BUFFERSIZE];  /* initial buffer */
-} luaL_Buffer;
+};
 
 
 #define luaL_addchar(B,c) \

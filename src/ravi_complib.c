@@ -24,6 +24,7 @@
 
 #define LUA_CORE
 
+#include "ravi_jit.h"
 #include "ravi_mirjit.h"
 #include "ravi_alloc.h"
 
@@ -85,6 +86,11 @@ static int load_and_compile_internal(lua_State* L, const char* s, const char* op
                                                .memory_allocator = &allocator,
                                                .debug_message = debug_message,
                                                .error_message = error_message};
+  int opt_level = raviV_getoptlevel(L); // Get default opt level
+  if (strstr(options, "-O3")) opt_level = 3;
+  else if (strstr(options, "-O2")) opt_level = 2;
+  else if (strstr(options, "-O1")) opt_level = 1;
+  else if (strstr(options, "-O0")) opt_level = 0;
 #ifdef USE_MIRJIT
   snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "__luachunk_%lld",
            ccontext.jit->id++);
@@ -101,7 +107,7 @@ static int load_and_compile_internal(lua_State* L, const char* s, const char* op
 #ifdef USE_MIRJIT
     /* Compile C code */
     LClosure* (*load_in_lua)(lua_State * L) = NULL;
-    mir_prepare(ccontext.jit->jit, 2);
+    mir_prepare(ccontext.jit->jit, opt_level);
     MIR_module_t M =
         mir_compile_C_module(&ccontext.jit->options, ccontext.jit->jit, ravicomp_interface.generated_code, "input");
     if (M != NULL) {
