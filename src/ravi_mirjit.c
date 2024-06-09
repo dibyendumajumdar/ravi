@@ -385,6 +385,7 @@ void *mir_get_func(MIR_context_t ctx, MIR_module_t module, const char *func_name
 void mir_prepare(MIR_context_t ctx, int optlevel) {
   c2mir_init(ctx);
   MIR_gen_init(ctx);
+  MIR_gen_set_optimize_level(ctx, optlevel);
 }
 
 void mir_cleanup(MIR_context_t ctx) {
