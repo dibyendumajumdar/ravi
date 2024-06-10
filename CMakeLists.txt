@@ -119,7 +119,10 @@ set_property(TARGET ${LIBRAVI_NAME} PROPERTY C_STANDARD 99)
 # Main Ravi executable
 add_executable(ravi ${LUA_CMD_SRCS})
 target_link_libraries(ravi ${LIBRAVI_NAME})
-target_link_options(ravi PRIVATE /STACK:16777216)
+if (MSVC)
+    # Increase stack size as default size causes tests to fail
+    target_link_options(ravi PRIVATE /STACK:16777216)
+endif()
 set_property(TARGET ravi PROPERTY C_STANDARD 99)
 
 # Sources that are needed for a static NOJIT basic library
