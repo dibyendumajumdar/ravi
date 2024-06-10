@@ -23,9 +23,10 @@ Ravi uses Doug Lea's malloc implementation. The implementation is in:
 
 Some backends use C as the intermediate language. The common C code generator is in:
 
-* ravi_jitshared.c - this is the C code generator for a given Ravi / Lua function
+* ravi_jitshared.c - this is the C code generator for a given Ravi / Lua function - converts bytecode to C
+* See folder ../ravicomp for the new source to C compiler
 
 The MIR JIT implementation is in:
 
-* ravi_mirjit.c - defines the driver functions. The MIR backend has its own C preprocessor, parser and code generator.
-
+* ravi_mirjit.c - defines the driver functions. The MIR backend has its own C preprocessor, parser and code generator
+* ravi_complib.c - interfaces with new compiler module (see ../ravicomp) that generates C code from Ravi source file
