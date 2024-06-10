@@ -1,6 +1,6 @@
 /*
  ** See LICENSE Notice in lua.h
- ** Copyright (C) 2015-2016 Dibyendu Majumdar
+ ** Copyright (C) 2015-2024 Dibyendu Majumdar
  *
  * Standalone Lua/Ravi interpreter that is meant to be used as
  * a debugger in the Visual Studio Code IDE.

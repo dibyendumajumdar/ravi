@@ -1,6 +1,6 @@
 /*
  ** See LICENSE Notice in lua.h
- ** Copyright (C) 2015-2016 Dibyendu Majumdar
+ ** Copyright (C) 2015-2024 Dibyendu Majumdar
  */
 #ifndef RAVI_VSCODE_PROTOCOL_H
 #define RAVI_VSCODE_PROTOCOL_H
