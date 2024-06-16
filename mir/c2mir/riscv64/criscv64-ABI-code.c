@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2024 Vladimir Makarov <vmakarov.gcc@gmail.com>.
    riscv64 call ABI target specific code.
 */
 
@@ -7,7 +7,7 @@ typedef struct target_arg_info {
   int n_iregs, n_fregs;
 } target_arg_info_t;
 
-static void target_init_arg_vars (c2m_ctx_t c2m_ctx, target_arg_info_t *arg_info) {
+static void target_init_arg_vars (c2m_ctx_t c2m_ctx MIR_UNUSED, target_arg_info_t *arg_info) {
   arg_info->n_iregs = arg_info->n_fregs = 0;
 }
 
@@ -17,10 +17,10 @@ static int target_return_by_addr_p (c2m_ctx_t c2m_ctx, struct type *ret_type) {
 }
 
 static int reg_aggregate_size (c2m_ctx_t c2m_ctx, struct type *type) {
-  int size;
+  size_t size;
 
   if (type->mode != TM_STRUCT && type->mode != TM_UNION) return -1;
-  return (size = type_size (c2m_ctx, type)) <= 2 * 8 ? size : -1;
+  return (size = type_size (c2m_ctx, type)) <= 2 * 8 ? (int) size : -1;
 }
 
 #define MAX_MEMBERS 2
@@ -53,10 +53,10 @@ static int small_struct_p (c2m_ctx_t c2m_ctx, struct type *type, int struct_only
     uint64_t nel;
 
     if (at->size->code == N_IGNORE || !(cexpr = at->size->attr)->const_p) return FALSE;
-    nel = cexpr->u.i_val;
+    nel = cexpr->c.i_val;
     if (!small_struct_p (c2m_ctx, at->el_type, FALSE, 0, &sub_n, sub_members)) return FALSE;
     if (sub_n * nel > 2) return FALSE;
-    for (int i = 0; i < sub_n * nel; i++) {
+    for (size_t i = 0; i < sub_n * nel; i++) {
       members[i].type = sub_members[i].type;
       members[i].offset = start_offset + i * type_size (c2m_ctx, at->el_type);
     }
@@ -69,9 +69,13 @@ static int small_struct_p (c2m_ctx_t c2m_ctx, struct type *type, int struct_only
          el = NL_NEXT (el))
       if (el->code == N_MEMBER) {
         decl_t decl = el->attr;
+        mir_size_t member_offset = decl->offset;
 
         if (decl->width == 0) continue;
-        if (!small_struct_p (c2m_ctx, decl->decl_spec.type, FALSE, decl->offset + start_offset,
+        if (decl->containing_unnamed_anon_struct_union_member != NULL) {
+          member_offset = 0;
+        }
+        if (!small_struct_p (c2m_ctx, decl->decl_spec.type, FALSE, member_offset + start_offset,
                              &sub_n, sub_members))
           return FALSE;
         if (sub_n + *members_n > 2) return FALSE;
@@ -179,7 +183,7 @@ static int target_add_call_res_op (c2m_ctx_t c2m_ctx, struct type *ret_type,
 }
 
 static op_t target_gen_post_call_res_code (c2m_ctx_t c2m_ctx, struct type *ret_type, op_t res,
-                                           MIR_insn_t call, size_t call_ops_start) {
+                                           MIR_insn_t call MIR_UNUSED, size_t call_ops_start) {
   gen_ctx_t gen_ctx = c2m_ctx->gen_ctx;
   MIR_context_t ctx = c2m_ctx->ctx;
   struct type_offset members[MAX_MEMBERS];
@@ -231,8 +235,7 @@ static void target_add_ret_ops (c2m_ctx_t c2m_ctx, struct type *ret_type, op_t r
     } else {
       ret_addr_reg = MIR_reg (ctx, RET_ADDR_NAME, curr_func->u.func);
       var = new_op (NULL, MIR_new_mem_op (ctx, MIR_T_I8, 0, ret_addr_reg, 0, 1));
-      size = type_size (c2m_ctx, ret_type);
-      block_move (c2m_ctx, var, res, size);
+      block_move (c2m_ctx, var, res, type_size (c2m_ctx, ret_type));
     }
     return;
   }
@@ -431,7 +434,7 @@ static int target_gen_gather_arg (c2m_ctx_t c2m_ctx, const char *name, struct ty
       assert (!param_decl->reg_p);
       type = members[0].type;
       reg_var = get_reg_var (c2m_ctx, promote_mir_int_type (type),
-                             gen_get_indexed_name (c2m_ctx, name, 0));
+                             gen_get_indexed_name (c2m_ctx, name, 0), NULL);
       MIR_append_insn (ctx, curr_func,
                        MIR_new_insn (ctx, tp_mov (type),
                                      MIR_new_mem_op (ctx, type,
@@ -442,7 +445,7 @@ static int target_gen_gather_arg (c2m_ctx_t c2m_ctx, const char *name, struct ty
       if (n == 2) {
         type = members[1].type;
         reg_var = get_reg_var (c2m_ctx, promote_mir_int_type (type),
-                               gen_get_indexed_name (c2m_ctx, name, 1));
+                               gen_get_indexed_name (c2m_ctx, name, 1), NULL);
         MIR_append_insn (ctx, curr_func,
                          MIR_new_insn (ctx, tp_mov (type),
                                        MIR_new_mem_op (ctx, type,

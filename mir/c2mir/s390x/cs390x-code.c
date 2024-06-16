@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2020-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2020-2024 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 #include "../mirc.h"
@@ -18,7 +18,8 @@ static string_include_t standard_includes[]
 
 #define ADJUST_VAR_ALIGNMENT(c2m_ctx, align, type) s390x_adjust_var_alignment (c2m_ctx, align, type)
 
-static int s390x_adjust_var_alignment (c2m_ctx_t c2m_ctx, int align, struct type *type) {
+static int s390x_adjust_var_alignment (c2m_ctx_t c2m_ctx MIR_UNUSED, int align,
+                                       struct type *type MIR_UNUSED) {
   return align;
 }
 
