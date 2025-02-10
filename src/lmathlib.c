@@ -638,7 +638,7 @@ static int math_randomseed (lua_State *L) {
     randseed(L, state);
   }
   else {
-    lua_Integer n1 = luaL_checkinteger(L, 1);
+    lua_Integer n1 = (lua_Integer)luaL_checknumber(L, 1);
     lua_Integer n2 = luaL_optinteger(L, 2, 0);
     setseed(L, state->s, n1, n2);
   }
