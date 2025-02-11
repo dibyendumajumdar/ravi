@@ -725,8 +725,10 @@ static int traversethread (global_State *g, lua_State *th) {
   for (uv = th->openupval; uv != NULL; uv = uv->u.open.next)
     markvalue(g, uv->v);  /* open upvalues cannot be collected */
   if (g->gcstate == GCSatomic) {  /* final traversal? */
+    if (!g->gcemergency)
+      luaD_shrinkstack(th); /* do not change stack in emergency cycle */  
     StkId lim = th->stack + th->stacksize;  /* real end of stack */
-    for (; o < lim; o++)  /* clear not-marked stack slice */
+    for (o = th->top; o < lim; o++)  /* clear not-marked stack slice */
       setnilvalue(o);
     /* 'remarkupvals' may have removed thread from 'twups' list */
     if (!isintwups(th) && th->openupval != NULL) {
@@ -734,8 +736,6 @@ static int traversethread (global_State *g, lua_State *th) {
       g->twups = th;
     }
   }
-  else if (!g->gcemergency)
-    luaD_shrinkstack(th); /* do not change stack in emergency cycle */
   return 1 + th->stacksize;
 }
 
@@ -1141,7 +1141,25 @@ void luaC_checkfinalizer (lua_State *L, GCObject *o, Table *mt) {
 ** =======================================================
 */
 
-static void setpause (global_State *g);
+
+/*
+** Set the "time" to wait before starting a new GC cycle; cycle will
+** start when memory use hits the threshold of ('estimate' * pause /
+** PAUSEADJ). (Division by 'estimate' should be OK: it cannot be zero,
+** because Lua cannot even start with less than PAUSEADJ bytes).
+*/
+static void setpause (global_State *g) {
+  l_mem threshold, debt;
+  int pause = getgcparam(g->gcpause);
+  l_mem estimate = g->GCestimate / PAUSEADJ;  /* adjust 'estimate' */
+  lua_assert(estimate > 0);
+  threshold = (pause < MAX_LMEM / estimate)  /* overflow? */
+            ? estimate * pause  /* no overflow */
+            : MAX_LMEM;  /* overflow; truncate to maximum */
+  debt = gettotalbytes(g) - threshold;
+  if (debt > 0) debt = 0;
+  luaE_setdebt(g, debt);
+}
 
 
 /*
@@ -1384,6 +1402,15 @@ static void atomic2gen (lua_State *L, global_State *g) {
 
 
 /*
+** Set debt for the next minor collection, which will happen when
+** memory grows 'genminormul'%.
+*/
+static void setminordebt (global_State *g) {
+  luaE_setdebt(g, -(cast(l_mem, (gettotalbytes(g) / 100)) * g->genminormul));
+}
+
+
+/*
 ** Enter generational mode. Must go until the end of an atomic cycle
 ** to ensure that all objects are correctly marked and weak tables
 ** are cleared. Then, turn all objects into old and finishes the
@@ -1395,6 +1422,7 @@ static lu_mem entergen (lua_State *L, global_State *g) {
   luaC_runtilstate(L, bitmask(GCSpropagate));  /* start new cycle */
   numobjs = atomic(L);  /* propagates all and then do the atomic stuff */
   atomic2gen(L, g);
+  setminordebt(g);  /* set debt assuming next cycle will be minor */
   return numobjs;
 }
 
@@ -1441,15 +1469,6 @@ static lu_mem fullgen (lua_State *L, global_State *g) {
 
 
 /*
-** Set debt for the next minor collection, which will happen when
-** memory grows 'genminormul'%.
-*/
-static void setminordebt (global_State *g) {
-  luaE_setdebt(g, -(cast(l_mem, (gettotalbytes(g) / 100)) * g->genminormul));
-}
-
-
-/*
 ** Does a major collection after last collection was a "bad collection".
 **
 ** When the program is building a big structure, it allocates lots of
@@ -1482,7 +1501,7 @@ static void stepgenfull (lua_State *L, global_State *g) {
     setminordebt(g);
   }
   else {  /* another bad collection; stay in incremental mode */
-    g->GCestimate = gettotalbytes(g);  /* first estimate */;
+    g->GCestimate = gettotalbytes(g);  /* first estimate */
     entersweep(L);
     luaC_runtilstate(L, bitmask(GCSpause));  /* finish collection */
     setpause(g);
@@ -1520,8 +1539,8 @@ static void genstep (lua_State *L, global_State *g) {
       lu_mem numobjs = fullgen(L, g);  /* do a major collection */
       if (gettotalbytes(g) < majorbase + (majorinc / 2)) {
         /* collected at least half of memory growth since last major
-           collection; keep doing minor collections */
-        setminordebt(g);
+           collection; keep doing minor collections. */
+        lua_assert(g->lastatomic == 0);
       }
       else {  /* bad collection */
         g->lastatomic = numobjs;  /* signal that last collection was bad */
@@ -1545,26 +1564,6 @@ static void genstep (lua_State *L, global_State *g) {
 ** GC control
 ** =======================================================
 */
-
-
-/*
-** Set the "time" to wait before starting a new GC cycle; cycle will
-** start when memory use hits the threshold of ('estimate' * pause /
-** PAUSEADJ). (Division by 'estimate' should be OK: it cannot be zero,
-** because Lua cannot even start with less than PAUSEADJ bytes).
-*/
-static void setpause (global_State *g) {
-  l_mem threshold, debt;
-  int pause = getgcparam(g->gcpause);
-  l_mem estimate = g->GCestimate / PAUSEADJ;  /* adjust 'estimate' */
-  lua_assert(estimate > 0);
-  threshold = (pause < MAX_LMEM / estimate)  /* overflow? */
-            ? estimate * pause  /* no overflow */
-            : MAX_LMEM;  /* overflow; truncate to maximum */
-  debt = gettotalbytes(g) - threshold;
-  if (debt > 0) debt = 0;
-  luaE_setdebt(g, debt);
-}
 
 
 /*
@@ -1697,7 +1696,7 @@ static lu_mem singlestep (lua_State *L) {
     case GCSenteratomic: {
       work = atomic(L);  /* work is what was traversed by 'atomic' */
       entersweep(L);
-      g->GCestimate = gettotalbytes(g);  /* first estimate */;
+      g->GCestimate = gettotalbytes(g);  /* first estimate */
       break;
     }
     case GCSswpallgc: {  /* sweep "regular" objects */
@@ -1774,12 +1773,15 @@ static void incstep (lua_State *L, global_State *g) {
 }
 
 /*
-** performs a basic GC step if collector is running
+** Performs a basic GC step if collector is running. (If collector is
+** not running, set a reasonable debt to avoid it being called at
+** every single check.)
 */
 void luaC_step (lua_State *L) {
   global_State *g = G(L);
-  lua_assert(!g->gcemergency);
-  if (gcrunning(g)) {  /* running? */
+  if (!gcrunning(g))  /* not running? */
+    luaE_setdebt(g, -2000);
+  else {
     if(isdecGCmodegen(g))
       genstep(L, g);
     else
@@ -1800,6 +1802,8 @@ static void fullinc (lua_State *L, global_State *g) {
     entersweep(L); /* sweep everything to turn them back to white */
   /* finish any pending sweep phase to start a new cycle */
   luaC_runtilstate(L, bitmask(GCSpause));
+  luaC_runtilstate(L, bitmask(GCSpropagate));  /* start new cycle */
+  g->gcstate = GCSenteratomic;  /* go straight to atomic phase */
   luaC_runtilstate(L, bitmask(GCScallfin));  /* run up to finalizers */
   /* estimate must be correct after a full GC cycle */
   lua_assert(g->GCestimate == gettotalbytes(g));
