@@ -1,24 +1,30 @@
 name: build
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
-  
+
 jobs:
   build:
-    
+
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-    
-    steps:
-    - uses: actions/checkout@v2
+        os: [ubuntu-latest, macos-latest]
 
-    - name: Install Dependencies
-      run: sudo apt-get install -y libreadline-dev 
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install Dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: sudo apt-get install -y libreadline-dev
+
+    - name: Install Dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: brew install readline
 
     - name: Create Build Environment
       run: cmake -E make_directory ${{runner.workspace}}/build
@@ -28,10 +34,15 @@ jobs:
       # access regardless of the host operating system
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      # Note the current convention is to use the -S and -B options here to specify source 
-      # and build directories, but this is only available with CMake 3.13 and higher.  
+      # Note the current convention is to use the -S and -B options here to specify source
+      # and build directories, but this is only available with CMake 3.13 and higher.
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+      run: |
+        extra=()
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
+          extra+=("-DCMAKE_PREFIX_PATH=$(brew --prefix readline)")
+        fi
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE "${extra[@]}"
 
     - name: Build
       working-directory: ${{runner.workspace}}/build

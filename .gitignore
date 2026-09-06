@@ -21,4 +21,12 @@ nojita
 *.lib
 *.obj
 *.s
+*.o
+*.a
 time-debug.txt
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+*.dSYM
