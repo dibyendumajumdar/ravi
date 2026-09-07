@@ -411,7 +411,7 @@
 ** This macro is not on by default even in compatibility mode,
 ** because this is not really an incompatibility.
 */
-#define LUA_COMPAT_FLOATSTRING
+/* #define LUA_COMPAT_FLOATSTRING */
 
 /* }================================================================== */
 
