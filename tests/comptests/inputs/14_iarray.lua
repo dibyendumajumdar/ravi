@@ -1,5 +1,5 @@
 f = compiler.load([[
-    local arr: integer[] = table.intarray(10)
+    local arr: integer[] = table.intarray(11)
     arr[0] = 10
     arr[4] = 2
     arr[11] = 6

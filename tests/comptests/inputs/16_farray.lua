@@ -7,7 +7,7 @@ f = compiler.load([[
 assert(f and type(f) == 'function')
 z = f()
 assert(z and type(z) == 'function')
-x = table.numarray(10)
+x = table.numarray(12)
 z(x, 1, 1.1)
 assert(x[1] == 1.1)
 z(x, 2, 2.2)
