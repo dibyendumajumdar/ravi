@@ -1,0 +1,60 @@
+-- Bug-2: fixed array length must not depend on spare allocation capacity.
+local function set_integer(a: integer[], i: integer, value: integer)
+    a[i] = value
+end
+
+local function set_number(a: number[], i: integer, value: number)
+    a[i] = value
+end
+
+local function set_dynamic(a, i, value)
+    a[i] = value
+end
+
+local function check_fixed(a, setter, value)
+    local n = #a
+    local ok, err = pcall(setter, a, n + 1, value)
+    assert(not ok and string.find(err, 'array cannot be resized', 1, true))
+    assert(#a == n)
+    if n > 0 then
+        setter(a, n, value)
+        assert(a[n] == value and #a == n)
+    end
+end
+
+for _, size in ipairs({0, 1, 2, 10, 32}) do
+    for _, setter in ipairs({set_dynamic, set_integer}) do
+        check_fixed(table.intarray(size, 0), setter, 7)
+    end
+    for _, setter in ipairs({set_dynamic, set_number}) do
+        check_fixed(table.numarray(size, 0.0), setter, 7.5)
+    end
+end
+
+for _, setter in ipairs({set_dynamic, set_integer}) do
+    local parent = table.intarray(4, 0)
+    local slice = table.slice(parent, 2, 2)
+    check_fixed(slice, setter, 7)
+    assert(parent[3] == 7 and parent[4] == 0 and #parent == 4)
+end
+for _, setter in ipairs({set_dynamic, set_number}) do
+    local parent = table.numarray(4, 0.0)
+    local slice = table.slice(parent, 2, 2)
+    check_fixed(slice, setter, 7.5)
+    assert(parent[3] == 7.5 and parent[4] == 0.0 and #parent == 4)
+end
+
+-- Dynamic arrays must still append, including across allocation growth.
+local integers: integer[] = {}
+local numbers: number[] = {}
+for i = 1, 40 do
+    set_integer(integers, i, i)
+    set_number(numbers, i, i + 0.5)
+end
+set_dynamic(integers, 41, 41)
+set_dynamic(numbers, 41, 41.5)
+assert(#integers == 41 and #numbers == 41)
+for i = 1, 41 do
+    assert(integers[i] == i and numbers[i] == i + 0.5)
+end
+print 'Bug-2 regression OK'

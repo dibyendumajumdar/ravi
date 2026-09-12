@@ -865,6 +865,8 @@ void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned u1, lua_Integer valu
     data = (lua_Integer *)t->data;
     data[u] = value;
   } else if (u == t->len) {
+    if (t->flags & (RAVI_ARRAY_FIXEDSIZE | RAVI_ARRAY_SLICE))
+      luaG_runerror(L, "array cannot be resized");
     if (u < t->size) {
     setval:
       t->len++;
@@ -888,6 +890,8 @@ void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned u1, lua_Number val
     data = (lua_Number *)t->data;
     data[u] = value;
   } else if (u == t->len) {
+    if (t->flags & (RAVI_ARRAY_FIXEDSIZE | RAVI_ARRAY_SLICE))
+      luaG_runerror(L, "array cannot be resized");
     if (u < t->size) {
     setval:
       t->len++;
