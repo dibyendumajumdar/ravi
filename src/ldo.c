@@ -692,6 +692,7 @@ static int recover (lua_State *L, int status) {
   oldtop = restorestack(L, ci->extra);
 #ifdef RAVI_DEFER_STATEMENT
   luaF_close(L, oldtop, status);
+  oldtop = restorestack(L, ci->extra);  /* deferred calls may reallocate stack */
 #else
   luaF_close(L, oldtop);
 #endif

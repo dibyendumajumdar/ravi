@@ -482,4 +482,35 @@ do
     print 'Test 12 OK'
 end
 
+-- Bug-1: error recovery after yielding must restore stack pointers after defer.
+do
+    local original_error = {}
+    local closed = 0
+    local co = coroutine.create(function ()
+        local ok, err = pcall(function ()
+            defer
+                local args = {}
+                for i = 1, 10000 do args[i] = i end
+                local function consume(...) return select('#', ...) end
+                assert(consume(table.unpack(args)) == 10000)
+                closed = closed + 1
+            end
+            coroutine.yield('ready')
+            error(original_error)
+        end)
+        assert(not ok and err == original_error)
+        assert(closed == 1)
+        coroutine.yield('recovered')
+        return 'done'
+    end)
+    local ok, result = coroutine.resume(co)
+    assert(ok and result == 'ready' and closed == 0)
+    ok, result = coroutine.resume(co)
+    assert(ok and result == 'recovered' and closed == 1)
+    ok, result = coroutine.resume(co)
+    assert(ok and result == 'done' and closed == 1)
+    assert(coroutine.status(co) == 'dead')
+    print 'Bug-1 regression OK'
+end
+
 print 'OK'
