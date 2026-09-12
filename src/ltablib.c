@@ -425,23 +425,29 @@ static int sort (lua_State *L) {
 static int create_intarray(lua_State *L) {
   int n = lua_gettop(L);
   lua_Integer init_value = (n == 2 ? luaL_checkinteger(L, 2) : 0);
-  int size = (int)luaL_checkinteger(L, 1);
-  ravi_create_integer_array(L, size, init_value);
+  lua_Integer size = luaL_checkinteger(L, 1);
+  luaL_argcheck(L, size >= 0 && size <= INT_MAX, 1, "array length out of range");
+  ravi_create_integer_array(L, (int)size, init_value);
   return 1;
 }
 
 static int create_fltarray(lua_State *L) {
   int n = lua_gettop(L);
   lua_Number init_value = (n == 2 ? luaL_checknumber(L, 2) : 0.0);
-  int size = (int)luaL_checkinteger(L, 1);
-  ravi_create_number_array(L, size, init_value);
+  lua_Integer size = luaL_checkinteger(L, 1);
+  luaL_argcheck(L, size >= 0 && size <= INT_MAX, 1, "array length out of range");
+  ravi_create_number_array(L, (int)size, init_value);
   return 1;
 }
 
 static int create_slice(lua_State *L) {
-  int start = (int)luaL_checkinteger(L, 2);
-  int len = (int)luaL_checkinteger(L, 3);
-  ravi_create_slice(L, 1, start, len);
+  lua_Integer start = luaL_checkinteger(L, 2);
+  lua_Integer len = luaL_checkinteger(L, 3);
+  luaL_argcheck(L, start >= 1 && (lua_Unsigned)start <= UINT_MAX,
+                2, "cannot create a slice of given bounds");
+  luaL_argcheck(L, len >= 1 && (lua_Unsigned)len <= UINT_MAX,
+                3, "cannot create a slice of given bounds");
+  ravi_create_slice(L, 1, (unsigned int)start, (unsigned int)len);
   return 1;
 }
 

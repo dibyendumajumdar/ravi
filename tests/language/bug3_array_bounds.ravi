@@ -1,0 +1,63 @@
+-- Bug-3: validate the full Lua integer before narrowing indices or sizes.
+local function get_integer(a: integer[], i: integer) return a[i] end
+local function get_number(a: number[], i: integer) return a[i] end
+local function get_dynamic(a, i) return a[i] end
+local function set_integer(a: integer[], i: integer, v: integer) a[i] = v end
+local function set_number(a: number[], i: integer, v: number) a[i] = v end
+local function set_dynamic(a, i, v) a[i] = v end
+
+local function fails(message, f, ...)
+    local ok, err = pcall(f, ...)
+    assert(not ok and string.find(err, message, 1, true), tostring(err))
+end
+
+local bad_indices = {
+    -1, -4294967296, -4294967295, 4294967295, 4294967296,
+    4294967297, 4294967298, math.mininteger, math.maxinteger
+}
+local function check_access(a, getter, setter, value)
+    setter(a, 0, value) -- documented hidden slot remains accessible
+    setter(a, 1, value)
+    setter(a, 2, value)
+    for _, i in ipairs(bad_indices) do
+        fails('array out of bounds', getter, a, i)
+        fails('array out of bounds', setter, a, i, value + 1)
+        assert(#a == 2 and getter(a, 0) == value and getter(a, 1) == value
+               and getter(a, 2) == value)
+    end
+end
+
+for _, getter in ipairs({get_dynamic, get_integer}) do
+    for _, setter in ipairs({set_dynamic, set_integer}) do
+        local a: integer[] = {0, 0}
+        check_access(a, getter, setter, 7)
+        check_access(table.slice(table.intarray(4, 0), 2, 2), getter, setter, 7)
+    end
+end
+for _, getter in ipairs({get_dynamic, get_number}) do
+    for _, setter in ipairs({set_dynamic, set_number}) do
+        local a: number[] = {0.0, 0.0}
+        check_access(a, getter, setter, 7.5)
+        check_access(table.slice(table.numarray(4, 0.0), 2, 2), getter, setter, 7.5)
+    end
+end
+
+for _, constructor in ipairs({table.intarray, table.numarray}) do
+    for _, size in ipairs({-1, -2, -4294967296, -4294967295,
+                          2147483648, 4294967295, 4294967296, 4294967297,
+                          math.mininteger, math.maxinteger}) do
+        fails('array length out of range', constructor, size)
+    end
+    assert(#constructor(0) == 0 and #constructor(2) == 2)
+    local parent = constructor(4)
+    for _, bound in ipairs({0, -1, -4294967295, 4294967296, 4294967297,
+                           math.mininteger, math.maxinteger}) do
+        fails('cannot create a slice of given bounds', table.slice, parent, bound, 1)
+        fails('cannot create a slice of given bounds', table.slice, parent, 1, bound)
+    end
+    -- Representable unsigned arguments must still pass combined bounds checks.
+    fails('cannot create a slice of given bounds', table.slice, parent, 2, 4294967295)
+    assert(#table.slice(parent, 1, 4) == 4)
+    assert(#table.slice(parent, 4, 1) == 1)
+end
+print 'Bug-3 regression OK'

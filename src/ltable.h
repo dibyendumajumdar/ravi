@@ -164,7 +164,7 @@ LUAI_FUNC RaviArray *raviH_new_slice(lua_State *L, TValue *parent,
 /* Type specific array get operation */
 #define raviH_get_int_inline(L, t, key, v)                                     \
   {                                                                            \
-    unsigned int ukey = (unsigned int)((key));                                 \
+    lua_Unsigned ukey = (lua_Unsigned)((key));                                 \
     lua_Integer *data = (lua_Integer *)t->data;                                \
     if (ukey < t->len) {                                            \
       setivalue(v, data[ukey]);                                                \
@@ -175,7 +175,7 @@ LUAI_FUNC RaviArray *raviH_new_slice(lua_State *L, TValue *parent,
 /* Type specific array get operation */
 #define raviH_get_float_inline(L, t, key, v)                                   \
   {                                                                            \
-    unsigned int ukey = (unsigned int)((key));                                 \
+    lua_Unsigned ukey = (lua_Unsigned)((key));                                 \
     lua_Number *data = (lua_Number *)t->data;                                  \
     if (ukey < t->len) {                                            \
       setfltvalue(v, data[ukey]);                                              \
@@ -186,7 +186,7 @@ LUAI_FUNC RaviArray *raviH_new_slice(lua_State *L, TValue *parent,
 /* Type specific array set operation */
 #define raviH_set_int_inline(L, t, key, value)                                 \
   {                                                                            \
-    unsigned int ukey = (unsigned int)((key));                                 \
+    lua_Unsigned ukey = (lua_Unsigned)((key));                                 \
     lua_Integer *data = (lua_Integer *)t->data;                                \
     if (ukey < t->len) {                                            \
       data[ukey] = (value);                                                    \
@@ -197,7 +197,7 @@ LUAI_FUNC RaviArray *raviH_new_slice(lua_State *L, TValue *parent,
 /* Type specific array set operation */
 #define raviH_set_float_inline(L, t, key, value)                               \
   {                                                                            \
-    unsigned int ukey = (unsigned int)((key));                                 \
+    lua_Unsigned ukey = (lua_Unsigned)((key));                                 \
     lua_Number *data = (lua_Number *)t->data;                                  \
     if (ukey < t->len) {                                            \
       data[ukey] = (value);                                                    \

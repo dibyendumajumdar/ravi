@@ -857,7 +857,7 @@ static int ravi_resize_array(lua_State *L, RaviArray *t, unsigned int new_size, 
 }
 
 void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned u1, lua_Integer value) {
-  unsigned int u = (unsigned int)u1;
+  lua_Unsigned u = u1;
   lua_assert((t->flags & RAVI_ARRAY_ISFLOAT) == 0);
   lua_Integer *data;
   if (u < t->len) {
@@ -882,7 +882,7 @@ void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned u1, lua_Integer valu
 }
 
 void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned u1, lua_Number value) {
-  unsigned int u = (unsigned int)u1;
+  lua_Unsigned u = u1;
   lua_assert(t->flags & RAVI_ARRAY_ISFLOAT);
   lua_Number *data;
   if (u < t->len) {
