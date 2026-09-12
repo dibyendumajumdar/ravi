@@ -2311,9 +2311,6 @@ int luaV_execute (lua_State *L) {
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rb);
         if (ttisinteger(rc)) { raviH_set_int_inline(L, t, idx, ivalue(rc)); }
-        else if (ttisfloat(rc)) {
-          raviH_set_int_inline(L, t, idx, (lua_Integer)fltvalue(rc));
-        }
         else {
           lua_Integer j;
           if (tointegerns(rc, &j)) { raviH_set_int_inline(L, t, idx, j); }

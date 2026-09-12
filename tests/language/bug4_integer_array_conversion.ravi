@@ -1,0 +1,37 @@
+-- Bug-4: specialized stores must use the same checked conversion as generic stores.
+local function set_typed(a: integer[], i: integer, value) a[i] = value end
+local function set_number(a: integer[], i: integer, value: number) a[i] = value end
+local function set_dynamic(a, i, value) a[i] = value end
+
+local invalid = {1.5, -1.5, math.huge, -math.huge, 0.0 / 0.0,
+                 2.0 ^ 63, -(2.0 ^ 64)}
+local valid = {0.0, -0.0, 1.0, -1.0, 42.0, -(2.0 ^ 63),
+               (2.0 ^ 63) - 2048.0}
+
+for _, setter in ipairs({set_typed, set_number, set_dynamic}) do
+    local a: integer[] = {7}
+    for _, value in ipairs(invalid) do
+        -- Both overwriting and appending must fail without changing the array.
+        for i = 1, 2 do
+            local ok = pcall(setter, a, i, value)
+            assert(not ok, 'invalid floating-point value accepted')
+            assert(#a == 1 and a[1] == 7)
+        end
+    end
+    for _, value in ipairs(valid) do
+        setter(a, 1, value)
+        assert(a[1] == value and math.type(a[1]) == 'integer')
+        setter(a, #a + 1, value)
+        assert(a[#a] == value and math.type(a[#a]) == 'integer')
+    end
+end
+
+-- Integer inputs must retain their full precision in the untyped-value path.
+for _, setter in ipairs({set_typed, set_dynamic}) do
+    local a: integer[] = {0}
+    for _, value in ipairs({math.mininteger, math.maxinteger, 17}) do
+        setter(a, 1, value)
+        assert(a[1] == value)
+    end
+end
+print 'Bug-4 regression OK'
