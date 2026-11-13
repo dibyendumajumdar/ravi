@@ -4,7 +4,9 @@ Tested 2026-11-12 at commit `abe1eebf630971615afa087524c65f703fbcb13c`.
 Scope: the new compiler framework in `ravicomp/` (parser, linearizer, C code
 generator, embedded chibicc front end) as reached through `compiler.load`,
 `compiler.loadfile` and `compiler.compile`. The interpreter and the bytecode
-JIT are excluded. No implementation files changed.
+JIT are excluded. No implementation files changed during the original investigation.
+Later fix and review notes are identified below; Bug-19 was added during the
+2026-11-13 review of the Bug-1 fix.
 
 ## Method
 
@@ -51,6 +53,7 @@ P3 = minor divergence or diagnostic quality.
 | Bug-16 | P3 | `\u{XXX}` escape is rejected by the lexer |
 | Bug-17 | P3 | Constant `1//0` and `1%0` are compile-time errors |
 | Bug-18 | P3 | `@number` cast of an integer-typed expression fails to compile |
+| Bug-19 | P1 | Local values are read too late in return lists and call arguments |
 | Lim-1 | — | Recursion depth limited to about 190; no tail calls |
 | Lim-2 | — | Numeric `for` loops support integer bounds only |
 | Lim-3 | — | Table constructor ordering differs for duplicate keys |
@@ -62,8 +65,9 @@ P3 = minor divergence or diagnostic quality.
 Location: `ravicomp/src/codegen.c`, `emit_op_ret` (line 1350).
 
 Return values are copied one at a time to `S(0)`, `S(1)`, … where
-`S(k) = ci->func + k`. Registers are `R(k) = ci->func + 1 + k`, so writing
-`S(k)` destroys `R(k-1)`. Any later return value that still lives in a lower
+`S(k) = ci->func + k`. Registers are `R(k) = base + k`. For the non-vararg
+frames currently generated (`is_vararg = 0`), `base = ci->func + 1`, so writing
+`S(k)` destroys `R(k-1)` for `k >= 1`. Any later return value that still lives in a lower
 register is read after it has been overwritten.
 
 ```lua
@@ -124,11 +128,16 @@ Fix in the code generator only: `emit_op_ret` in `ravicomp/src/codegen.c`.
 The IR and the linearizer are unchanged; `RET` keeps accepting arbitrary
 operands.
 
-Why not the linearizer: forcing operands into temps is only correct if every
-operand, including constants and typed C temps, is moved into consecutive
-stack temps. That adds a move per returned value in the common case and gives
-up returning typed values straight from C variables. The overlap is a
-consequence of where `emit_op_ret` places results, so it is handled there.
+Why this fix is in the code generator: one alternative is to materialize the
+whole return list, including constants and typed C temps, in consecutive
+stack temps and copy that block forward. That adds moves in the common case
+and gives up returning typed values straight from C variables. The selective
+saves here address the overlap caused by where `emit_op_ret` places results.
+
+This fixes overlap during result placement only. It does not address local
+references whose values change while later return expressions or call
+arguments are evaluated. That separate IR value-capture issue is Bug-19;
+saving a value in `emit_op_ret` cannot recover its value before an earlier call.
 
 Why not reorder the copies: no order is safe in general. `return c, b, a`
 with `a, b, c` in `R(0), R(1), R(2)` fails ascending (writing `S(1)` destroys
@@ -152,9 +161,12 @@ code-generation time, so every decision below is static.
 
    and later write `S(j)` from the saved copy instead of calling `emit_move`
    on the register. Member-wise copy is used, as elsewhere in the generated
-   code, rather than struct assignment. No allocation or GC can happen between
-   the save and the write (`luaF_close` runs before the block), so a plain C
-   local is safe. Operands that do not meet the condition are emitted exactly
+   code, rather than struct assignment. The upward-range path can allocate
+   through `luaD_growstack` after these saves, and allocation can trigger
+   emergency GC. During growth, the original values remain rooted in their
+   unchanged Lua stack slots; the C locals are copies, not their sole roots.
+   After growth, the result copies perform no allocation or GC. `luaF_close`
+   runs before the save block. Operands that do not meet the condition are emitted exactly
    as today, so the common cases generate identical code.
 
 2. **Trailing range starting at register `rr`.**
@@ -165,7 +177,8 @@ code-generation time, so every decision below is static.
      - a stack check for the `d` extra slots, in the same form already used
        by `emit_op_call`:
        `if (stackoverflow(L, d)) { luaD_growstack(L, d); base = ci->u.l.base; }`
-       and assign `stackbase = ci->func` after it rather than before;
+       and refresh `stackbase = ci->func` inside the growth branch, alongside
+       `base`, because stack reallocation can invalidate both pointers;
      - a descending copy of the `L->top - R(rr)` range values to
        `S(n - 1)` onwards, last element first.
 
@@ -197,6 +210,10 @@ Tests: add `tests/comptests/inputs/79_return_overlap.lua` and register it in
   confirm the unchanged path;
 - callers that want fewer and more results than are returned
   (`local x = f()`, `local a, b, c, d, e, f2 = f()`).
+
+The long-prefix test exercises the range-growth check but does not guarantee
+that reallocation occurs: preceding tests may already have enlarged the
+stack. Deterministic coverage of the reallocation branch remains desirable.
 
 The fix also needs a run of the full `tests/run_tests.sh`, since every
 compiled function return goes through this code.
@@ -524,6 +541,72 @@ inferred static type, casts the interpreter accepts or rejects at run time are
 rejected at compile time (`local x = 5.0 local y: integer = @integer x` →
 "Cannot convert type to integer"). This may be intended, but it differs from
 the interpreter, where the first of these succeeds.
+
+### Bug-19 P1 — Local values are read too late in return lists and call arguments
+
+Locations: `ravicomp/src/linearizer.c`, `linearize_symbol_expression`,
+`linearize_expr_list` (used by `linearize_return`) and
+`linearize_function_call_expression`.
+
+Local references can remain mutable symbol operands while later expressions
+are evaluated. If a later expression calls a closure that changes the local,
+the eventual `RET` or `CALL` reads its new value instead of the value captured
+at the earlier expression's evaluation point.
+
+```lua
+local a = 1
+local function change()
+    a = 2
+    return 10
+end
+return a, change()
+-- interpreter: 1 10      compiled: 2 10
+```
+
+The return IR has this shape (result-count operands omitted):
+
+```text
+MOV  {local(change, 1)} {T(0)}
+CALL {T(0)} {T(0..)}
+RET  {local(a, 0), T(0..)}
+```
+
+There is no move capturing `a` before `change()` executes. The same problem
+affects call arguments and can be demonstrated with a single returned value,
+independently of Bug-1's multi-value return-copy overlap:
+
+```lua
+local a = 1
+local function change()
+    a = 2
+    return 10
+end
+local t = table.pack(a, change())
+return t[1]
+-- interpreter: 1        compiled: 2
+```
+
+Here the call to `change()` precedes the outer call's read of `local(a, 0)`:
+
+```text
+CALL {T(1)} {T(1..)}
+CALL {T(0), local(a, 0), T(1..)} {T(0..)}
+```
+
+Both reproducers and their IR were checked with the existing Windows Debug
+executable during the 2026-11-13 investigation, before rebuilding the Bug-1
+fix. Source review of commit `2a1f6af` confirms that it changes only return
+placement, leaving these IR-generation paths unchanged. A rebuild attempted
+during review failed with MSVC C1902 (program database manager mismatch), so
+these reproducers have not yet been rerun against a binary containing that fix.
+
+Status: unresolved; separate from Bug-1. The IR needs to preserve values at
+the required evaluation points before later expressions can change their
+sources. `linearize_assignment` already uses `copy_to_temp_if_necessary`
+while collecting RHS expressions; the analogous `local x, y = a, change()`
+correctly preserves `1` in `x`. That is a useful precedent, but the scope and
+lifetime rules for a fix to return lists and call arguments still need design
+and tests. No broader claim about all expression contexts is made here.
 
 ## Limitations not listed in `ravi-compiler.rst`
 
