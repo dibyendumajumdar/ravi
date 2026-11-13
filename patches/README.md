@@ -1,5 +1,9 @@
 These patches are for Lua 5.3 and 5.4.
 
+A Lua 5.5.1 port is also available. See
+[Defer for Lua 5.5.1](README_defer_Lua_5_5.md) for application instructions,
+semantics, compatibility and validation details.
+
 The 'defer' patch adds the defer statement to Lua.
 
 Note that in Lua 5.4 versions prior to 5.4.3 a deferred closure may be called more than once

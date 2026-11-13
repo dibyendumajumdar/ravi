@@ -1,0 +1,587 @@
+diff --git a/lapi.c b/lapi.c
+--- a/lapi.c
++++ b/lapi.c
+@@ -1291,7 +1291,7 @@
+   lua_lock(L);
+   o = index2stack(L, idx);
+   api_check(L, L->tbclist.p < o, "given index below or equal a marked one");
+-  luaF_newtbcupval(L, o);  /* create new to-be-closed upvalue */
++  luaF_newtbcupval(L, o, 0);  /* create new to-be-closed upvalue */
+   L->ci->callstatus |= CIST_TBC;  /* mark that function has TBC slots */
+   lua_unlock(L);
+ }
+diff --git a/lfunc.c b/lfunc.c
+--- a/lfunc.c
++++ b/lfunc.c
+@@ -100,6 +100,24 @@
+ 
+ 
+ /*
++** Call a deferred closure with the error object (or nil on normal exit).
++** Deferred calls are deliberately non-yielding, as in the earlier patch.
++** (This function assumes EXTRA_STACK.)
++*/
++static void calldefermethod (lua_State *L, TValue *func, TValue *err) {
++  StkId top = L->top.p;
++  setobj2s(L, top, func);
++  if (err != NULL) {
++    setobj2s(L, top + 1, err);
++  }
++  else
++    setnilvalue(s2v(top + 1));
++  L->top.p = top + 2;
++  luaD_callnoyield(L, top, 0);
++}
++
++
++/*
+ ** Call closing method for object 'obj' with error object 'err'. The
+ ** boolean 'yy' controls whether the call is yieldable.
+ ** (This function assumes EXTRA_STACK.)
+@@ -158,7 +176,10 @@
+       luaD_seterrorobj(L, status, level + 1);  /* set error object */
+       break;
+   }
+-  callclosemethod(L, uv, errobj, yy);
++  if (level->tbclist.deferred)
++    calldefermethod(L, uv, errobj);
++  else
++    callclosemethod(L, uv, errobj, yy);
+ }
+ 
+ 
+@@ -169,16 +190,22 @@
+ /*
+ ** Insert a variable in the list of to-be-closed variables.
+ */
+-void luaF_newtbcupval (lua_State *L, StkId level) {
++void luaF_newtbcupval (lua_State *L, StkId level, int deferred) {
+   lua_assert(level > L->tbclist.p);
+-  if (l_isfalse(s2v(level)))
+-    return;  /* false doesn't need to be closed */
+-  checkclosemth(L, level);  /* value must have a close method */
++  if (!deferred) {
++    if (l_isfalse(s2v(level)))
++      return;  /* false doesn't need to be closed */
++    checkclosemth(L, level);  /* value must have a close method */
++  }
++  else
++    lua_assert(ttisfunction(s2v(level)));
+   while (cast_uint(level - L->tbclist.p) > MAXDELTA) {
+     L->tbclist.p += MAXDELTA;  /* create a dummy node at maximum delta */
+     L->tbclist.p->tbclist.delta = 0;
++    L->tbclist.p->tbclist.deferred = 0;
+   }
+   level->tbclist.delta = cast(unsigned short, level - L->tbclist.p);
++  level->tbclist.deferred = cast_byte(deferred);
+   L->tbclist.p = level;
+ }
+ 
+diff --git a/lfunc.h b/lfunc.h
+--- a/lfunc.h
++++ b/lfunc.h
+@@ -52,7 +52,7 @@
+ LUAI_FUNC LClosure *luaF_newLclosure (lua_State *L, int nupvals);
+ LUAI_FUNC void luaF_initupvals (lua_State *L, LClosure *cl);
+ LUAI_FUNC UpVal *luaF_findupval (lua_State *L, StkId level);
+-LUAI_FUNC void luaF_newtbcupval (lua_State *L, StkId level);
++LUAI_FUNC void luaF_newtbcupval (lua_State *L, StkId level, int deferred);
+ LUAI_FUNC void luaF_closeupval (lua_State *L, StkId level);
+ LUAI_FUNC StkId luaF_close (lua_State *L, StkId level, TStatus status, int yy);
+ LUAI_FUNC void luaF_unlinkupval (UpVal *uv);
+diff --git a/ljumptab.h b/ljumptab.h
+--- a/ljumptab.h
++++ b/ljumptab.h
+@@ -80,6 +80,7 @@
+ &&L_OP_LEN,
+ &&L_OP_CONCAT,
+ &&L_OP_CLOSE,
++&&L_OP_DEFER,
+ &&L_OP_TBC,
+ &&L_OP_JMP,
+ &&L_OP_EQ,
+diff --git a/llex.c b/llex.c
+--- a/llex.c
++++ b/llex.c
+@@ -43,7 +43,7 @@
+ 
+ /* ORDER RESERVED */
+ static const char *const luaX_tokens [] = {
+-    "and", "break", "do", "else", "elseif",
++    "and", "break", "defer", "do", "else", "elseif",
+     "end", "false", "for", "function", "global", "goto", "if",
+     "in", "local", "nil", "not", "or", "repeat",
+     "return", "then", "true", "until", "while",
+diff --git a/llex.h b/llex.h
+--- a/llex.h
++++ b/llex.h
+@@ -32,7 +32,7 @@
+ enum RESERVED {
+   /* terminal symbols denoted by reserved words */
+   TK_AND = FIRST_RESERVED, TK_BREAK,
+-  TK_DO, TK_ELSE, TK_ELSEIF, TK_END, TK_FALSE, TK_FOR, TK_FUNCTION,
++  TK_DEFER, TK_DO, TK_ELSE, TK_ELSEIF, TK_END, TK_FALSE, TK_FOR, TK_FUNCTION,
+   TK_GLOBAL, TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_NIL, TK_NOT, TK_OR,
+   TK_REPEAT, TK_RETURN, TK_THEN, TK_TRUE, TK_UNTIL, TK_WHILE,
+   /* other terminal symbols */
+diff --git a/lobject.h b/lobject.h
+--- a/lobject.h
++++ b/lobject.h
+@@ -150,6 +150,7 @@
+   struct {
+     TValuefields;
+     unsigned short delta;
++    lu_byte deferred;  /* deferred closure instead of a __close method */
+   } tbclist;
+ } StackValue;
+ 
+diff --git a/lopcodes.c b/lopcodes.c
+--- a/lopcodes.c
++++ b/lopcodes.c
+@@ -76,6 +76,7 @@
+  ,opmode(0, 0, 0, 0, 1, iABC)		/* OP_LEN */
+  ,opmode(0, 0, 0, 0, 1, iABC)		/* OP_CONCAT */
+  ,opmode(0, 0, 0, 0, 0, iABC)		/* OP_CLOSE */
++ ,opmode(0, 0, 0, 0, 0, iABC)		/* OP_DEFER */
+  ,opmode(0, 0, 0, 0, 0, iABC)		/* OP_TBC */
+  ,opmode(0, 0, 0, 0, 0, isJ)		/* OP_JMP */
+  ,opmode(0, 0, 0, 1, 0, iABC)		/* OP_EQ */
+diff --git a/lopcodes.h b/lopcodes.h
+--- a/lopcodes.h
++++ b/lopcodes.h
+@@ -301,6 +301,8 @@
+ OP_CONCAT,/*	A B	R[A] := R[A].. ... ..R[A + B - 1]		*/
+ 
+ OP_CLOSE,/*	A	close all upvalues >= R[A]			*/
++OP_DEFER,/* A mark a closure to run when leaving its scope */
++
+ OP_TBC,/*	A	mark variable A "to be closed"			*/
+ OP_JMP,/*	sJ	pc += sJ					*/
+ OP_EQ,/*	A B k	if ((R[A] == R[B]) ~= k) then pc++		*/
+diff --git a/lopnames.h b/lopnames.h
+--- a/lopnames.h
++++ b/lopnames.h
+@@ -68,6 +68,7 @@
+   "LEN",
+   "CONCAT",
+   "CLOSE",
++  "DEFER",
+   "TBC",
+   "JMP",
+   "EQ",
+diff --git a/lparser.c b/lparser.c
+--- a/lparser.c
++++ b/lparser.c
+@@ -1102,23 +1102,25 @@
+ }
+ 
+ 
+-static void body (LexState *ls, expdesc *e, int ismethod, int line) {
++static void body (LexState *ls, expdesc *e, int ismethod, int line, int deferred) {
+   /* body ->  '(' parlist ')' block END */
+   FuncState new_fs;
+   BlockCnt bl;
+   new_fs.f = addprototype(ls);
+   new_fs.f->linedefined = line;
+   open_func(ls, &new_fs, &bl);
+-  checknext(ls, '(');
+-  if (ismethod) {
+-    new_localvarliteral(ls, "self");  /* create 'self' parameter */
+-    adjustlocalvars(ls, 1);
+-  }
+-  parlist(ls);
+-  checknext(ls, ')');
++  if (!deferred) {
++    checknext(ls, '(');
++    if (ismethod) {
++      new_localvarliteral(ls, "self");  /* create 'self' parameter */
++      adjustlocalvars(ls, 1);
++    }
++    parlist(ls);
++    checknext(ls, ')');
++  }
+   statlist(ls);
+   new_fs.f->lastlinedefined = ls->linenumber;
+-  check_match(ls, TK_END, TK_FUNCTION, line);
++  check_match(ls, TK_END, deferred ? TK_DEFER : TK_FUNCTION, line);
+   codeclosure(ls, e);
+   close_func(ls);
+ }
+@@ -1297,7 +1299,7 @@
+     }
+     case TK_FUNCTION: {
+       luaX_next(ls);
+-      body(ls, v, 0, ls->linenumber);
++      body(ls, v, 0, ls->linenumber, 0);
+       return;
+     }
+     default: {
+@@ -1787,8 +1789,23 @@
+   int fvar = fs->nactvar;  /* function's variable index */
+   new_localvar(ls, str_checkname(ls));  /* new local variable */
+   adjustlocalvars(ls, 1);  /* enter its scope */
+-  body(ls, &b, 0, ls->linenumber);  /* function created in next register */
++  body(ls, &b, 0, ls->linenumber, 0);  /* function created in next register */
+   /* debug information will only see the variable after this point! */
++  localdebuginfo(fs, fvar)->startpc = fs->pc;
++}
++
++
++static void deferstat (LexState *ls) {
++  expdesc b;
++  FuncState *fs = ls->fs;
++  int fvar = fs->nactvar;
++  int line = ls->linenumber;
++  luaX_next(ls);  /* skip 'defer' */
++  new_localvarliteral(ls, "(deferred function)");
++  adjustlocalvars(ls, 1);
++  marktobeclosed(fs);
++  body(ls, &b, 0, line, 1);
++  luaK_codeABC(fs, OP_DEFER, b.u.info, 0, 0);
+   localdebuginfo(fs, fvar)->startpc = fs->pc;
+ }
+ 
+@@ -1955,7 +1972,7 @@
+   new_varkind(ls, fname, GDKREG);  /* declare global variable */
+   fs->nactvar++;  /* enter its scope */
+   buildglobal(ls, fname, &var);
+-  body(ls, &b, 0, ls->linenumber);  /* compile and return closure in 'b' */
++  body(ls, &b, 0, ls->linenumber, 0);  /* compile and return closure in 'b' */
+   checkglobal(ls, fname, line);
+   luaK_storevar(fs, &var, &b);
+   luaK_fixline(fs, line);  /* definition "happens" in the first line */
+@@ -1993,7 +2010,7 @@
+   luaX_next(ls);  /* skip FUNCTION */
+   ismethod = funcname(ls, &v);
+   check_readonly(ls, &v);
+-  body(ls, &b, ismethod, line);
++  body(ls, &b, ismethod, line, 0);
+   luaK_storevar(ls->fs, &v, &b);
+   luaK_fixline(ls->fs, line);  /* definition "happens" in the first line */
+ }
+@@ -2081,6 +2098,10 @@
+     }
+     case TK_FUNCTION: {  /* stat -> funcstat */
+       funcstat(ls, line);
++      break;
++    }
++    case TK_DEFER: {
++      deferstat(ls);
+       break;
+     }
+     case TK_LOCAL: {  /* stat -> localstat */
+diff --git a/lundump.h b/lundump.h
+--- a/lundump.h
++++ b/lundump.h
+@@ -26,7 +26,7 @@
+ */
+ #define LUAC_VERSION	(LUA_VERSION_MAJOR_N*16+LUA_VERSION_MINOR_N)
+ 
+-#define LUAC_FORMAT	0	/* this is the official format */
++#define LUAC_FORMAT	1	/* defer extension; incompatible opcode numbering */
+ 
+ 
+ /* load one chunk; from lundump.c */
+diff --git a/lvm.c b/lvm.c
+--- a/lvm.c
++++ b/lvm.c
+@@ -1643,10 +1643,15 @@
+         Protect(luaF_close(L, ra, LUA_OK, 1));
+         vmbreak;
+       }
++      vmcase(OP_DEFER) {
++        StkId ra = RA(i);
++        halfProtect(luaF_newtbcupval(L, ra, 1));
++        vmbreak;
++      }
+       vmcase(OP_TBC) {
+         StkId ra = RA(i);
+         /* create new to-be-closed upvalue */
+-        halfProtect(luaF_newtbcupval(L, ra));
++        halfProtect(luaF_newtbcupval(L, ra, 0));
+         vmbreak;
+       }
+       vmcase(OP_JMP) {
+@@ -1872,7 +1877,7 @@
+        setobjs2s(L, ra + 3, ra + 2);
+        setobj2s(L, ra + 2, &temp);
+         /* create to-be-closed upvalue (if closing var. is not nil) */
+-        halfProtect(luaF_newtbcupval(L, ra + 2));
++        halfProtect(luaF_newtbcupval(L, ra + 2, 0));
+         pc += GETARG_Bx(i);  /* go to end of the loop */
+         i = *(pc++);  /* fetch next instruction */
+         lua_assert(GET_OPCODE(i) == OP_TFORCALL && ra == RA(i));
+diff --git a/testes/all.lua b/testes/all.lua
+--- a/testes/all.lua
++++ b/testes/all.lua
+@@ -190,6 +190,7 @@
+ assert(dofile('events.lua') == 12)
+ dofile('vararg.lua')
+ dofile('closure.lua')
++dofile('defer.lua')
+ dofile('coroutine.lua')
+ dofile('goto.lua', true)
+ dofile('errors.lua')
+diff --git a/testes/calls.lua b/testes/calls.lua
+--- a/testes/calls.lua
++++ b/testes/calls.lua
+@@ -513,7 +513,7 @@
+   local header = {  -- header components
+     "\27Lua",               -- signature
+     0x55,                   -- version 5.5 (0x55)
+-    0,                      -- format
++    1,                      -- defer extension format
+     "\x19\x93\r\n\x1a\n",   -- a binary string
+     string.packsize("i"),   -- size of an int
+     -0x5678,                -- an int
+diff --git a/testes/defer.lua b/testes/defer.lua
+new file mode 100644
+--- /dev/null
++++ b/testes/defer.lua
+@@ -0,0 +1,162 @@
++-- Defer extension tests; run with the patched Lua 5.5.1 interpreter.
++local log = {}
++local function record(x) log[#log + 1] = x end
++local function expect(s)
++  assert(table.concat(log, ',') == s, table.concat(log, ','))
++  log = {}
++end
++local function resource(name)
++  return setmetatable({}, {__close = function() record(name) end})
++end
++
++-- Shared captures, LIFO order, native <close>, and return values.
++local function f()
++  local n = 1
++  defer record(n) end
++  local r <close> = resource('close')
++  defer record('last') end
++  n = 2
++  return 4, nil, 6
++end
++local a, b, c = f()
++assert(a == 4 and b == nil and c == 6)
++expect('last,close,2')
++
++-- Constants consume no registers; defer still needs its own stack slot.
++do
++  local k <const> = 42
++  defer record(k) end
++  local n = 7
++  defer record(n) end
++end
++expect('7,42')
++
++for i = 1, 3 do
++  defer record(i) end
++  if i == 2 then break end
++end
++expect('1,2')
++do
++  defer record('goto') end
++  goto outside
++end
++::outside::
++expect('goto')
++local i = 0
++repeat
++  i = i + 1
++  defer record(i) end
++until i == 2
++expect('1,2')
++
++local function tail() record('called'); return 1, 2 end
++local function caller()
++  defer record('deferred') end
++  return tail()
++end
++assert(select('#', caller()) == 2)
++expect('called,deferred')
++
++local original, replacement = {}, {}
++local ok, err = pcall(function()
++  defer record('outer') end
++  defer record('error'); error(replacement) end
++  defer record('inner') end
++  error(original)
++end)
++assert(not ok and err == replacement)
++expect('inner,error,outer')
++
++-- Deferred calls cannot yield, but an ordinary <close> method still can.
++local co = coroutine.create(function()
++  defer record('after') end
++  defer coroutine.yield('forbidden') end
++end)
++ok, err = coroutine.resume(co)
++assert(not ok and tostring(err):find('yield'))
++coroutine.close(co)
++expect('after')
++co = coroutine.create(function()
++  local r <close> = setmetatable({}, {__close = function()
++    coroutine.yield('native close')
++  end})
++end)
++ok, a = coroutine.resume(co)
++assert(ok and a == 'native close')
++assert(coroutine.resume(co))
++
++-- Explicit close of a suspended coroutine runs each defer exactly once.
++co = coroutine.create(function()
++  defer record('closed') end
++  coroutine.yield()
++end)
++assert(coroutine.resume(co)); expect('')
++assert(coroutine.close(co)); expect('closed')
++assert(coroutine.close(co)); expect('')
++
++-- Bug-1 scenario: error recovery after yield with stack growth in cleanup.
++co = coroutine.create(function()
++  local ok, err = pcall(function()
++    defer
++      local args = {}
++      for j = 1, 10000 do args[j] = j end
++      local function consume(...) return select('#', ...) end
++      assert(consume(table.unpack(args)) == 10000)
++      record('grown')
++    end
++    coroutine.yield('ready')
++    error(original)
++  end)
++  assert(not ok and err == original)
++  coroutine.yield('recovered')
++end)
++ok, a = coroutine.resume(co); assert(ok and a == 'ready')
++ok, a = coroutine.resume(co); assert(ok and a == 'recovered')
++assert(coroutine.resume(co)); expect('grown')
++
++-- Parsing in 5.5 global declarations and stripped bytecode round trips.
++local source = [[
++  global <const> *
++  local k <const> = 20
++  local n = 0
++  do
++    defer n = n + k end
++    defer n = n + 2 end
++  end
++  return n
++]]
++local chunk = assert(load(source))
++assert(chunk() == 22)
++assert(assert(load(string.dump(chunk, true)))() == 22)
++local dumped = string.dump(chunk, true)
++local stockformat = dumped:sub(1, 5) .. string.char(0) .. dumped:sub(7)
++local loaded, message = load(stockformat)
++assert(not loaded and message:find('format'))
++assert(not load('defer return ... end'))
++assert(not load('goto skip; defer end; ::skip:: return 1'))
++assert(not load('defer'))
++
++-- More than USHRT_MAX stack slots between close-list entries creates dummy nodes.
++do
++  local names = {}
++  for j = 1, 180 do names[j] = 'v' .. j end
++  local deep = assert(load('return function(record) ' ..
++    'local function visit(n) local ' .. table.concat(names, ',') .. '; ' ..
++    'if n > 0 then local r = visit(n-1); return r end; ' ..
++    'defer record("deep") end; return 17 end; ' ..
++    'defer record("root") end; return visit(400) end'))()
++  assert(deep(record) == 17)
++  expect('deep,root')
++end
++
++for _, mode in ipairs({'incremental', 'generational'}) do
++  collectgarbage(mode)
++  for j = 1, 100 do
++    local captured = {j}
++    do
++      defer assert(captured[1] == j) end
++      collectgarbage('collect')
++    end
++  end
++end
++print('defer tests OK')
+diff --git a/testes/defer_alloc.c b/testes/defer_alloc.c
+new file mode 100644
+--- /dev/null
++++ b/testes/defer_alloc.c
+@@ -0,0 +1,79 @@
++/* Defer allocation-failure regression. Link against the patched Lua library.
++** Example: cc -I. testes/defer_alloc.c liblua.a -lm -ldl -o defer_alloc
++*/
++#include <stdio.h>
++#include <stdlib.h>
++#include "lua.h"
++#include "lauxlib.h"
++#include "lualib.h"
++
++typedef struct AllocState {
++  int remaining;  /* -1 means no limit */
++  unsigned int seen;
++  int duplicate;
++} AllocState;
++
++static void *limited_alloc (void *ud, void *ptr, size_t old, size_t size) {
++  AllocState *a = (AllocState *)ud;
++  if (size == 0) {
++    free(ptr);
++    return NULL;
++  }
++  if ((ptr == NULL || size > old) && a->remaining >= 0) {
++    if (a->remaining == 0) return NULL;
++    a->remaining--;
++  }
++  return realloc(ptr, size);
++}
++
++static int record (lua_State *L) {
++  void *ud;
++  unsigned int bit = 1u << (unsigned int)luaL_checkinteger(L, 1);
++  AllocState *a;
++  lua_getallocf(L, &ud);
++  a = (AllocState *)ud;
++  if (a->seen & bit) a->duplicate = 1;
++  a->seen |= bit;
++  return 0;
++}
++
++int main (void) {
++  int budget, failures = 0, successes = 0;
++  const char *source =
++    "local x = {} "
++    "defer record(1) end "
++    "local y = {} "
++    "defer record(2); assert(x) end "
++    "local z = {} "
++    "defer record(3); assert(y) end "
++    "for i=1,100 do z[i] = {i} end";
++  for (budget = 0; budget < 300; budget++) {
++    AllocState a = {-1, 0, 0};
++    lua_State *L = lua_newstate(limited_alloc, &a, 0);
++    int status;
++    if (L == NULL) return 1;
++    luaL_openlibs(L);
++    lua_pushcfunction(L, record);
++    lua_setglobal(L, "record");
++    if (luaL_loadstring(L, source) != LUA_OK) return 2;
++    a.remaining = budget;
++    status = lua_pcall(L, 0, 0, 0);
++    a.remaining = -1;
++    if (status == LUA_OK) {
++      successes++;
++      if (a.seen != 14) return 3;
++    }
++    else if (status == LUA_ERRMEM)
++      failures++;
++    else {
++      fprintf(stderr, "unexpected error: %s\n", lua_tostring(L, -1));
++      return 4;
++    }
++    lua_close(L);
++    if (a.duplicate) return 5;
++  }
++  if (failures == 0 || successes == 0) return 6;
++  printf("defer allocation tests OK (%d failures, %d successes)\n",
++         failures, successes);
++  return 0;
++}
