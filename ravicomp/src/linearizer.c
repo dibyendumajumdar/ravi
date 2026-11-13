@@ -1808,14 +1808,13 @@ static bool symbol_can_change(const Pseudo *pseudo)
 
 /*
  * Can evaluating the expression execute arbitrary code, i.e. call a function or a metamethod?
- * The answer is conservative: only literals, closure creation, and references to locals and upvalues
- * are known not to. Note that referencing a global can invoke the __index metamethod.
+ * The answer is conservative: only literals and references to locals and upvalues are known not to.
+ * Referencing a global can invoke __index; closure creation can run GC finalizers.
  */
 static bool expr_may_run_code(const AstNode *expr)
 {
 	switch (expr->type) {
 	case EXPR_LITERAL:
-	case EXPR_FUNCTION:
 		return false;
 	case EXPR_SYMBOL: {
 		const LuaSymbol *sym = expr->symbol_expr.var;

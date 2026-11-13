@@ -203,4 +203,35 @@ local function last_is_symbol()
 end
 check({last_is_symbol()}, {10, 2})
 
+-- Closure creation can run a pending finalizer during its GC check. Capture
+-- the earlier operand even though the later expression has no explicit call.
+do
+    local was_running = collectgarbage('isrunning')
+    local old_pause = collectgarbage('setpause', 200)
+    local old_stepmul = collectgarbage('setstepmul', 200)
+    local a = 1
+    local function f() return a, function() end end
+    local function make()
+        setmetatable({}, { __gc = function() a = 2 end })
+    end
+
+    collectgarbage('collect')
+    collectgarbage('stop')
+    -- Use a separate frame so the unreachable table is not retained in a
+    -- temporary slot in this frame when f() performs its GC check.
+    make()
+    collectgarbage('setpause', 0)
+    collectgarbage('setstepmul', 100000)
+    collectgarbage('restart')
+    local x = f()
+    collectgarbage('stop')
+    local final_a = a
+    collectgarbage('setpause', old_pause)
+    collectgarbage('setstepmul', old_stepmul)
+    if was_running then collectgarbage('restart') end
+
+    assert(final_a == 2, 'closure GC check did not run the finalizer')
+    assert(x == 1, 'earlier return operand changed during closure creation')
+end
+
 print '80 Ok'

@@ -685,11 +685,13 @@ Two predicates, both static:
   an upvalue, or a local with `variable.escaped` set. The flag is final once
   parsing is complete, so closures that appear later in the source than the
   expression are accounted for.
-- `expr_may_run_code(ast)`: conservative. False only for literals, function
-  (closure) expressions, and symbol expressions that refer to a local or an
+- `expr_may_run_code(ast)`: conservative. False only for literals
+  and symbol expressions that refer to a local or an
   upvalue. True for everything else, including global references (a lookup
   in `_ENV` can invoke `__index`), indexing, calls, and operators, since
-  untyped operators can invoke metamethods.
+  untyped operators can invoke metamethods. Closure creation is also treated
+  as potentially running code: its GC check can invoke a pending `__gc`
+  finalizer that changes an earlier operand.
 
 Generalise the existing `copy_to_temp_if_necessary` (currently used only by
 `linearize_assignment`, where it copies every symbol) into a helper that
@@ -725,7 +727,7 @@ Bug-8; and `and` / `or` with call operands, which currently fail to compile
 
 Cost: one extra move per affected operand, only when the operand is an
 upvalue or a captured local and a later operand in the same list is not a
-literal, closure or local/upvalue reference. `return c, b, a`, `f(a, b)` and
+literal or local/upvalue reference. `return c, b, a`, `f(a, b)` and
 `return x, y` with plain locals generate the same IR as today.
 
 Tests: add `tests/comptests/inputs/80_operand_capture.lua`, registered in
@@ -736,6 +738,9 @@ Tests: add `tests/comptests/inputs/80_operand_capture.lua`, registered in
 - several earlier operands (`f(a, change(), a, change(), a)`);
 - parameters and typed `integer` / `number` escaped locals;
 - mutation through `__index` and `__add` metamethods instead of a direct call;
+- mutation through a pending `__gc` finalizer during closure creation:
+  `return a, function() end` must preserve the earlier value of `a`. The test
+  checks that the finalizer actually ran and restores the GC settings;
 - upvalue operands of `+`, `-`, `&`, `==` and `<`;
 - controls that must not change: non-escaping locals, and escaped locals in
   binary operators (`a + change()` stays `12`).
