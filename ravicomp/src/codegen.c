@@ -1347,6 +1347,36 @@ static int emit_op_mov(Function *fn, Instruction *insn)
 	return emit_move(fn, get_operand(insn, 0), get_target(insn, 0));
 }
 
+/*
+ * Is the pseudo held in a register of the current Lua stack frame? If so returns true and sets *reg
+ * to the register (relative to base).
+ */
+static bool is_stack_resident(Function *fn, const Pseudo *pseudo, unsigned *reg)
+{
+	if (pseudo->type == PSEUDO_TEMP_ANY || pseudo->type == PSEUDO_RANGE_SELECT ||
+	    (pseudo->type == PSEUDO_SYMBOL && pseudo->symbol->symbol_type == SYM_LOCAL)) {
+		*reg = compute_register_from_base(fn, pseudo);
+		return true;
+	}
+	return false;
+}
+
+/*
+ * Return values are copied to S(0), S(1), ... where S(k) is the same stack slot as R(k-1).
+ * Therefore writing the result at position k destroys register k-1. A return operand at
+ * position idx held in register reg is overwritten before it is read if reg <= idx-2; such
+ * operands must be saved before any result is written.
+ * When the trailing range of results has to be moved up the stack (range_moves_up) we do not know
+ * statically how far the moved range extends, so all stack resident operands are saved.
+ */
+static bool ret_operand_needs_save(Function *fn, const Pseudo *pseudo, int idx, bool range_moves_up)
+{
+	unsigned reg;
+	if (!is_stack_resident(fn, pseudo, &reg))
+		return false;
+	return range_moves_up || (int)reg <= idx - 2;
+}
+
 static int emit_op_ret(Function *fn, Instruction *insn)
 {
 	// TODO Only call luaF_close if needed (i.e. some variable escaped)
@@ -1369,10 +1399,14 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 	raviX_buffer_add_string(&fn->body, " int wanted = ci->nresults;\n");
 	raviX_buffer_add_string(&fn->body, " result = wanted == -1 ? 0 : 1;\n"); /* see OP_RETURN impl in JIT */
 	int n = get_num_operands(insn);
+	/* If the last operand is a range that starts below its final position then the range must be moved up */
+	bool range_moves_up = false;
 	if (n > 0) {
 		Pseudo *last_operand = get_operand(insn, n - 1);
 		/* the last operand might be a range pseudo */
 		if (last_operand->type == PSEUDO_RANGE) {
+			/* Range values go to S(n-1) onwards, i.e. R(n-2) onwards */
+			range_moves_up = (int)compute_register_from_base(fn, last_operand) < n - 2;
 			raviX_buffer_add_string(&fn->body, " int available = 0;\n");
 			raviX_buffer_add_string(&fn->body, " {\n");
 			raviX_buffer_add_string(&fn->body, "  TValue *start_vararg = ");
@@ -1392,16 +1426,62 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 
 	Pseudo *pseudo;
 	int i = 0;
+	/* Save operands that would otherwise be overwritten before being read, see ret_operand_needs_save() */
+	FOR_EACH_PTR(insn->operands, Pseudo, pseudo)
+	{
+		if (pseudo->type != PSEUDO_RANGE && ret_operand_needs_save(fn, pseudo, i, range_moves_up)) {
+			raviX_buffer_add_fstring(&fn->body, " TValue ret_save_%d;\n {\n  const TValue *src_reg = ", i);
+			emit_reg_accessor(fn, pseudo, 0);
+			raviX_buffer_add_fstring(&fn->body,
+						 ";\n  ret_save_%d.tt_ = src_reg->tt_;\n  ret_save_%d.value_.gc = "
+						 "src_reg->value_.gc;\n }\n",
+						 i, i);
+		}
+		i++;
+	}
+	END_FOR_EACH_PTR(pseudo)
+	if (range_moves_up) {
+		/* Move the range up to its final position, starting from the last value as the
+		 * destination overlaps the source. The move may go beyond L->top so ensure there is space. */
+		Pseudo *range = get_operand(insn, n - 1);
+		int range_reg = (int)compute_register_from_base(fn, range);
+		int delta = (n - 2) - range_reg;
+		raviX_buffer_add_fstring(&fn->body,
+					 " if (stackoverflow(L,%d)) { luaD_growstack(L, %d); base = ci->u.l.base; "
+					 "stackbase = ci->func; }\n",
+					 delta, delta);
+		raviX_buffer_add_fstring(&fn->body, " {\n  int nrange = available - %d;\n", n - 1);
+		raviX_buffer_add_string(&fn->body, "  while (nrange > 0) {\n");
+		raviX_buffer_add_string(&fn->body, "   nrange--;\n");
+		raviX_buffer_add_fstring(&fn->body, "   TValue *src_reg = R(%d) + nrange;\n", range_reg);
+		raviX_buffer_add_fstring(&fn->body, "   TValue *dest_reg = S(%d) + nrange;\n", n - 1);
+		raviX_buffer_add_string(
+		    &fn->body, "   dest_reg->tt_ = src_reg->tt_; dest_reg->value_.gc = src_reg->value_.gc;\n");
+		raviX_buffer_add_string(&fn->body, "  }\n }\n");
+	}
+	i = 0;
 	raviX_buffer_add_string(&fn->body, " int j = 0;\n");
 	FOR_EACH_PTR(insn->operands, Pseudo, pseudo)
 	{
 		if (pseudo->type != PSEUDO_RANGE) {
 			Pseudo dummy_dest = {.type = PSEUDO_LUASTACK, .stackidx = i}; /* will go to stackbase[i] */
 			raviX_buffer_add_fstring(&fn->body, " if (%d < available) {\n", i);
-			emit_move(fn, pseudo, &dummy_dest);
+			if (ret_operand_needs_save(fn, pseudo, i, range_moves_up)) {
+				raviX_buffer_add_string(&fn->body, "{\n TValue *dst_reg = ");
+				emit_reg_accessor(fn, &dummy_dest, 0);
+				raviX_buffer_add_fstring(&fn->body,
+							 ";\n dst_reg->tt_ = ret_save_%d.tt_;\n dst_reg->value_.gc = "
+							 "ret_save_%d.value_.gc;\n}\n",
+							 i, i);
+			} else {
+				emit_move(fn, pseudo, &dummy_dest);
+			}
 			raviX_buffer_add_string(&fn->body, " }\n");
 			raviX_buffer_add_fstring(&fn->body, " j++;\n");
 			i++;
+		} else if (range_moves_up) {
+			/* range was already moved to its final position above */
+			raviX_buffer_add_string(&fn->body, " j = available;\n");
 		} else {
 			/* copy values starting at the range to L->top */
 			raviX_buffer_add_fstring(&fn->body, " {\n int reg = %d;\n",
