@@ -608,6 +608,137 @@ correctly preserves `1` in `x`. That is a useful precedent, but the scope and
 lifetime rules for a fix to return lists and call arguments still need design
 and tests. No broader claim about all expression contexts is made here.
 
+#### Follow-up investigation (2026-11-13, Linux Release, includes the Bug-1 fix)
+
+Both reproducers above still fail on a binary built from commit `9eef90b`
+(`return a, change()` gives `2 10`; `table.pack(a, change())` gives `2`), so
+the Bug-1 fix does not mask or change this bug.
+
+Which operands are affected. A symbol operand can only change while a later
+operand is evaluated if other code can write to it, so the affected operands
+are exactly:
+
+- local symbols that are captured by a closure (`symbol->variable.escaped`),
+  including parameters and typed `integer` / `number` locals, which are kept
+  on the Lua stack once they escape;
+- upvalue symbols, which `linearize_symbol_expression` returns as a symbol
+  pseudo that is read only when the consuming instruction executes.
+
+Locals that are not captured cannot be affected. Globals are not affected:
+they are loaded into a temp at the point of evaluation.
+
+How the value changes. Any later operand that can run arbitrary code will do,
+not only an explicit call to a closure. Metamethods were confirmed:
+
+```lua
+local a = 1
+local mt = setmetatable({}, {__index = function(t, k) a = a + 1 return 10 end})
+local t = table.pack(a, mt.x)
+return t[1]
+-- interpreter: 1        compiled: 2     (same with __add and `o + 1`)
+```
+
+Contexts, compared with the interpreter (`a` is an escaped local or an upvalue
+as stated; `change()` increments `a`):
+
+| Context | Example | Escaped local | Upvalue |
+|---|---|---|---|
+| Return list | `return a, change()` | wrong | wrong |
+| Call arguments | `f(a, change(), a)` | wrong | wrong |
+| Concatenation | `a .. change()` | wrong | wrong |
+| Arithmetic / bitwise | `a + change()` | same (see note) | wrong |
+| Equality | `a == change() - 9` | same (see note) | wrong |
+| Table constructor | `{a, change()}`, `{x = a, y = change()}` | same | same |
+| `local x, y = a, change()` and `x, y = a, change()` | | same | same |
+| Callee / method receiver | `f(change())`, `o:m(change())` | same | same |
+| Index store target key | `r[a] = change()` | same (see note) | wrong |
+
+Note on "same" for escaped locals in binary operators and store targets: the
+interpreter also reads a local operand from its register after the right-hand
+operand has been evaluated (`a + change()` is `12` in both), so the compiler
+agrees with it. Upvalues differ because the bytecode compiler always copies an
+upvalue into a register (`GETUPVAL`) at the point of evaluation, whereas the
+new compiler defers the read. The Lua manual does not define operand
+evaluation order for binary operators, so the upvalue rows for arithmetic and
+equality are divergences from the interpreter rather than violations of the
+manual. The store-target row is the upvalue form of Bug-8 and is left to
+that bug.
+
+Multiple call arguments show that every earlier operand is affected, not just
+the first: `table.pack(a, change(), a, change(), a)` gives `1 2 3` in the
+interpreter and `3 3 3` compiled.
+
+#### Proposed fix (design, not implemented)
+
+Fix in the linearizer only; the code generator is unchanged. Capture the value
+of an affected operand in a temp at its evaluation point, but only where a
+later operand can change it, so the common cases keep their current IR.
+
+Two predicates, both static:
+
+- `symbol_can_change(pseudo)`: the pseudo is `PSEUDO_SYMBOL` and the symbol is
+  an upvalue, or a local with `variable.escaped` set. The flag is final once
+  parsing is complete, so closures that appear later in the source than the
+  expression are accounted for.
+- `expr_may_run_code(ast)`: conservative. False only for literals, function
+  (closure) expressions, and symbol expressions that refer to a local or an
+  upvalue. True for everything else, including global references (a lookup
+  in `_ENV` can invoke `__index`), indexing, calls, and operators, since
+  untyped operators can invoke metamethods.
+
+Generalise the existing `copy_to_temp_if_necessary` (currently used only by
+`linearize_assignment`, where it copies every symbol) into a helper that
+copies when `symbol_can_change(pseudo)` and a flag says a later expression may
+run code. The temp gets the symbol's type via `get_type()`, so typed locals and
+upvalues are captured into C `integer` / `number` temps without touching the
+Lua stack. `linearize_assignment` keeps its current unconditional behaviour.
+
+Apply it in the three list contexts. In each, first find the index of the last
+expression for which `expr_may_run_code` is true; operands before that index
+are candidates, the rest are passed through as today:
+
+1. `linearize_expr_list` (return lists).
+2. The argument loop in `linearize_function_call_expression`.
+3. `linearize_concat_expression`.
+
+The copies are ordinary temps added as instruction operands, so the existing
+`free_instruction_operand_pseudos` / `free_temp_pseudo` calls in those three
+functions release them; no new lifetime rule is needed. Because they are
+allocated in evaluation order they sit in ascending registers, which is the
+case the Bug-1 return code already handles without saves.
+
+Open decision — upvalue operands of binary operators. To match the
+interpreter in the "wrong" upvalue rows for arithmetic, bitwise and comparison
+operators, `linearize_binary_operator` would capture `operand1` when it is an
+upvalue symbol and `expr_may_run_code(e2)` is true. Escaped locals would not
+be captured there, since the interpreter reads them late too. This is not
+required by the Lua manual; it is included in the proposal for parity with the
+interpreter, and can be dropped without affecting the rest of the fix.
+
+Not covered by this fix: store targets (`r[a] = change()`), which belong to
+Bug-8; and `and` / `or` with call operands, which currently fail to compile
+(Bug-11).
+
+Cost: one extra move per affected operand, only when the operand is an
+upvalue or a captured local and a later operand in the same list is not a
+literal, closure or local/upvalue reference. `return c, b, a`, `f(a, b)` and
+`return x, y` with plain locals generate the same IR as today.
+
+Tests: add `tests/comptests/inputs/80_operand_capture.lua`, registered in
+`tests/comptests/test.lua`, asserting exact values for:
+
+- return list, call arguments and concatenation, each with an escaped local
+  and with an upvalue as the earlier operand;
+- several earlier operands (`f(a, change(), a, change(), a)`);
+- parameters and typed `integer` / `number` escaped locals;
+- mutation through `__index` and `__add` metamethods instead of a direct call;
+- upvalue operands of `+`, `-`, `&` and `==` (if the open decision is taken);
+- controls that must not change: non-escaping locals, and escaped locals in
+  binary operators (`a + change()` stays `12`).
+
+Check with `--dump-ir` that a list with no code-running later operand
+(`return c, b, a` with escaped locals) gains no moves.
+
 ## Limitations not listed in `ravi-compiler.rst`
 
 ### Lim-1 — Recursion depth limited to about 190; no tail calls
