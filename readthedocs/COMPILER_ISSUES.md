@@ -108,7 +108,17 @@ source when `r < j - 1`.
 Returning two values, or values already in ascending register order
 (`return a, b, c`), happens to work, which is why the existing tests pass.
 
-#### Proposed fix (design, not implemented)
+#### Fix
+
+Status: implemented in `emit_op_ret` (`ravicomp/src/codegen.c`) with tests in
+`tests/comptests/inputs/79_return_overlap.lua`; awaiting review. The design
+follows.
+
+Implementation note: the upward range copy recomputes both pointers from the
+remaining count on each iteration. A first version that pre-decremented two
+pointers inside `while (nrange-- > 0)` returned `1 2 3 4 8 8` for
+`return 1, 2, 3, 4, g()` under the MIR C compiler, although the C is valid.
+The cause was not investigated; it may be a separate MIR/c2mir problem.
 
 Fix in the code generator only: `emit_op_ret` in `ravicomp/src/codegen.c`.
 The IR and the linearizer are unchanged; `RET` keeps accepting arbitrary
