@@ -668,7 +668,12 @@ Multiple call arguments show that every earlier operand is affected, not just
 the first: `table.pack(a, change(), a, change(), a)` gives `1 2 3` in the
 interpreter and `3 3 3` compiled.
 
-#### Proposed fix (design, not implemented)
+#### Fix
+
+Status: implemented in `ravicomp/src/linearizer.c` with tests in
+`tests/comptests/inputs/80_operand_capture.lua`; awaiting review. Upvalue
+operands of binary operators are included (decision taken 2026-11-13). The
+design follows.
 
 Fix in the linearizer only; the code generator is unchanged. Capture the value
 of an affected operand in a temp at its evaluation point, but only where a
@@ -707,13 +712,12 @@ functions release them; no new lifetime rule is needed. Because they are
 allocated in evaluation order they sit in ascending registers, which is the
 case the Bug-1 return code already handles without saves.
 
-Open decision — upvalue operands of binary operators. To match the
-interpreter in the "wrong" upvalue rows for arithmetic, bitwise and comparison
-operators, `linearize_binary_operator` would capture `operand1` when it is an
-upvalue symbol and `expr_may_run_code(e2)` is true. Escaped locals would not
-be captured there, since the interpreter reads them late too. This is not
-required by the Lua manual; it is included in the proposal for parity with the
-interpreter, and can be dropped without affecting the rest of the fix.
+Upvalue operands of binary operators. To match the interpreter in the
+"wrong" upvalue rows for arithmetic, bitwise and comparison operators, the
+binary operator linearization captures `operand1` when it is an upvalue symbol
+and `expr_may_run_code(e2)` is true. Escaped locals are not captured there,
+since the interpreter reads them late too. This is not required by the Lua
+manual; it is done for parity with the interpreter.
 
 Not covered by this fix: store targets (`r[a] = change()`), which belong to
 Bug-8; and `and` / `or` with call operands, which currently fail to compile
@@ -732,12 +736,18 @@ Tests: add `tests/comptests/inputs/80_operand_capture.lua`, registered in
 - several earlier operands (`f(a, change(), a, change(), a)`);
 - parameters and typed `integer` / `number` escaped locals;
 - mutation through `__index` and `__add` metamethods instead of a direct call;
-- upvalue operands of `+`, `-`, `&` and `==` (if the open decision is taken);
+- upvalue operands of `+`, `-`, `&`, `==` and `<`;
 - controls that must not change: non-escaping locals, and escaped locals in
   binary operators (`a + change()` stays `12`).
 
-Check with `--dump-ir` that a list with no code-running later operand
-(`return c, b, a` with escaped locals) gains no moves.
+Checked with `--dump-ir`: `return c, b, a` with escaped locals and
+`print(a, b)` gain no moves; `return a, change()` gains the single
+`MOV {local(a, 0)} {T(0)}` before the call.
+
+As implemented, the helper is `capture_value_if_necessary`, which calls the
+existing `copy_to_temp_if_necessary` when `symbol_can_change` holds and a
+later expression may run code; `copy_to_temp_if_necessary` itself and its use
+in `linearize_assignment` are unchanged.
 
 ## Limitations not listed in `ravi-compiler.rst`
 
