@@ -1351,9 +1351,10 @@ static int emit_op_mov(Function *fn, Instruction *insn)
  * Is the pseudo held in a register of the current Lua stack frame? If so returns true and sets *reg
  * to the register (relative to base).
  */
-static bool is_stack_resident(Function *fn, const Pseudo *pseudo, unsigned *reg)
+static bool get_lua_stackframe_register(Function *fn, const Pseudo *pseudo, unsigned *reg)
 {
-	if (pseudo->type == PSEUDO_TEMP_ANY || pseudo->type == PSEUDO_RANGE_SELECT ||
+	if (pseudo->type == PSEUDO_TEMP_ANY ||
+	    pseudo->type == PSEUDO_RANGE_SELECT ||
 	    (pseudo->type == PSEUDO_SYMBOL && pseudo->symbol->symbol_type == SYM_LOCAL)) {
 		*reg = compute_register_from_base(fn, pseudo);
 		return true;
@@ -1366,17 +1367,59 @@ static bool is_stack_resident(Function *fn, const Pseudo *pseudo, unsigned *reg)
  * Therefore writing the result at position k destroys register k-1. A return operand at
  * position idx held in register reg is overwritten before it is read if reg <= idx-2; such
  * operands must be saved before any result is written.
- * When the trailing range of results has to be moved up the stack (range_moves_up) we do not know
+ * When the trailing range of results has to be moved up the stack (trailing_results_moving_up) we do not know
  * statically how far the moved range extends, so all stack resident operands are saved.
  */
-static bool ret_operand_needs_save(Function *fn, const Pseudo *pseudo, int idx, bool range_moves_up)
+static bool result_needs_saving(Function *fn, const Pseudo *pseudo, int idx, bool trailing_results_moving_up)
 {
-	unsigned reg;
-	if (!is_stack_resident(fn, pseudo, &reg))
+	unsigned regnum;
+	if (!get_lua_stackframe_register(fn, pseudo, &regnum))
 		return false;
-	return range_moves_up || (int)reg <= idx - 2;
+	return trailing_results_moving_up || (int)regnum <= idx - 2;
 }
 
+/*
+ * The return op needs to ensure that the return values are copied to
+ * Lua stack in a consecutive manner. Since the return value space can coincide
+ * with stack space used by local vars, or previously returned function
+ * values, we need to potentially copy the existing values in those to
+ * temp locations.
+ *
+ * S(n) = ci->func + n identifies the result destinations; R(n) = base + n
+ * identifies registers in the function. Generated functions currently do not
+ * support varargs, so base == ci->func + 1 and R(n) == S(n+1).
+ *
+ * Example: g() returns "X", "Y", and f is:
+ *
+ *   local function f(a)
+ *     return 0, 0, 0, 0, a, g()
+ *   end
+ *
+ * For f("A"), after g() returns:
+ *
+ *   S(0)       S(1)       S(2)         S(3)       S(4)
+ *   function   "A"        captured "A" "X"        "Y"
+ *              R(0)       R(1)         R(2)       R(3)
+ *
+ * The linearizer captures a into R(1) before evaluating g(); the call's
+ * trailing results then occupy R(2) onwards.
+ *
+ * The required results are:
+ *
+ *   S(0)       S(1)       S(2)       S(3)       S(4)       S(5)       S(6)
+ *   0          0          0          0          "A"        "X"        "Y"
+ *
+ * Two hazards must be handled:
+ * - Writing the third result to S(2) overwrites the captured a in R(1),
+ *   before the fifth result reads it. Save R(1) first.
+ * - The trailing range starts at S(3), but belongs at S(5).
+ *   Move it upward, copying backward so longer, overlapping ranges are safe too.
+ *
+ * Safe order:
+ *   save R(1);
+ *   copy S(4) to S(6), then S(3) to S(5);
+ *   write 0, 0, 0, 0, saved a to S(0)..S(4).
+ */
 static int emit_op_ret(Function *fn, Instruction *insn)
 {
 	// TODO Only call luaF_close if needed (i.e. some variable escaped)
@@ -1400,13 +1443,13 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 	raviX_buffer_add_string(&fn->body, " result = wanted == -1 ? 0 : 1;\n"); /* see OP_RETURN impl in JIT */
 	int n = get_num_operands(insn);
 	/* If the last operand is a range that starts below its final position then the range must be moved up */
-	bool range_moves_up = false;
+	bool trailing_results_moving_up = false;
 	if (n > 0) {
 		Pseudo *last_operand = get_operand(insn, n - 1);
 		/* the last operand might be a range pseudo */
 		if (last_operand->type == PSEUDO_RANGE) {
 			/* Range values go to S(n-1) onwards, i.e. R(n-2) onwards */
-			range_moves_up = (int)compute_register_from_base(fn, last_operand) < n - 2;
+			trailing_results_moving_up = (int)compute_register_from_base(fn, last_operand) < n - 2;
 			raviX_buffer_add_string(&fn->body, " int available = 0;\n");
 			raviX_buffer_add_string(&fn->body, " {\n");
 			raviX_buffer_add_string(&fn->body, "  TValue *start_vararg = ");
@@ -1426,10 +1469,10 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 
 	Pseudo *pseudo;
 	int i = 0;
-	/* Save operands that would otherwise be overwritten before being read, see ret_operand_needs_save() */
+	/* Save operands that would otherwise be overwritten before being read, see result_needs_saving() */
 	FOR_EACH_PTR(insn->operands, Pseudo, pseudo)
 	{
-		if (pseudo->type != PSEUDO_RANGE && ret_operand_needs_save(fn, pseudo, i, range_moves_up)) {
+		if (pseudo->type != PSEUDO_RANGE && result_needs_saving(fn, pseudo, i, trailing_results_moving_up)) {
 			raviX_buffer_add_fstring(&fn->body, " TValue ret_save_%d;\n {\n  const TValue *src_reg = ", i);
 			emit_reg_accessor(fn, pseudo, 0);
 			raviX_buffer_add_fstring(&fn->body,
@@ -1440,7 +1483,7 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 		i++;
 	}
 	END_FOR_EACH_PTR(pseudo)
-	if (range_moves_up) {
+	if (trailing_results_moving_up) {
 		/* Move the range up to its final position, starting from the last value as the
 		 * destination overlaps the source. The move may go beyond L->top so ensure there is space. */
 		Pseudo *range = get_operand(insn, n - 1);
@@ -1466,7 +1509,7 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 		if (pseudo->type != PSEUDO_RANGE) {
 			Pseudo dummy_dest = {.type = PSEUDO_LUASTACK, .stackidx = i}; /* will go to stackbase[i] */
 			raviX_buffer_add_fstring(&fn->body, " if (%d < available) {\n", i);
-			if (ret_operand_needs_save(fn, pseudo, i, range_moves_up)) {
+			if (result_needs_saving(fn, pseudo, i, trailing_results_moving_up)) {
 				raviX_buffer_add_string(&fn->body, "{\n TValue *dst_reg = ");
 				emit_reg_accessor(fn, &dummy_dest, 0);
 				raviX_buffer_add_fstring(&fn->body,
@@ -1479,7 +1522,7 @@ static int emit_op_ret(Function *fn, Instruction *insn)
 			raviX_buffer_add_string(&fn->body, " }\n");
 			raviX_buffer_add_fstring(&fn->body, " j++;\n");
 			i++;
-		} else if (range_moves_up) {
+		} else if (trailing_results_moving_up) {
 			/* range was already moved to its final position above */
 			raviX_buffer_add_string(&fn->body, " j = available;\n");
 		} else {
