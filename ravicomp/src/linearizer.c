@@ -67,9 +67,7 @@ static void linearize_function(LinearizerState *linearizer);
 static Instruction *allocate_instruction(Proc *proc, enum opcode op, unsigned line_number);
 static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local);
 static Pseudo *indexed_load(Proc *proc, Pseudo *index_pseudo);
-static bool expr_may_run_code(const AstNode *expr);
-static int last_expr_that_may_run_code(AstNodeList *expr_list);
-static Pseudo *capture_value_if_necessary(Proc *proc, Pseudo *pseudo, bool later_may_run_code, unsigned line_number);
+static Pseudo *copy_to_temp_if_necessary(Proc *proc, Pseudo *original, unsigned line_number);
 static void indexed_store(Proc *proc, Pseudo *index_pseudo, Pseudo *value_pseudo,
 			  ravitype_t value_type);
 
@@ -1040,11 +1038,10 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 		// i.e. after the second operand has been evaluated.
 		operand1 = indexed_load(proc, operand1);
 	}
-	else if (operand1->type == PSEUDO_SYMBOL && operand1->symbol->symbol_type == SYM_UPVALUE) {
-		// The value of an upvalue is taken when it is evaluated, so we must preserve it if
-		// the second operand can change it. Note that a local is deliberately not treated the same way
-		// as that is consistent with what Lua does when a local variable is an operand
-		operand1 = capture_value_if_necessary(proc, operand1, expr_may_run_code(e2), node->line_number);
+	else if (operand1->type == PSEUDO_SYMBOL &&
+		 operand1->symbol->symbol_type == SYM_UPVALUE) {
+		operand1 = copy_to_temp_if_necessary(
+		    proc, operand1, node->line_number);
 	}
 	Pseudo *operand2 = linearize_expression(proc, e2);
 
@@ -1203,11 +1200,10 @@ static Pseudo *linearize_concat_expression(Proc *proc, AstNode *expr)
 	Pseudo **tofreelist = (Pseudo **)alloca( N* sizeof(Pseudo *));
 	Pseudo **operands = (Pseudo **)alloca( N * sizeof(Pseudo *));
 	int i = 0;
-	int last_code = last_expr_that_may_run_code(expr->string_concatenation_expr.expr_list);
 	FOR_EACH_PTR(expr->string_concatenation_expr.expr_list, AstNode, n) {
 		Pseudo *operand = linearize_expression(proc, n);
 		// Preserve value if a later operand can change it
-		operand = capture_value_if_necessary(proc, operand, i < last_code, n->line_number);
+		operand = copy_to_temp_if_necessary(proc, operand, n->line_number);
 		Pseudo *tofree =  add_instruction_operand(proc, insn, operand);
 		tofreelist[i] = tofree;
 		operands[i] = operand;
@@ -1575,7 +1571,6 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 	int argc = raviX_ptrlist_size((const PtrList *)expr->function_call_expr.arg_list);
 	Pseudo **tofreelist = (Pseudo **) alloca(argc * sizeof(Pseudo *));
 	int argi = 0;
-	int last_code = last_expr_that_may_run_code(expr->function_call_expr.arg_list);
 	FOR_EACH_PTR(expr->function_call_expr.arg_list, AstNode, arg)
 	{
 		argc -= 1;
@@ -1585,7 +1580,7 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 			convert_range_to_temp(arg_pseudo);
 		}
 		// Preserve value if a later argument can change it
-		arg_pseudo = capture_value_if_necessary(proc, arg_pseudo, argi < last_code, arg->line_number);
+		arg_pseudo = copy_to_temp_if_necessary(proc, arg_pseudo, arg->line_number);
 		tofreelist[argi++] = add_instruction_operand(proc, insn, arg_pseudo);
 	}
 	END_FOR_EACH_PTR(arg)
@@ -1794,76 +1789,6 @@ static Pseudo *copy_to_temp_if_necessary(Proc *proc, Pseudo *original, unsigned 
 		return copy;
 	}
 	return original;
-}
-
-/*
- * Can the value of the symbol referenced by the pseudo be changed by code that is executed
- * while another expression is being evaluated? This is only possible if the symbol is an upvalue,
- * or it is a local that is referenced as an upvalue by some closure.
- */
-static bool symbol_can_change(const Pseudo *pseudo)
-{
-	if (pseudo->type != PSEUDO_SYMBOL)
-		return false;
-	const LuaSymbol *sym = pseudo->symbol;
-	if (sym->symbol_type == SYM_UPVALUE)
-		return true;
-	if (sym->symbol_type == SYM_LOCAL)
-		return sym->variable.escaped;
-	return false;
-}
-
-/*
- * Can evaluating the expression execute arbitrary code, i.e. call a function or a metamethod?
- * The answer is conservative: only literals and references to locals and upvalues are known not to.
- * Referencing a global can invoke __index; closure creation can run GC finalizers.
- */
-static bool expr_may_run_code(const AstNode *expr)
-{
-	switch (expr->type) {
-	case EXPR_LITERAL:
-		return false;
-	case EXPR_SYMBOL: {
-		const LuaSymbol *sym = expr->symbol_expr.var;
-		return !(sym->symbol_type == SYM_LOCAL || sym->symbol_type == SYM_UPVALUE);
-	}
-	default:
-		return true;
-	}
-}
-
-/*
- * Returns the position (0 based) of the last expression in the list that may execute
- * arbitrary code, or -1 if there is none.
- */
-static int last_expr_that_may_run_code(AstNodeList *expr_list)
-{
-	int last = -1;
-	int i = 0;
-	AstNode *expr;
-	FOR_EACH_PTR(expr_list, AstNode, expr)
-	{
-		if (expr_may_run_code(expr))
-			last = i;
-		i++;
-	}
-	END_FOR_EACH_PTR(expr)
-	return last;
-}
-
-/*
- * When expressions are evaluated one after another and the results are consumed later on by an
- * instruction, a result that refers to a local or upvalue symbol is read only when the
- * instruction executes. If an expression evaluated in between can execute code that changes
- * the symbol's value then the instruction would see the changed value. To prevent this we capture
- * the value in a temp at the point of evaluation.
- * later_may_run_code tells us whether an expression that is yet to be evaluated can execute code.
- */
-static Pseudo *capture_value_if_necessary(Proc *proc, Pseudo *pseudo, bool later_may_run_code, unsigned line_number)
-{
-	if (later_may_run_code && symbol_can_change(pseudo))
-		return copy_to_temp_if_necessary(proc, pseudo, line_number);
-	return pseudo;
 }
 
 static void linearize_init(Proc *proc, Pseudo *pseudo, unsigned line_number)
@@ -2122,7 +2047,6 @@ static void linearize_expr_list(Proc *proc, AstNodeList *expr_list, Instruction 
 {
 	AstNode *expr;
 	int ne = raviX_ptrlist_size((const PtrList *)expr_list);
-	int last_code = last_expr_that_may_run_code(expr_list);
 	int i = 0;
 	FOR_EACH_PTR(expr_list, AstNode, expr)
 	{
@@ -2134,8 +2058,9 @@ static void linearize_expr_list(Proc *proc, AstNodeList *expr_list, Instruction 
 		else if (pseudo->type == PSEUDO_INDEXED) {
 			pseudo = indexed_load(proc, pseudo);
 		}
-		// Preserve value if a later expression can change it
-		pseudo = capture_value_if_necessary(proc, pseudo, i < last_code, expr->line_number);
+		else
+			// Preserve value if a later expression can change it
+			pseudo = copy_to_temp_if_necessary(proc, pseudo, expr->line_number);
 		i++;
 		raviX_ptrlist_add((PtrList **)pseudo_list, pseudo, proc->linearizer->compiler_state->allocator);
 	}
