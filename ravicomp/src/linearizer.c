@@ -387,6 +387,9 @@ static const Constant *allocate_string_constant(Proc *proc, const StringObject *
 /* Adds an operand to the instruction - if the operand is an unresolved indexed load, then
  * this is resolved and the resulting temp pseudo is returned, which must be handled by the
  * caller.
+ * This is a fallback at instruction construction time, not an evaluation-order
+ * guarantee. Callers must materialize earlier if subsequent evaluation could
+ * precede this read. Symbol operands are not captured here.
  */
 static inline Pseudo *add_instruction_operand(Proc *proc, Instruction *insn, Pseudo *pseudo)
 {
@@ -1040,6 +1043,8 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 	}
 	else if (operand1->type == PSEUDO_SYMBOL &&
 		 operand1->symbol->symbol_type == SYM_UPVALUE) {
+		// Capture upvalues before e2. Leave local symbols as storage references:
+		// the interpreter also reads them after e2 (a + change() can see the new a).
 		operand1 = copy_to_temp_if_necessary(
 		    proc, operand1, node->line_number);
 	}
@@ -1202,7 +1207,8 @@ static Pseudo *linearize_concat_expression(Proc *proc, AstNode *expr)
 	int i = 0;
 	FOR_EACH_PTR(expr->string_concatenation_expr.expr_list, AstNode, n) {
 		Pseudo *operand = linearize_expression(proc, n);
-		// Preserve value if a later operand can change it
+		// Capture symbols as each concat operand is evaluated. add_instruction_operand
+		// materializes indexed operands here, before evaluating the next operand.
 		operand = copy_to_temp_if_necessary(proc, operand, n->line_number);
 		Pseudo *tofree =  add_instruction_operand(proc, insn, operand);
 		tofreelist[i] = tofree;
@@ -1579,7 +1585,8 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 			// Not last one, so range can only be 1
 			convert_range_to_temp(arg_pseudo);
 		}
-		// Preserve value if a later argument can change it
+		// Capture symbols now; add_instruction_operand loads indexed arguments here.
+		// Later arguments must not change an already evaluated argument's value.
 		arg_pseudo = copy_to_temp_if_necessary(proc, arg_pseudo, arg->line_number);
 		tofreelist[argi++] = add_instruction_operand(proc, insn, arg_pseudo);
 	}
@@ -1781,6 +1788,12 @@ static ravitype_t get_type(LuaSymbol *symbol) {
 	return t;
 }
 
+/* Capture local/upvalue storage into an ordinary value temp. Other pseudos pass
+ * through, including deferred indexed accesses: callers must load those separately.
+ * The consumer owns the returned temp's lifetime, just like any computed operand.
+ * Apply this according to the consumer's rules, not to assignment targets or all
+ * symbols universally; binary local operands intentionally remain storage references.
+ */
 static Pseudo *copy_to_temp_if_necessary(Proc *proc, Pseudo *original, unsigned line_number) {
 	if (original->type == PSEUDO_SYMBOL) {
 		Pseudo *copy = allocate_temp_pseudo(proc, get_type(original->symbol), true);
@@ -2059,7 +2072,8 @@ static void linearize_expr_list(Proc *proc, AstNodeList *expr_list, Instruction 
 			pseudo = indexed_load(proc, pseudo);
 		}
 		else
-			// Preserve value if a later expression can change it
+			// Capture each symbol before evaluating later return expressions. Indexed
+			// operands were loaded above; a trailing range remains a range.
 			pseudo = copy_to_temp_if_necessary(proc, pseudo, expr->line_number);
 		i++;
 		raviX_ptrlist_add((PtrList **)pseudo_list, pseudo, proc->linearizer->compiler_state->allocator);

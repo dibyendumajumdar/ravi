@@ -199,6 +199,17 @@ typedef struct PseudoIndexInfo {
 
 /* A pseudo represents an operand/target of an instruction, and can point to
  * different things such as virtual registers, basic blocks, symbols, etc.
+ * It does not necessarily represent an already evaluated value:
+ * - PSEUDO_SYMBOL refers to mutable local/upvalue storage; using it later reads
+ *   the value at that later time. copy_to_temp_if_necessary captures its current value.
+ * - PSEUDO_INDEXED describes a deferred field, array or global access. indexed_load
+ *   emits the read; the same description can instead be used as a store target.
+ * - Computed temps hold evaluated results, but temps with temp_for_local set
+ *   represent local storage. Constants are values; ranges describe call results.
+ * Consumers must choose when to materialize loads and capture symbols according
+ * to their evaluation rules. Pseudos are not immutable SSA values. Temp registers
+ * remain valid only for their allocated lifetime; return placement must separately
+ * handle overlap with stack-backed sources (see emit_op_ret).
  */
 struct Pseudo {
 	unsigned type : 4, regnum : 16, freed : 1;

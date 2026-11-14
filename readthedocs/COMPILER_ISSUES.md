@@ -672,38 +672,28 @@ interpreter and `3 3 3` compiled.
 #### Fix
 
 Status: implemented in `ravicomp/src/linearizer.c` with tests in
-`tests/comptests/inputs/80_operand_capture.lua`; awaiting review. Upvalue
+`tests/comptests/inputs/80_operand_capture.lua`. The simplified implementation
+was reviewed on 2026-11-14; local tests 79-81 and CI passed. Upvalue
 operands of binary operators are included (decision taken 2026-11-13). The
 design follows.
 
-Fix in the linearizer only; the code generator is unchanged. Capture the value
-of an affected operand in a temp at its evaluation point, but only where a
-later operand can change it, so the common cases keep their current IR.
+Fix in the linearizer only; the code generator is unchanged. Call
+`copy_to_temp_if_necessary` as each operand is evaluated. It copies every
+`PSEUDO_SYMBOL` into a temp, without checking escape flags or whether a later
+expression can run code. Other pseudo types pass through unchanged.
 
-Two predicates, both static:
+The original selective analysis (`symbol_can_change`, `expr_may_run_code`,
+`last_expr_that_may_run_code`, and `capture_value_if_necessary`) was removed
+on 2026-11-14 to simplify correctness reasoning. Calls, metamethods and GC
+finalizers can all change earlier symbols; closure creation can run a
+finalizer even without an explicit call expression.
 
-- `symbol_can_change(pseudo)`: the pseudo is `PSEUDO_SYMBOL` and the symbol is
-  an upvalue, or a local with `variable.escaped` set. The flag is final once
-  parsing is complete, so closures that appear later in the source than the
-  expression are accounted for.
-- `expr_may_run_code(ast)`: conservative. False only for literals
-  and symbol expressions that refer to a local or an
-  upvalue. True for everything else, including global references (a lookup
-  in `_ENV` can invoke `__index`), indexing, calls, and operators, since
-  untyped operators can invoke metamethods. Closure creation is also treated
-  as potentially running code: its GC check can invoke a pending `__gc`
-  finalizer that changes an earlier operand.
+The helper already serves assignment RHS capture. The temp gets the symbol's
+type via `get_type()`, so numeric symbols are captured into C `integer` /
+`number` temps; other symbols use Lua stack temps. Assignment's existing
+capture behavior is unchanged.
 
-Generalise the existing `copy_to_temp_if_necessary` (currently used only by
-`linearize_assignment`, where it copies every symbol) into a helper that
-copies when `symbol_can_change(pseudo)` and a flag says a later expression may
-run code. The temp gets the symbol's type via `get_type()`, so typed locals and
-upvalues are captured into C `integer` / `number` temps without touching the
-Lua stack. `linearize_assignment` keeps its current unconditional behaviour.
-
-Apply it in the three list contexts. In each, first find the index of the last
-expression for which `expr_may_run_code` is true; operands before that index
-are candidates, the rest are passed through as today:
+Apply the helper in these three list contexts, including the last operand:
 
 1. `linearize_expr_list` (return lists).
 2. The argument loop in `linearize_function_call_expression`.
@@ -711,14 +701,14 @@ are candidates, the rest are passed through as today:
 
 The copies are ordinary temps added as instruction operands, so the existing
 `free_instruction_operand_pseudos` / `free_temp_pseudo` calls in those three
-functions release them; no new lifetime rule is needed. Because they are
-allocated in evaluation order they sit in ascending registers, which is the
-case the Bug-1 return code already handles without saves.
+functions release them; no new lifetime rule is needed. Bug-1's return
+placement logic remains necessary: arbitrary fixed operands and a trailing
+range can still overlap the result destinations.
 
 Upvalue operands of binary operators. To match the interpreter in the
 "wrong" upvalue rows for arithmetic, bitwise and comparison operators, the
-binary operator linearization captures `operand1` when it is an upvalue symbol
-and `expr_may_run_code(e2)` is true. Escaped locals are not captured there,
+binary operator linearization captures `operand1` whenever it is an upvalue
+symbol, before evaluating `e2`. Local symbols are not captured there,
 since the interpreter reads them late too. This is not required by the Lua
 manual; it is done for parity with the interpreter.
 
@@ -726,10 +716,11 @@ Not covered by this fix: store targets (`r[a] = change()`), which belong to
 Bug-8; and `and` / `or` with call operands, which currently fail to compile
 (Bug-11).
 
-Cost: one extra move per affected operand, only when the operand is an
-upvalue or a captured local and a later operand in the same list is not a
-literal or local/upvalue reference. `return c, b, a`, `f(a, b)` and
-`return x, y` with plain locals generate the same IR as today.
+Cost: one extra move and a live temporary per symbol operand in these list
+contexts, including non-escaping locals and lists with no calls. Binary
+operators also capture a left upvalue even when the right operand is a
+literal. This accepts extra moves and register pressure in exchange for
+removing the selective effect analysis; no performance improvement is claimed.
 
 Tests: add `tests/comptests/inputs/80_operand_capture.lua`, registered in
 `tests/comptests/test.lua`, asserting exact values for:
@@ -746,14 +737,37 @@ Tests: add `tests/comptests/inputs/80_operand_capture.lua`, registered in
 - controls that must not change: non-escaping locals, and escaped locals in
   binary operators (`a + change()` stays `12`).
 
-Checked with `--dump-ir`: `return c, b, a` with escaped locals and
-`print(a, b)` gain no moves; `return a, change()` gains the single
-`MOV {local(a, 0)} {T(0)}` before the call.
+The earlier claim that `return c, b, a` and `print(a, b)` gain no moves applied
+to the selective implementation only. The current implementation captures
+their symbol operands too. `return a, change()` still captures `a` before
+the call.
 
-As implemented, the helper is `capture_value_if_necessary`, which calls the
-existing `copy_to_temp_if_necessary` when `symbol_can_change` holds and a
-later expression may run code; `copy_to_temp_if_necessary` itself and its use
-in `linearize_assignment` are unchanged.
+#### IR storage and value rules
+
+A pseudo is an operand description, not necessarily an evaluated value or an
+immutable SSA value. `PSEUDO_SYMBOL` refers to mutable local/upvalue storage;
+`PSEUDO_INDEXED` describes a deferred field, array or global access that may
+be consumed as a read or a store target. Computed temps hold evaluated results,
+but temps with `temp_for_local` set represent local storage. Constants are
+values and ranges describe call results. These distinctions are documented
+beside `struct Pseudo` in `linearizer.h` and at the consumers in `linearizer.c`.
+
+- Return lists load indexed operands and capture symbol operands before
+  evaluating the next expression, preserving a trailing multi-result range.
+- Call arguments and concatenation capture symbols and materialize indexed
+  operands through `add_instruction_operand` during each loop iteration.
+- Binary operators load a deferred left indexed operand and capture a left
+  upvalue before evaluating the right operand. A left local symbol remains
+  a storage reference for interpreter compatibility (`a + change()` stays `12`).
+- Assignment RHS collection retains its existing symbol snapshots. Assignment
+  targets remain storage descriptions; their evaluation issues are Bug-8.
+
+`add_instruction_operand` can emit a deferred indexed read, but that fallback
+does not establish the correct evaluation point by itself. Consumers must
+materialize earlier when necessary. `copy_to_temp_if_necessary` captures
+symbols only; it does not load indexed accesses. Neither operation is a
+universal rule for every expression context. Consumers also retain ownership
+of temp lifetimes, and code generation separately handles stack-copy overlap.
 
 ### Bug-20 P2 — Indexed or global left operand of a binary operator is loaded after the right operand is evaluated
 
@@ -859,7 +873,8 @@ This is the same step `linearize_expr_list` already performs for return
 lists, and it covers globals because `indexed_load` dispatches to
 `indexed_load_from_global`.
 
-The load is unconditional rather than guarded by `expr_may_run_code(e2)`:
+The load is unconditional rather than guarded by an effect analysis (the
+earlier `expr_may_run_code` helper was removed in the Bug-19 simplification):
 
 - When linearizing `e2` emits no instructions (a literal, a local or
   upvalue reference, or another indexed expression whose own load is still
