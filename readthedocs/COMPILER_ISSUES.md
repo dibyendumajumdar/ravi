@@ -54,6 +54,7 @@ P3 = minor divergence or diagnostic quality.
 | Bug-17 | P3 | Constant `1//0` and `1%0` are compile-time errors |
 | Bug-18 | P3 | `@number` cast of an integer-typed expression fails to compile |
 | Bug-19 | P1 | Local values are read too late in return lists and call arguments |
+| Bug-20 | P2 | Indexed or global left operand of a binary operator is loaded after the right operand is evaluated |
 | Lim-1 | — | Recursion depth limited to about 190; no tail calls |
 | Lim-2 | — | Numeric `for` loops support integer bounds only |
 | Lim-3 | — | Table constructor ordering differs for duplicate keys |
@@ -753,6 +754,159 @@ As implemented, the helper is `capture_value_if_necessary`, which calls the
 existing `copy_to_temp_if_necessary` when `symbol_can_change` holds and a
 later expression may run code; `copy_to_temp_if_necessary` itself and its use
 in `linearize_assignment` are unchanged.
+
+### Bug-20 P2 — Indexed or global left operand of a binary operator is loaded after the right operand is evaluated
+
+Found 2026-11-14 while reviewing the Bug-19 fix (commit `e3670cd`). Not
+covered by Bug-19, which captures symbol operands only. Fix implemented, see
+below.
+
+Location: `ravicomp/src/linearizer.c`, binary operator linearization. For a
+left operand such as `t.x`, `t[i]` or a global, `linearize_expression` returns
+a `PSEUDO_INDEXED` pseudo. The load is only emitted later, by
+`add_instruction_operand` inside `create_binary_instruction`, after the right
+operand has been linearized.
+
+```lua
+local t = {x = 1}
+local function bump(u) u.x = u.x + 1 return 10 end
+return t.x + bump(t)
+-- interpreter: 11       compiled: 12
+```
+
+IR: the call precedes the field load.
+
+```text
+MOV   {local(bump, 1)} {T(1)}
+CALL  {T(1), local(t, 0)} {T(1..)}
+GETsk {local(t, 0), 'x' Ks(0)} {T(2)}
+ADD   {T(2), T(1..)} {T(0)}
+```
+
+No closure or upvalue is needed: the callee only has to be able to reach the
+table, as in the common `self.pos + self:advance()` pattern. Confirmed on a
+Linux Release build of `e3670cd` for:
+
+| Example | Interpreter | Compiled |
+|---|---|---|
+| `t.x + bump(t)` | `11` | `12` |
+| `t.x - change()` | `-9` | `-8` |
+| `t.x == change() - 9` | `true` | `false` |
+| `t.x < change() - 8` | `true` | `false` |
+| `t[1] + change()` | `11` | `12` |
+| `g + change()` (`g` global) | `11` | `12` |
+| `g == change() - 9` (`g` global) | `true` | `false` |
+
+Not affected: the same operands in return lists, call arguments and
+concatenation, where the indexed load is emitted at the point of evaluation;
+`-t.x + change()` and `(t.x + 0) + change()`, where the left operand is
+already a computed temp; and `u[t.x] .. change()`.
+
+As with the upvalue rows of Bug-19, the Lua manual does not define the order
+in which binary operands are evaluated, so this is a divergence from the
+interpreter rather than a violation of the manual. It is listed as a bug
+because the bytecode compiler always loads the left operand first and the
+pattern does not require unusual code.
+
+#### Scope (2026-11-14, Linux Release build of `e3670cd`)
+
+Every failing case found is an instance of the binary operator path. Further
+confirmed failures, all with `t.x` (or an array element, or a global) as the
+left operand and a right operand that calls `change()`:
+
+- all comparison forms, including those the linearizer implements by
+  swapping operands or negating: `>`, `>=`, `~=`;
+- comparisons used directly as conditions: `if t.x < change() - 8 then`,
+  `while t.x == change() - 9 do`;
+- shifts: `t.x << change() - 9`;
+- typed array elements: `a[1] + change()` with `a: integer[]`,
+  `a[1] < change() - 8.5` with `a: number[]`;
+- nested and chained operators: `t.x + (t.x + change())`,
+  `t.x + change() + t.x`;
+- binary operators inside other constructs: `r.v = t.x * change()`,
+  `for i = 1, 6, t.x + change() * 0 do`.
+
+Contexts checked and found to agree with the interpreter, so not part of this
+bug: `local a, b = t.x, change()` and `a, b = t.x, change()`; table
+constructors; the container of an index expression (`t.u[change()]`,
+`t.u.v[change()]`); a callee or method receiver loaded from a field
+(`t.f(change())`, `t.o:m(change())`); numeric `for` start and limit
+(`for i = t.x, change() - 7`); and two indexed operands with no call
+(`t.x + o.y` where `o.y` triggers `__index`), because both loads are then
+emitted in operand order.
+
+`t.x and change()` / `t.x or change()` fail to compile; that is Bug-11.
+
+#### Fix
+
+Status: implemented in `linearize_binary_operator` with tests in
+`tests/comptests/inputs/81_binary_operand_order.lua`; awaiting review. The
+design follows.
+
+Fix in the linearizer only, in `linearize_binary_operator`
+(`ravicomp/src/linearizer.c`). Immediately after the left operand is
+linearized, materialise it if it is still a deferred load:
+
+```c
+Pseudo *operand1 = linearize_expression(proc, e1);
+if (operand1->type == PSEUDO_INDEXED)
+	operand1 = indexed_load(proc, operand1);   /* load before e2 is evaluated */
+/* existing Bug-19 capture of an upvalue symbol stays as is */
+Pseudo *operand2 = linearize_expression(proc, e2);
+```
+
+This is the same step `linearize_expr_list` already performs for return
+lists, and it covers globals because `indexed_load` dispatches to
+`indexed_load_from_global`.
+
+The load is unconditional rather than guarded by `expr_may_run_code(e2)`:
+
+- When linearizing `e2` emits no instructions (a literal, a local or
+  upvalue reference, or another indexed expression whose own load is still
+  deferred), the left load is emitted at the same position as today, so the
+  IR is unchanged.
+- When linearizing `e2` does emit instructions, the left load now precedes
+  them, which is the fix. No extra instruction is added in either case; only
+  the order changes.
+
+The right operand is left alone: nothing is evaluated between it and the
+operator instruction, so its deferred load in `create_binary_instruction` is
+already in the right place.
+
+Lifetimes. `indexed_load` frees the container and key temps and returns a
+fresh temp of the element type (a C `integer` / `number` temp for typed array
+elements). `operand1` is then an ordinary temp, which the existing
+`free_temp_pseudo(proc, operand1, false)` at the end of the function releases;
+`create_binary_instruction` no longer has an indexed pseudo to load for the
+left side, so its `tofree1` is NULL. The loaded temp is allocated before any
+temps used by `e2`, the same register order as the already-working
+`(t.x + 0) + change()` form.
+
+Operand swapping. For `>` and `>=` the function swaps `operand1` and
+`operand2` after both have been linearized, so evaluation order is still left
+then right and the early load applies to the source-level left operand.
+`~=` is `EQ` followed by `NOT` and needs nothing extra.
+
+Not covered: `and` / `or` (Bug-11), which go through `linearize_bool`.
+
+Tests: add `tests/comptests/inputs/81_binary_operand_order.lua`, registered in
+`tests/comptests/test.lua`, asserting exact values for:
+
+- field, integer-indexed element and global as the left operand of `+`, `-`,
+  `*`, `<<`, with the right operand mutating it through a closure and
+  through an argument (`t.x + bump(t)`);
+- every comparison operator `==`, `~=`, `<`, `<=`, `>`, `>=`, both as a
+  value and as an `if` / `while` condition;
+- typed `integer[]` and `number[]` elements;
+- nested and chained forms: `t.x + (t.x + change())`, `t.x + change() + t.x`;
+- mutation through a metamethod on the right operand;
+- controls that must not change: `t.x + t.y`, `t.x + 1`, `1 + t.x`, and a
+  local left operand (`a + change()` stays `12`, see Bug-19).
+
+Checked with `--dump-ir`: the IR for `t.x + t.y`, `t.x + 1`, `1 + t.x`,
+`t.x < a`, `gq + gq`, `a[1] + a[2]` on an `integer[]`, `t.x > 0, t.x ~= 2`
+and `t.x[k] * 2 - t.x.y` is byte-for-byte identical before and after the
+change. The new test fails without the change and passes with it.
 
 ## Limitations not listed in `ravi-compiler.rst`
 

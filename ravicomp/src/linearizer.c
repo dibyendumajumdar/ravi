@@ -1033,7 +1033,14 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 	AstNode *e1 = node->binary_expr.expr_left;
 	AstNode *e2 = node->binary_expr.expr_right;
 	Pseudo *operand1 = linearize_expression(proc, e1);
-	if (operand1->type == PSEUDO_SYMBOL && operand1->symbol->symbol_type == SYM_UPVALUE) {
+	if (operand1->type == PSEUDO_INDEXED) {
+		// The first operand is an indexed (or global) load that has not been emitted yet. We must load
+		// the value now, before the second operand is evaluated, as evaluating the second operand
+		// can change the value. If we leave it then the load is emitted when the instruction is created,
+		// i.e. after the second operand has been evaluated.
+		operand1 = indexed_load(proc, operand1);
+	}
+	else if (operand1->type == PSEUDO_SYMBOL && operand1->symbol->symbol_type == SYM_UPVALUE) {
 		// The value of an upvalue is taken when it is evaluated, so we must preserve it if
 		// the second operand can change it. Note that a local is deliberately not treated the same way
 		// as that is consistent with what Lua does when a local variable is an operand
