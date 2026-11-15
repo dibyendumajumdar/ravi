@@ -30,7 +30,7 @@ Ravi Extensions to Lua 5.3
 Ravi provides following enhancements to Lua 5.3.
 
 * Optional static typing
-* ``defer`` statement (some compliation modes)
+* ``defer`` statement (in some compilation modes)
 * Generational Garbage Collector from Lua 5.4
 * JIT and AOT compilation support
 * A set of batteries, i.e., curated set of libraries.
@@ -143,7 +143,7 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 * Array types cannot be set as metatables for other values. 
 * ``pairs()`` and ``ipairs()`` work on arrays as normal
 * There is no way to delete an array element.
-* The array data is stored in contiguous memory just like native C arrays; morever the garbage collector does not scan the array data
+* The array data is stored in contiguous memory just like native C arrays; moreover the garbage collector does not scan the array data
 
 The following library functions allow creation of array types of defined length.
 
