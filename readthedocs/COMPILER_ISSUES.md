@@ -55,6 +55,7 @@ P3 = minor divergence or diagnostic quality.
 | Bug-18 | P3 | `@number` cast of an integer-typed expression fails to compile |
 | Bug-19 | P1 | Local values are read too late in return lists and call arguments |
 | Bug-20 | P2 | Indexed or global left operand of a binary operator is loaded after the right operand is evaluated |
+| Bug-21 | P2 | Method call passes a local or upvalue receiver as `self` after the arguments are evaluated |
 | Lim-1 | — | Recursion depth limited to about 190; no tail calls |
 | Lim-2 | — | Numeric `for` loops support integer bounds only |
 | Lim-3 | — | Table constructor ordering differs for duplicate keys |
@@ -922,6 +923,88 @@ Checked with `--dump-ir`: the IR for `t.x + t.y`, `t.x + 1`, `1 + t.x`,
 `t.x < a`, `gq + gq`, `a[1] + a[2]` on an `integer[]`, `t.x > 0, t.x ~= 2`
 and `t.x[k] * 2 - t.x.y` is byte-for-byte identical before and after the
 change. The new test fails without the change and passes with it.
+
+### Bug-21 P2 — Method call passes a local or upvalue receiver as `self` after the arguments are evaluated
+
+Found 2026-11-15 while reviewing commit `f857097`. Fix implemented, see
+below. Present before
+the simplification in `a35424f` / `ec6e236`; not introduced by it.
+
+Location: `ravicomp/src/linearizer.c`, `linearize_function_call_expression`.
+For `o:m(args)` the method is looked up from the receiver immediately, but
+the receiver itself is added to the `CALL` as `self_arg = callsite_pseudo`
+without being captured. When the receiver is a local or upvalue symbol it is
+read when the `CALL` executes, after the arguments have been evaluated.
+
+```lua
+local o1 = {n = "o1"}
+local o2 = {n = "o2"}
+function o1:m() return self.n end
+function o2:m() return self.n end
+local o = o1
+local function change() o = o2 return 0 end
+return (o:m(change()))
+-- interpreter: o1       compiled: o2
+```
+
+IR: the method comes from the old `o`, `self` is the new `o`.
+
+```text
+GETsk {local(o, 2), 'm' Ks(3)} {T(0)}
+MOV   {local(change, 3)} {T(1)}
+CALL  {T(1)} {T(1..)}
+CALL  {T(0), local(o, 2), T(1..)} {T(0)}
+```
+
+So the compiled code calls `o1.m` with `self == o2`, a combination the
+interpreter can never produce: `OP_SELF` copies the receiver into the
+argument register at the same time as it looks up the method. The same
+happens when `o` is an upvalue, and with a string receiver:
+
+```lua
+local s = "abc"
+local function change() s = "xyz" return 2 end
+return (s:sub(change()))
+-- interpreter: bc       compiled: yz
+```
+
+Not affected: receivers that are a field (`h.o:m(change())`), a global, or a
+call result, because those are already loaded into a temp; and a local
+receiver when no argument changes it.
+
+This is the receiver-side counterpart of Bug-19. The arguments are now
+captured by `copy_to_temp_if_necessary` in the argument loop, but `self_arg`
+is added to the instruction before that loop and is not covered by it.
+
+#### Fix
+
+Status: implemented in `linearize_function_call_expression` with tests in
+`tests/comptests/inputs/82_method_receiver.lua`; awaiting review.
+
+The receiver is passed through `copy_to_temp_if_necessary` when it becomes
+`self_arg`, the same helper the argument loop uses, so a local or upvalue
+receiver is captured and any other pseudo passes through unchanged. The copy
+is made before the method lookup rather than after it: the function being
+called must be the temp at the top of the stack, and a temp allocated after
+the lookup would sit above it. The lookup itself still reads the original
+symbol; nothing is evaluated between the copy and the lookup, so both see the
+same value. The captured temp is an ordinary `CALL` operand and is released
+by the existing `free_instruction_operand_pseudos` call.
+
+IR after the fix for the first reproducer:
+
+```text
+MOV   {local(o, 2)} {T(0)}
+GETsk {local(o, 2), 'm' Ks(3)} {T(1)}
+MOV   {local(change, 3)} {T(2)}
+CALL  {T(2)} {T(2..)}
+CALL  {T(1), T(0), T(2..)} {T(1)}
+```
+
+The test covers local, parameter, upvalue and string receivers, several
+arguments, mutation through a metamethod, chained method calls, and controls
+for field, global and call-result receivers. It fails on a binary built from
+`f857097` and passes with the change.
 
 ## Limitations not listed in `ravi-compiler.rst`
 

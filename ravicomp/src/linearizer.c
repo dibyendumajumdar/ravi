@@ -1549,7 +1549,11 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 		const Constant *name_constant =
 		    allocate_string_constant(proc, expr->function_call_expr.method_name);
 		Pseudo *name_pseudo = allocate_constant_pseudo(proc, name_constant);
-		self_arg = callsite_pseudo; /* The original callsite must be passed as 'self' */
+		/* The original callsite must be passed as 'self'. If it is a local or upvalue symbol then
+		 * capture its value now, as evaluating the arguments can change it: the method being called and
+		 * the 'self' passed to it must come from the same value. This needs to be done before
+		 * the method lookup, so that the function being called ends up at the top of the stack. */
+		self_arg = copy_to_temp_if_necessary(proc, callsite_pseudo, expr->line_number);
 		/* create new call site as callsite[name] */
 		callsite_pseudo = instruct_indexed_load(proc, callsite_expr->common_expr.type.type_code,
 							callsite_pseudo, RAVI_TSTRING, name_pseudo, RAVI_TANY, expr->line_number);
